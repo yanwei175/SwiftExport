@@ -131,7 +131,8 @@
           Command="{Binding ReturnToAllCommand}"
           Margin="0,0,8,4" />
       </WrapPanel>
-      <StackPanel Grid.Row="1">
+      <StackPanel
+        Grid.Row="1">
         <WrapPanel
           Margin="0,0,0,4"
           IsEnabled="{Binding CanEditMainFilters}">
@@ -607,19 +608,59 @@
             ElementStyle="{StaticResource SwiftExportDataGridTextBlock}"
             dgx:DataGridFilterColumn.Template="{StaticResource SwiftExportColumnFilter}" />
           <DataGridTextColumn
-            Header="关联采购量"
+            Header="采购总占用"
             Width="112"
             Binding="{Binding AssociatedPurchaseQty, StringFormat=0.############################}"
             IsReadOnly="True"
             ElementStyle="{StaticResource SwiftExportDataGridNumberTextBlock}"
-            dgx:DataGridFilterColumn.Template="{StaticResource SwiftExportColumnFilter}" />
+            dgx:DataGridFilterColumn.Template="{StaticResource SwiftExportColumnFilter}"
+            Visibility="Collapsed" />
           <DataGridTextColumn
-            Header="未承接量"
+            Header="已采购"
+            Binding="{Binding PurchasedQty, StringFormat=0.####, TargetNullValue=需核实}"
+            Width="104"
+            IsReadOnly="True"
+            ElementStyle="{StaticResource SwiftExportDataGridNumberTextBlock}" />
+          <DataGridTextColumn
+            Header="草稿占用"
+            Binding="{Binding DraftOccupiedQty, StringFormat=0.####, TargetNullValue=需核实}"
+            Width="104"
+            IsReadOnly="True"
+            ElementStyle="{StaticResource SwiftExportDataGridNumberTextBlock}" />
+          <DataGridTextColumn
+            Header="未采购"
+            Binding="{Binding UnpurchasedQty, StringFormat=0.####, TargetNullValue=需核实}"
+            Width="104"
+            IsReadOnly="True"
+            ElementStyle="{StaticResource SwiftExportDataGridNumberTextBlock}" />
+          <DataGridTextColumn
+            Header="可创建"
             Width="96"
-            Binding="{Binding RemainingQty, StringFormat=0.############################, TargetNullValue=需核实}"
+            Binding="{Binding CreatableQty, StringFormat=0.####, TargetNullValue=需核实}"
             IsReadOnly="True"
             ElementStyle="{StaticResource SwiftExportDataGridNumberTextBlock}"
             dgx:DataGridFilterColumn.Template="{StaticResource SwiftExportColumnFilter}" />
+          <DataGridTemplateColumn
+            xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+            Header="占用草稿"
+            Width="160"
+            IsReadOnly="True">
+            <DataGridTemplateColumn.CellTemplate>
+              <DataTemplate>
+                <ItemsControl
+                  ItemsSource="{Binding DraftOrders}">
+                  <ItemsControl.ItemTemplate>
+                    <DataTemplate>
+                      <Button
+                        Content="{Binding OrderNo}"
+                        Command="{Binding DataContext.OpenDraftCommand, RelativeSource={RelativeSource AncestorType=DataGrid}}"
+                        CommandParameter="{Binding}" />
+                    </DataTemplate>
+                  </ItemsControl.ItemTemplate>
+                </ItemsControl>
+              </DataTemplate>
+            </DataGridTemplateColumn.CellTemplate>
+          </DataGridTemplateColumn>
           <DataGridTextColumn
             Header="承接状态"
             Width="96"

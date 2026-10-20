@@ -47,6 +47,10 @@ public sealed partial class PurchaseOrderManagementRowModel : ObservableObject
     public int Version { get; set; }
     public bool CanConfirm { get; set; }
     public bool CanCancelConfirmation { get; set; }
+    /// <summary>服务端对从未确认整张草稿给出的删除资格。</summary>
+    public bool CanDeleteDraft { get; set; }
+    /// <summary>无法删除整张草稿的具体原因。</summary>
+    public string DeleteDraftBlockReason { get; set; } = string.Empty;
     public string CommandBlockedReason { get; set; } = string.Empty;
 
     /// <summary>标记确认写入结果未知，要求用户先刷新并核实服务端状态。</summary>

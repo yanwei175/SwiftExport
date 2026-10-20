@@ -68,6 +68,8 @@ public static class ServiceCollectionExtensions
         services.AddTransient<IProcurementReversalDialogService, ProcurementReversalDialogService>();
         services.AddSingleton<ProcurementReversalSession>();
         services.AddSingleton<ProcurementCommandSession>();
+        services.AddSingleton(provider => new PurchaseDraftPendingSession(
+            provider.GetRequiredService<Microsoft.Extensions.Options.IOptions<ApiOptions>>().Value.BaseUrl));
         services.AddTransient<IAfterSalesFeatureService, AfterSalesFeatureService>();
         services.AddTransient<IAfterSalesReasonDialogService, AfterSalesReasonDialogService>();
         services.AddTransient<IWarehouseSiteReasonDialogService, WarehouseSiteReasonDialogService>();

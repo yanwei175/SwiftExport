@@ -4,6 +4,7 @@ using SwiftExport.Contracts.DTOs.MasterData.ProcurementLookups;
 using SwiftExport.Contracts.DTOs.Procurement.PurchaseDrafts;
 using System.Collections;
 using System.ComponentModel;
+using System.Text.Json.Serialization;
 
 namespace SwiftExportClient.Features.Procurement.PurchaseOrders.Models;
 
@@ -58,8 +59,18 @@ public sealed partial class PurchaseCandidateItemModel : ObservableObject, INoti
     public List<PurchaseDraftActualSupplierFactDto> ParentActualPurchaseSuppliers { get; init; } = [];
     /// <summary>成品需求交期。</summary>
     public DateTime? DemandRequiredDate { get; init; }
-    /// <summary>当前尚未被有效采购贡献承接的数量。</summary>
+    /// <summary>本地数量校验使用的可创建量上限；未知时另有恢复阻断，不能按零放行。</summary>
     public decimal RemainingQty { get; init; }
+    /// <summary>仅已确认且仍有效的采购贡献。</summary>
+    public decimal? PurchasedQty { get; init; }
+    /// <summary>未确认草稿仍占用的数量。</summary>
+    public decimal? DraftOccupiedQty { get; init; }
+    /// <summary>需求扣除已采购，包含仍被草稿占用的部分。</summary>
+    public decimal? UnpurchasedQty { get; init; }
+    /// <summary>真实可创建数量，未知时禁止新建。</summary>
+    public decimal? CreatableQty { get; init; }
+    /// <summary>当前占用草稿的稳定引用。</summary>
+    public List<PurchaseDraftReferenceDto> DraftOrders { get; init; } = [];
 
     public string SuggestedSupplierSku { get; init; } = string.Empty;
 
@@ -77,14 +88,17 @@ public sealed partial class PurchaseCandidateItemModel : ObservableObject, INoti
 
     /// <summary>客供件本次实际送达供应商稳定身份。</summary>
     [ObservableProperty]
+    [JsonInclude]
     public partial Guid? DeliveryTargetSupplierId { get; private set; }
 
     /// <summary>实际送达供应商编码快照。</summary>
     [ObservableProperty]
+    [JsonInclude]
     public partial string DeliverySupplierCode { get; private set; } = string.Empty;
 
     /// <summary>实际送达供应商名称快照。</summary>
     [ObservableProperty]
+    [JsonInclude]
     public partial string DeliverySupplierName { get; private set; } = string.Empty;
 
     [ObservableProperty]
@@ -128,7 +142,7 @@ public sealed partial class PurchaseCandidateItemModel : ObservableObject, INoti
     private string QuantityValidationMessage => PurchaseQty <= 0
         ? "采购数量必须大于 0。"
         : PurchaseQty > RemainingQty
-            ? $"采购数量超过当前待采数量 {RemainingQty:N4}，请修改后重新校验。"
+            ? $"采购数量超过当前可创建数量 {RemainingQty:N4}，请修改后重新校验。"
             : string.Empty;
     /// <summary>合并恢复状态、数量边界和服务端阻断后的最终行提示。</summary>
     public string ValidationDisplayMessage => string.Join("；", new[]
@@ -192,7 +206,8 @@ public sealed partial class PurchaseCandidateItemModel : ObservableObject, INoti
     /// <summary>推荐采购方与推荐送达方分别初始化实际选择，不读取父件历史采购方覆盖建议。</summary>
     public void InitializeInputs(PurchaseDraftCandidateDto dto)
     {
-        PurchaseQty = dto.RemainingQty;
+        PurchaseQty = dto.CreatableQty ?? 0m;
+        if (!dto.CreatableQty.HasValue) RecoveryValidationMessage = string.IsNullOrWhiteSpace(dto.ReviewReason) ? "可创建数量无法核实，请刷新后重试。" : dto.ReviewReason;
         UnitPrice = dto.SuggestedUnitPrice ?? 0m;
         TaxPrice = dto.SuggestedTaxPrice ?? 0m;
         PlannedDeliveryDate = dto.DemandRequiredDate;
@@ -216,6 +231,7 @@ public sealed partial class PurchaseCandidateItemModel : ObservableObject, INoti
         PurchaseCandidateItemModel existing)
     {
         var refreshed = dto.Adapt<PurchaseCandidateItemModel>();
+        if (!dto.CreatableQty.HasValue) refreshed.RecoveryValidationMessage = string.IsNullOrWhiteSpace(dto.ReviewReason) ? "可创建数量无法核实，请刷新后重试。" : dto.ReviewReason;
         refreshed.IsChecked = existing.IsChecked;
         refreshed.PurchaseQty = existing.PurchaseQty;
         refreshed.UnitPrice = existing.UnitPrice;

@@ -58,6 +58,45 @@ public sealed class ProcurementReversalSessionTests
         Assert.IsNotNull(session.Find("user", uid));
     }
 
+    /// <summary>整张草稿删除冻结全部头行版本，丢失响应后仍使用同一命令，成功以删除事实接纳。</summary>
+    [TestMethod]
+    public async Task DeleteDraft_RetriesAllLineVersionsAndAcceptsDeletedReceipt()
+    {
+        var session = new ProcurementReversalSession(); var uid = Guid.NewGuid(); var line = Guid.NewGuid(); var second = Guid.NewGuid();
+        var preview = new ProcurementReversalPreviewDto { PurchaseOrderId = uid, Version = 6, CanExecute = true,
+            Operation = ProcurementReversalOperation.DeleteDraft, Lines = [new() { PurchaseOrderLineId = line, Version = 3 }, new() { PurchaseOrderLineId = second, Version = 8 }] };
+        Assert.IsTrue(session.Freeze("user", preview, "删除尚未确认草稿"));
+        var sent = new List<string>(); var api = DispatchProxy.Create<IProcurementOrderApi, ApiProxy>();
+        ((ApiProxy)(object)api).Handler = (method, args) =>
+        {
+            Assert.AreEqual(nameof(IProcurementOrderApi.DeleteDraftAsync), method!.Name);
+            var command = (DeleteProcurementDraftCommand)args![1]!; sent.Add(JsonSerializer.Serialize(command));
+            Assert.AreEqual(2, command.Lines.Count); Assert.AreEqual(6, command.ExpectedVersion);
+            if (sent.Count == 1) return Task.FromException<ServiceResult<ProcurementOrderCommandResult>>(new TimeoutException());
+            return Task.FromResult(ServiceResult<ProcurementOrderCommandResult>.Ok(new() { PurchaseOrderId = uid, Version = 7, IsDeleted = true,
+                ConfirmationStatus = ConfirmationStatusEnum.待确认, LifecycleStatus = PurchaseOrderLifecycleStatusEnum.Active,
+                Lines = [new() { PurchaseOrderLineId = line, Version = 4 }, new() { PurchaseOrderLineId = second, Version = 9 }] }));
+        };
+        await Assert.ThrowsExactlyAsync<TimeoutException>(() => session.SendAsync("user", uid, api)); preview.Lines.Clear();
+        var result = await session.SendAsync("user", uid, api);
+        Assert.IsTrue(result.Success); Assert.IsNull(session.Find("user", uid)); Assert.AreEqual(sent[0], sent[1]);
+    }
+
+    /// <summary>缺少删除事实、少行或行版本不递增时不能接纳成功，继续保留原请求。</summary>
+    [TestMethod]
+    [DataRow("notDeleted")][DataRow("missingLine")][DataRow("wrongVersion")]
+    public async Task DeleteDraft_IncompleteReceiptRetainsPending(string defect)
+    {
+        var session = new ProcurementReversalSession(); var uid = Guid.NewGuid(); var line = Guid.NewGuid(); var other = Guid.NewGuid();
+        Assert.IsTrue(session.Freeze("u", new() { PurchaseOrderId = uid, Version = 2, CanExecute = true, Operation = ProcurementReversalOperation.DeleteDraft,
+            Lines = [new() { PurchaseOrderLineId = line, Version = 3 }, new() { PurchaseOrderLineId = other, Version = 1 }] }, "删除草稿"));
+        var receipt = new ProcurementOrderCommandResult { PurchaseOrderId = uid, Version = 3, IsDeleted = defect != "notDeleted",
+            Lines = [new() { PurchaseOrderLineId = line, Version = defect == "wrongVersion" ? 3 : 4 }, new() { PurchaseOrderLineId = other, Version = 2 }] };
+        if (defect == "missingLine") receipt.Lines.RemoveAt(1);
+        var api = DispatchProxy.Create<IProcurementOrderApi, ApiProxy>();
+        ((ApiProxy)(object)api).Handler = (_, _) => Task.FromResult(ServiceResult<ProcurementOrderCommandResult>.Ok(receipt));
+        Assert.IsFalse((await session.SendAsync("u", uid, api)).Success); Assert.IsNotNull(session.Find("u", uid));
+    }
     /// <summary>只为本测试分派 API 响应，不连接服务端。</summary>
     public class ApiProxy : DispatchProxy
     {

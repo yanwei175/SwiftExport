@@ -35,6 +35,7 @@
                 <Button Content="确认订单" Command="{Binding ConfirmCommand}" Margin="0,0,4,0"/>
                 <Button Content="取消确认" Command="{Binding CancelConfirmationCommand}" Margin="0,0,4,0"/>
                 <Button Content="删除选定行" Command="{Binding DeleteDraftLinesCommand}" Margin="0,0,4,0"/>
+                <Button Content="删除整张草稿" Command="{Binding DeleteDraftCommand}" ToolTip="{Binding DeleteDraftBlockReason}" Margin="0,0,4,0" />
                 <Button Content="整单作废" Command="{Binding VoidOrderCommand}" Margin="0,0,4,0"/>
                 <Button Content="重试原操作" Command="{Binding RetryReversalCommand}" Margin="0,0,4,0"/>
                 <Button Content="重试原提交" Command="{Binding RetryPendingCommand}" Margin="0,0,4,0"/>

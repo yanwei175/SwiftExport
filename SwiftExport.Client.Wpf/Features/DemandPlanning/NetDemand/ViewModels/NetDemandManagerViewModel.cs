@@ -20,6 +20,9 @@ using System.Collections.ObjectModel;
 using System.Collections.Specialized;
 using System.ComponentModel;
 using SwiftExportClient.Features.OrderTracking.MaterialDetail.ViewModels;
+using SwiftExport.Contracts.DTOs.Procurement.PurchaseDrafts;
+using SwiftExportClient.Features.Procurement.PurchaseOrders.ViewModels;
+using SwiftExportClient.Features.Procurement.PurchaseOrders.Models;
 
 namespace SwiftExportClient.Features.DemandPlanning.NetDemand.ViewModels;
 
@@ -138,9 +141,9 @@ public sealed partial class NetDemandManagerViewModel : ViewModelBaseEx,
     /// <summary>服务端单选快捷视图。</summary>
     public IReadOnlyList<NetDemandFilterOption<string>> QuickViewOptions { get; } =
     [
-        new("All", "全部"), new("Unassigned", "未承接"), new("Partial", "部分承接"),
-        new("Assigned", "已承接"), new("Overdue", "未承接逾期"),
-        new("DueSoon", "临期未承接"), new("Review", "需核实"),
+        new("All", "全部"), new("Unassigned", "未采购"), new("Partial", "部分已采购"),
+        new("Assigned", "已采购"), new("Overdue", "未采购逾期"),
+        new("DueSoon", "未采购临期"), new("Review", "需核实"),
     ];
 
     public ObservableCollection<NetDemandFilterOption<string>> SelectedSourceTypes { get; } = [];
@@ -276,6 +279,11 @@ public sealed partial class NetDemandManagerViewModel : ViewModelBaseEx,
     private bool CanOpenTrace() => !_disposed && SelectedItem is not null && _navigation is not null
         && _currentUser.HasPermission(PermissionKeys.OrderTrackingView)
         && _currentUser.HasPermission(PermissionKeys.DemandPlanningMaterialView);
+
+    /// <summary>按占用草稿的稳定身份查看，采购读取权限不由物料摘要权限代替。</summary>
+    [RelayCommand]
+    private Task OpenDraftAsync(PurchaseDraftReferenceDto? draft) => !_disposed && CanViewPurchaseDetails && _navigation is not null && draft is { PurchaseOrderId: var id } && id != Guid.Empty
+        ? _navigation.OpenDocumentAsync(PurchaseOrderDetailViewModel.RouteKey, $"purchase-order:new:{id:N}", new PurchaseOrderDocumentOpenRequest { PurchaseOrderId = id }) : Task.CompletedTask;
 
     partial void OnSelectedItemChanged(MaterialDemandManagerRowModel? value) => OpenTraceCommand.NotifyCanExecuteChanged();
 

@@ -75,7 +75,10 @@ public sealed class MapsterConfig : IRegister
             .Map(dest => dest.SourceUid, src => (Guid?)src.SourceUid)
             .Ignore(dest => dest.IsAllSources);
 
-        config.NewConfig<PurchaseDraftPreviewLineDto, PurchaseDraftPreviewLineModel>();
+
+        config.NewConfig<PurchaseDraftCandidateDto, PurchaseCandidateItemModel>()
+            .Map(dest => dest.RemainingQty, src => src.CreatableQty ?? 0m)
+            .Map(dest => dest.DraftOrders, src => src.DraftOrders ?? new List<PurchaseDraftReferenceDto>());
 
         config.NewConfig<ProductCategoryDto, ProductCategoryTreeItemModel>()
             .IgnoreNullValues(true)

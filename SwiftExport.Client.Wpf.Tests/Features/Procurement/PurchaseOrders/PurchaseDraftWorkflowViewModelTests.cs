@@ -1,1700 +1,309 @@
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using SwiftExport.Contracts.Apis.MasterData;
 using SwiftExport.Contracts.Apis.Procurement;
-using SwiftExport.Contracts.DTOs.DemandPlanning.NetDemand;
+using SwiftExport.Contracts.DTOs.Auth;
+using SwiftExport.Contracts.DTOs.Errors;
 using SwiftExport.Contracts.DTOs.MasterData.ProcurementLookups;
 using SwiftExport.Contracts.DTOs.Procurement.PurchaseDrafts;
 using SwiftExport.Contracts.SysEnums;
-using SwiftExport.Contracts.SysEnums.StaticEnums;
 using SwiftExport.Contracts.Wrappers;
+using SwiftExportClient.Authentication;
 using SwiftExportClient.Features.Procurement.PurchaseOrders.Models;
 using SwiftExportClient.Features.Procurement.PurchaseOrders.ViewModels;
 using SwiftExportClient.Services.Api;
 using SwiftExportClient.Services.UI;
+using System.Text.Json;
+using System.Net.Http;
+using SwiftExportClient.Features.Procurement.PurchaseOrders.Services;
 
 namespace SwiftExport.Client.Wpf.Tests.Features.Procurement.PurchaseOrders;
 
+/// <summary>将原预览门禁覆盖迁移为直接创建、输入恢复、结果核实与安全追加协议。</summary>
 [TestClass]
-public sealed class PurchaseDraftWorkflowViewModelTests
+public sealed partial class PurchaseDraftWorkflowViewModelTests
 {
-    /// <summary>真实审核视图在创建失败清空快照后仍持续显示来源、原因和错误码，不依赖短暂消息。</summary>
+    /// <summary>实际准备视图持续显示来源、错误码和原因，关闭短暂消息不会丢失诊断。</summary>
     [TestMethod]
-    public void PreviewView_CreateFailureKeepsVisibleDiagnostic() => Controls.DatePickerAssistTests.RunWithApplication(async () =>
+    public void PreparationView_DisplaysPersistentCreateFailure() => Controls.DatePickerAssistTests.RunWithApplication(async () =>
     {
         TestInfrastructure.ApplicationResourceLoader.Load();
-        var api = new NetDemandApiStub();
-        using var vm = CreateViewModel(api);
-        await OpenSessionAsync(vm, new PurchaseDraftPreviewOpenRequest
-        {
-            EntryMode = PurchaseDraftEntryModeEnum.ManualSelection,
-            Rows = [CreateRow(10m, api.SourceUid)]
-        });
-        api.CreateHandler = (command, _) => Task.FromResult(ServiceResult<CreatePurchaseDraftsResult>.Ok(new()
-        {
-            ExecutionRequestId = command.ExecutionRequestId,
-            Sources = [new() { SourceType = "SO", SourceUid = api.SourceUid,
-                Outcome = NetDemandCommandOutcomeEnum.Failed, ErrorCode = PurchaseDraftErrorCodes.PreviewExpired,
-                Message = "来源事实已变化，请重新预览。" }]
-        }));
-        var view = new SwiftExportClient.Features.Procurement.PurchaseOrders.Views.PurchaseDraftPreviewView { DataContext = vm };
-        var window = new System.Windows.Window { Width = 1200, Height = 800, Content = view, ShowInTaskbar = false };
+        var api = new DraftApi { Handler = _ => Task.FromResult(ServiceResult<CreatePurchaseDraftsResult>.Fail("CAPACITY_CHANGED", "可创建数量已变化。")) };
+        using var vm = Create(api); using var picker = new PurchaseCandidateSelectionViewModel(api, new DirectApiCallRunner());
+        picker.AttachWorkflow(vm); await Open(vm, Row());
+        var view = new SwiftExportClient.Features.Procurement.PurchaseOrders.Views.PurchasePreparationView { DataContext = picker };
+        var window = new System.Windows.Window { Content = view, Width = 1400, Height = 850, Left = -5000, Top = -5000, ShowActivated = false, ShowInTaskbar = false };
         try
         {
-            window.Show();
-            await vm.CreateCommand.ExecuteAsync(null);
+            window.Show(); await vm.CreateCommand.ExecuteAsync(null); view.UpdateLayout();
             await System.Windows.Threading.Dispatcher.Yield(System.Windows.Threading.DispatcherPriority.ApplicationIdle);
-            var summary = (System.Windows.Controls.TextBlock)view.FindName("CreateResultSummary");
-            Assert.IsTrue(summary.IsVisible);
-            StringAssert.Contains(summary.Text, "来源事实已变化");
-            StringAssert.Contains(summary.Text, PurchaseDraftErrorCodes.PreviewExpired);
-            StringAssert.Contains(summary.Text, vm.Results.Single().SourceDisplay);
-            Assert.IsEmpty(vm.Documents);
-            Assert.IsFalse(vm.CreateCommand.CanExecute(null));
-            Assert.IsTrue(vm.ReturnToPreparationCommand.CanExecute(null));
+            var texts = Descendants(view).OfType<System.Windows.Controls.TextBlock>().Select(x => x.Text).ToArray();
+            Assert.IsTrue(texts.Any(x => x.Contains("CAPACITY_CHANGED") && x.Contains("可创建数量已变化") && x.Contains(vm.Items.Single().SourceNo)));
         }
         finally { window.Close(); }
     });
 
-    /// <summary>所选客供件送达方与锚定父件不一致时，本地校验必须阻断请求；修正后请求携带父件供应商。</summary>
+    /// <summary>创建后直接进入结果页，返回准备页沿用同一会话；不再存在独立审核阶段。</summary>
     [TestMethod]
-    public async Task PreparationValidation_ShouldRejectMismatchedAnchoredDeliverySupplier()
+    public void Container_GoesDirectlyFromPreparationToResult() => TestInfrastructure.StaTest.RunAsync(async () =>
     {
-        var api = new NetDemandApiStub();
-        using var picker = new PurchaseCandidateSelectionViewModel(api, new DirectApiCallRunner());
-        using var preview = CreateViewModel(api);
-        picker.AttachWorkflow(preview);
-        preview.BeginSession();
-        var parent = CreateRow(5m, api.SourceUid);
-        var child = PurchaseCandidateItemModel.FromDto(new PurchaseDraftCandidateDto
-        {
-            Uid = Guid.NewGuid(),
-            Version = 2,
-            SourceType = parent.SourceType,
-            SourceUid = parent.SourceUid,
-            SourceNo = parent.SourceNo,
-            Sku = "CS-100",
-            LinkSku = "CUSTOMER-SUPPLIED",
-            SupplyType = SupplyTypeEnums.采购,
-            NetQty = 3m,
-            IsCustomerSupplied = true,
-            DeliveryTargetNetDemandId = parent.Uid,
-            SuggestedPurchaseSupplierId = Guid.NewGuid(),
-            SuggestedPurchaseSupplierCode = "CS-SUP",
-            SuggestedPurchaseSupplierName = "客供采购方",
-            SuggestedDeliverySupplierId = Guid.NewGuid(),
-            SuggestedDeliverySupplierCode = "WRONG",
-            SuggestedDeliverySupplierName = "错误送达方",
-        });
-        parent.IsChecked = true;
-        child.IsChecked = true;
-        picker.Items.Add(parent);
-        picker.Items.Add(child);
-
-        await picker.ValidateSelectionCommand.ExecuteAsync(null);
-
-        Assert.AreEqual(0, api.PreviewCallCount);
-        Assert.AreSame(child, picker.SelectedItem);
-        StringAssert.Contains(child.ValidationDisplayMessage, "必须与锚定父件");
-        StringAssert.Contains(picker.SelectionValidationText, "必须与锚定父件");
-
-        child.SynchronizeDeliverySupplierFromParent(parent);
-        await picker.ValidateSelectionCommand.ExecuteAsync(null);
-
-        Assert.AreEqual(1, api.PreviewCallCount);
-        var childRequest = api.LastPreviewRequest!.Items.Single(item => item.NetDemandId == child.Uid);
-        Assert.AreEqual(parent.SupplierId, childRequest.DeliveryTargetSupplierId);
-    }
-
-    /// <summary>重复校验失败应展示真实错误；修复服务端后重试可进入审核，输入改变仍撤销旧校验。</summary>
-    [TestMethod]
-    public async Task PreparationFailure_ShouldKeepActualErrorAndRecoverOnRetry()
-    {
-        var api = new NetDemandApiStub();
-        using var picker = new PurchaseCandidateSelectionViewModel(api, new DirectApiCallRunner());
-        using var preview = CreateViewModel(api);
-        picker.AttachWorkflow(preview);
-        preview.BeginSession();
-        var row = CreateRow(5m, api.SourceUid);
-        row.IsChecked = true;
-        picker.Items.Add(row);
-        api.PreviewHandler = (_, _) => Task.FromResult(
-            ServiceResult<PurchaseDraftPreviewResponse>.Fail("采购草稿预览失败，请联系管理员。"));
-        for (var attempt = 0; attempt < 2; attempt++)
-        {
-            await picker.ValidateSelectionCommand.ExecuteAsync(null);
-            StringAssert.Contains(picker.SelectionValidationText, "采购草稿预览失败");
-            Assert.IsFalse(picker.EnterPreviewCommand.CanExecute(null));
-        }
-        api.PreviewHandler = null;
-        await picker.ValidateSelectionCommand.ExecuteAsync(null);
-        Assert.IsTrue(picker.EnterPreviewCommand.CanExecute(null));
-        preview.InvalidatePreparation();
-        Assert.IsFalse(picker.EnterPreviewCommand.CanExecute(null));
-        StringAssert.Contains(picker.SelectionValidationText, "重新校验");
-    }
-
-    [TestMethod]
-    public async Task ManualPreview_ShouldDefaultRemainingQtyAndRequireRepreviewAfterEdit()
-    {
-        var api = new NetDemandApiStub { IncludeSafeAppend = true };
-        using var viewModel = CreateViewModel(api);
-
-        await OpenSessionAsync(viewModel, new PurchaseDraftPreviewOpenRequest
-        {
-            EntryMode = PurchaseDraftEntryModeEnum.ManualSelection,
-            Rows = [CreateRow(remainingQty: 10m)],
-        });
-
-        Assert.AreEqual(10m, viewModel.Items.Single().PurchaseQty);
-        Assert.AreEqual(PurchaseDraftLineModeEnum.MergeCompatibleLines, viewModel.LineMode);
-        Assert.IsFalse(viewModel.Items.Single().IsQuantityReadOnly);
-        Assert.IsFalse(viewModel.IsStale);
-        StringAssert.Contains(viewModel.PreviewSummaryText, "选中物料 1 项");
-        StringAssert.Contains(viewModel.PreviewSummaryText, "采购行 1 → 1");
-        var previewLine = viewModel.PreviewLines.Single();
-        Assert.AreEqual("MODEL-A-100", previewLine.LinkSku);
-        Assert.AreEqual("PCS", previewLine.Unit);
-        Assert.AreEqual("products/a-100.png", previewLine.ImagePath);
-        Assert.AreEqual("SO-1001", previewLine.Contributions.Single().SourceNo);
-        Assert.AreEqual("products/source-a-100.png", previewLine.Contributions.Single().ImagePath);
-        StringAssert.Contains(previewLine.SourceSupplierGroupLabel, "SO-1001");
-        StringAssert.Contains(previewLine.SourceSupplierGroupLabel, "供应商一");
-        Assert.AreEqual("CUSTOMER-PO", viewModel.Documents.Single().Header.CustomerPoNo);
-        Assert.AreEqual("CINV-S", viewModel.Documents.Single().Header.BoNo);
-        Assert.AreEqual("创建时按现有规则生成", viewModel.Documents.Single().Header.OrderNoDisplay);
-        Assert.AreEqual(120m, viewModel.Documents.Single().Header.UntaxedTotalAmount);
-        Assert.AreEqual(135.6m, viewModel.Documents.Single().Header.TaxIncludedTotalAmount);
-
-        viewModel.Items.Single().PurchaseQty = 6m;
-
-        Assert.IsTrue(viewModel.IsStale);
-        Assert.IsFalse(viewModel.CreateCommand.CanExecute(null));
-        StringAssert.Contains(viewModel.StatusText, "返回采购准备后重新校验");
-        StringAssert.Contains(viewModel.PreviewSummaryText, "已失效");
-
-        viewModel.Items.Single().PurchaseQty = 11m;
-        Assert.IsNotNull(viewModel.Items.Single().QuantityError);
-        Assert.IsFalse(viewModel.PreviewCommand.CanExecute(null));
-    }
-
-    [TestMethod]
-    public async Task SourceOneClick_ShouldUseServerFullRemainingQtyAndKeepQuantityReadOnly()
-    {
-        var api = new NetDemandApiStub { IncludeSafeAppend = true };
-        using var viewModel = CreateViewModel(api);
-
-        await OpenSessionAsync(viewModel, new PurchaseDraftPreviewOpenRequest
-        {
-            EntryMode = PurchaseDraftEntryModeEnum.SourceOneClick,
-            SourceType = "SO",
-            SourceUid = api.SourceUid,
-            SourceNo = "SO-1001",
-        });
-
-        Assert.HasCount(1, viewModel.Items);
-        Assert.AreEqual(10m, viewModel.Items[0].PurchaseQty);
-        Assert.IsTrue(viewModel.Items[0].IsQuantityReadOnly);
-        Assert.HasCount(1, viewModel.Targets.Single().Choices);
-        Assert.AreEqual(PurchaseDraftTargetModeEnum.CreateNew, viewModel.Targets.Single().Choices[0].TargetMode);
-        Assert.IsFalse(viewModel.Targets.Single().HasMultipleChoices);
-        Assert.AreEqual("新建采购草稿", viewModel.Targets.Single().SelectedChoiceDisplayText);
-    }
-
-    [TestMethod]
-    public async Task StrongWarningsAndTargetChanges_ShouldGateCreateUntilFreshAndConfirmed()
-    {
-        var api = new NetDemandApiStub { IncludeWarnings = true, IncludeSafeAppend = true };
-        using var viewModel = CreateViewModel(api);
-        await OpenSessionAsync(viewModel, new PurchaseDraftPreviewOpenRequest
-        {
-            EntryMode = PurchaseDraftEntryModeEnum.ManualSelection,
-            Rows = [CreateRow(10m, api.SourceUid)],
-        });
-
-        Assert.HasCount(3, viewModel.Warnings);
-        Assert.AreEqual(2, viewModel.Warnings.Count(item => item.RequiresConfirmation));
-        StringAssert.Contains(viewModel.ProblemSummaryText, "待确认 2 项");
-        StringAssert.Contains(viewModel.ProblemSummaryText, "资料待补 1 项");
-        Assert.IsFalse(viewModel.CreateCommand.CanExecute(null));
-
-        var target = viewModel.Targets.Single();
-        Assert.IsTrue(target.HasMultipleChoices);
-        target.SelectedChoice = target.Choices.Single(choice => choice.TargetMode == PurchaseDraftTargetModeEnum.AppendExisting);
-        Assert.IsTrue(viewModel.IsStale);
-        Assert.HasCount(0, viewModel.Warnings);
-        Assert.IsFalse(viewModel.CreateCommand.CanExecute(null));
-
-        await viewModel.PreviewCommand.ExecuteAsync(null);
-        Assert.IsFalse(viewModel.IsStale);
-        foreach (var warning in viewModel.Warnings.Where(item => item.RequiresConfirmation))
-        {
-            warning.IsConfirmed = true;
-        }
-
-        Assert.IsTrue(viewModel.CreateCommand.CanExecute(null));
-        await viewModel.CreateCommand.ExecuteAsync(null);
-
-        Assert.IsTrue(viewModel.HasAppliedResults);
-        Assert.IsNotNull(api.LastCreateCommand);
-        Assert.AreEqual(PurchaseDraftTargetModeEnum.AppendExisting, api.LastCreateCommand.Sources.Single().Targets.Single().TargetMode);
-        CollectionAssert.AreEquivalent(
-            new[] { PurchaseDraftWarningCodes.DifferentPlannedDeliveryDates, PurchaseDraftWarningCodes.RelatedCustomerSuppliedRemaining },
-            api.LastCreateCommand.Sources.Single().ConfirmedWarningCodes);
-    }
-
-    /// <summary>准备页更新选择会替代在途审核，旧响应不能覆盖最新采购事实。</summary>
-    [TestMethod]
-    public async Task LatestPreviewRequest_ShouldWinWhenOlderRequestCompletesLast()
-    {
-        var api = new NetDemandApiStub();
-        using var viewModel = CreateViewModel(api);
-        await OpenSessionAsync(viewModel, new PurchaseDraftPreviewOpenRequest
-        {
-            EntryMode = PurchaseDraftEntryModeEnum.ManualSelection,
-            Rows = [CreateRow(10m, api.SourceUid)],
-        });
-
-        var first = new TaskCompletionSource<ServiceResult<PurchaseDraftPreviewResponse>>(TaskCreationOptions.RunContinuationsAsynchronously);
-        var second = new TaskCompletionSource<ServiceResult<PurchaseDraftPreviewResponse>>(TaskCreationOptions.RunContinuationsAsynchronously);
-        var call = 0;
-        api.PreviewHandler = (request, _) => ++call == 1 ? first.Task : second.Task;
-
-        var olderTask = viewModel.PreviewCommand.ExecuteAsync(null);
-        await Task.Yield();
-        // Busy 时工具栏不能重复点击；准备页事实更新才会触发替代请求。
-        var newerTask = viewModel.UpdateSelectionAsync(new PurchaseDraftPreviewOpenRequest
-        {
-            EntryMode = PurchaseDraftEntryModeEnum.ManualSelection,
-            Rows = [CreateRow(9m, api.SourceUid)],
-        });
-        second.SetResult(ServiceResult<PurchaseDraftPreviewResponse>.Ok(api.CreatePreview(new PurchaseDraftPreviewRequest
-        {
-            ExecutionRequestId = viewModel.ExecutionRequestId,
-            EntryMode = PurchaseDraftEntryModeEnum.ManualSelection,
-            LineMode = PurchaseDraftLineModeEnum.KeepSourceLines,
-            Items = viewModel.Items.Select(item => item.ToDto()).ToList(),
-        }, "NEW-SKU")));
-        await newerTask;
-        first.SetResult(ServiceResult<PurchaseDraftPreviewResponse>.Ok(api.CreatePreview(new PurchaseDraftPreviewRequest
-        {
-            ExecutionRequestId = viewModel.ExecutionRequestId,
-            EntryMode = PurchaseDraftEntryModeEnum.ManualSelection,
-            LineMode = PurchaseDraftLineModeEnum.KeepSourceLines,
-            Items = viewModel.Items.Select(item => item.ToDto()).ToList(),
-        }, "OLD-SKU")));
-        await olderTask;
-
-        Assert.AreEqual("NEW-SKU", viewModel.PreviewLines.Single().Sku);
-    }
-
-    /// <summary>预览成功时 Busy 释放必须再次通知实际按钮命令，并让创建、返回观察到最终可用状态。</summary>
-    [TestMethod]
-    public async Task PreviewSuccess_ShouldNotifyFinalButtonCommandStatesAfterBusyRelease()
-    {
-        var api = new NetDemandApiStub();
-        using var viewModel = CreateViewModel(api);
-        await OpenSessionAsync(viewModel, new PurchaseDraftPreviewOpenRequest
-        {
-            EntryMode = PurchaseDraftEntryModeEnum.ManualSelection,
-            Rows = [CreateRow(10m, api.SourceUid)],
-        });
-        viewModel.Items.Single().PurchaseQty = 9m;
-        var started = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
-        var completed = new TaskCompletionSource<ServiceResult<PurchaseDraftPreviewResponse>>(
-            TaskCreationOptions.RunContinuationsAsynchronously);
-        PurchaseDraftPreviewRequest? pendingRequest = null;
-        api.PreviewHandler = (request, _) =>
-        {
-            pendingRequest = request;
-            started.SetResult();
-            return completed.Task;
-        };
-        var returnStates = new List<bool>();
-        var createStates = new List<bool>();
-        viewModel.ReturnToPreparationCommand.CanExecuteChanged += (_, _) =>
-            returnStates.Add(viewModel.ReturnToPreparationCommand.CanExecute(null));
-        viewModel.CreateCommand.CanExecuteChanged += (_, _) =>
-            createStates.Add(viewModel.CreateCommand.CanExecute(null));
-
-        var previewTask = viewModel.PreviewCommand.ExecuteAsync(null);
-        await started.Task;
-        Assert.IsFalse(viewModel.ReturnToPreparationCommand.CanExecute(null));
-        Assert.IsFalse(viewModel.CreateCommand.CanExecute(null));
-        completed.SetResult(ServiceResult<PurchaseDraftPreviewResponse>.Ok(api.CreatePreview(pendingRequest!)));
-        await previewTask;
-
-        Assert.IsTrue(returnStates.Count > 0);
-        Assert.IsTrue(createStates.Count > 0);
-        Assert.IsTrue(returnStates[^1]);
-        Assert.IsTrue(createStates[^1]);
-    }
-
-    /// <summary>预览失败时 Busy 释放必须重新启用返回命令，同时创建命令保持最终禁用。</summary>
-    [TestMethod]
-    public async Task PreviewFailure_ShouldNotifyFinalButtonCommandStatesAfterBusyRelease()
-    {
-        var api = new NetDemandApiStub();
-        using var viewModel = CreateViewModel(api);
-        await OpenSessionAsync(viewModel, new PurchaseDraftPreviewOpenRequest
-        {
-            EntryMode = PurchaseDraftEntryModeEnum.ManualSelection,
-            Rows = [CreateRow(10m, api.SourceUid)],
-        });
-        viewModel.Items.Single().PurchaseQty = 9m;
-        var started = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
-        var completed = new TaskCompletionSource<ServiceResult<PurchaseDraftPreviewResponse>>(
-            TaskCreationOptions.RunContinuationsAsynchronously);
-        api.PreviewHandler = (_, _) =>
-        {
-            started.SetResult();
-            return completed.Task;
-        };
-        var returnStates = new List<bool>();
-        var createStates = new List<bool>();
-        viewModel.ReturnToPreparationCommand.CanExecuteChanged += (_, _) =>
-            returnStates.Add(viewModel.ReturnToPreparationCommand.CanExecute(null));
-        viewModel.CreateCommand.CanExecuteChanged += (_, _) =>
-            createStates.Add(viewModel.CreateCommand.CanExecute(null));
-
-        var previewTask = viewModel.PreviewCommand.ExecuteAsync(null);
-        await started.Task;
-        completed.SetResult(ServiceResult<PurchaseDraftPreviewResponse>.Fail(
-            PurchaseDraftErrorCodes.PreviewFactChanged,
-            "需求事实已变化。"));
-        await previewTask;
-
-        Assert.IsTrue(returnStates.Count > 0);
-        Assert.IsTrue(createStates.Count > 0);
-        Assert.IsTrue(returnStates[^1]);
-        Assert.IsFalse(createStates[^1]);
-    }
-
-    [TestMethod]
-    public async Task PendingCreate_ShouldBlockDialogCloseUntilAppliedResultIsObserved()
-    {
-        var api = new NetDemandApiStub();
-        using var viewModel = CreateViewModel(api);
-        await OpenSessionAsync(viewModel, new PurchaseDraftPreviewOpenRequest
-        {
-            EntryMode = PurchaseDraftEntryModeEnum.ManualSelection,
-            Rows = [CreateRow(10m, api.SourceUid)],
-        });
-
-        var started = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
-        var completed = new TaskCompletionSource<ServiceResult<CreatePurchaseDraftsResult>>(
-            TaskCreationOptions.RunContinuationsAsynchronously);
-        api.CreateHandler = (_, _) =>
-        {
-            started.SetResult();
-            return completed.Task;
-        };
-
-        var createTask = viewModel.CreateCommand.ExecuteAsync(null);
-        await started.Task;
-
-        Assert.IsTrue(viewModel.IsCreateInProgress);
-        Assert.IsFalse(viewModel.CanClose);
-        await viewModel.CreateCommand.ExecuteAsync(null);
-        Assert.HasCount(1, api.CreateCommands);
-
-        completed.SetResult(api.CreateSucceededResult());
-        await createTask;
-
-        Assert.IsFalse(viewModel.IsCreateInProgress);
-        Assert.IsTrue(viewModel.CanClose);
-        Assert.IsTrue(viewModel.HasAppliedResults);
-    }
-
-    /// <summary>审核接收准备页输入，未变化项继续使用原命令项身份与行模式。</summary>
-    [TestMethod]
-    public async Task UpdateSelection_ShouldPreserveUnchangedInputIdentityAndLineMode()
-    {
-        var api = new NetDemandApiStub();
-        using var viewModel = CreateViewModel(api);
-        var retainedRow = CreateRow(10m, api.SourceUid);
-        retainedRow.PurchaseQty = 6m;
-        await OpenSessionAsync(viewModel, new PurchaseDraftPreviewOpenRequest
-        {
-            EntryMode = PurchaseDraftEntryModeEnum.ManualSelection,
-            Rows = [retainedRow],
-        });
-        var retainedItem = viewModel.Items.Single();
-        Assert.AreEqual(PurchaseDraftLineModeEnum.MergeCompatibleLines, viewModel.LineMode);
-        viewModel.LineMode = PurchaseDraftLineModeEnum.KeepSourceLines;
-        var executionRequestId = viewModel.ExecutionRequestId;
-
-        var addedRow = CreateRow(4m, api.SourceUid);
-        await viewModel.UpdateSelectionAsync(new PurchaseDraftPreviewOpenRequest
-        {
-            EntryMode = PurchaseDraftEntryModeEnum.ManualSelection,
-            Rows = [retainedRow, addedRow],
-        });
-
-        Assert.AreSame(retainedItem, viewModel.Items.Single(item => item.NetDemandId == retainedRow.Uid));
-        Assert.AreEqual(6m, retainedItem.PurchaseQty);
-        Assert.AreEqual(executionRequestId, viewModel.ExecutionRequestId);
-        Assert.AreEqual(PurchaseDraftLineModeEnum.KeepSourceLines, viewModel.LineMode);
-        Assert.AreEqual(4m, viewModel.Items.Single(item => item.NetDemandId == addedRow.Uid).PurchaseQty);
-
-        await viewModel.UpdateSelectionAsync(new PurchaseDraftPreviewOpenRequest
-        {
-            EntryMode = PurchaseDraftEntryModeEnum.ManualSelection,
-            Rows = [retainedRow],
-        });
-
-        Assert.AreSame(retainedItem, viewModel.Items.Single());
-        Assert.AreEqual(6m, retainedItem.PurchaseQty);
-
-        var changedFacts = PurchaseCandidateItemModel.FromDto(new PurchaseDraftCandidateDto
-        {
-            Uid = retainedRow.Uid,
-            Version = retainedRow.Version + 1,
-            SourceType = retainedRow.SourceType,
-            SourceUid = retainedRow.SourceUid,
-            SourceNo = retainedRow.SourceNo,
-            Sku = retainedRow.Sku,
-            NetQty = 9m,
-            SuggestedPurchaseSupplierId = retainedRow.SuggestedPurchaseSupplierId,
-            SuggestedDeliverySupplierId = retainedRow.SuggestedDeliverySupplierId,
-        });
-        await viewModel.UpdateSelectionAsync(new PurchaseDraftPreviewOpenRequest
-        {
-            EntryMode = PurchaseDraftEntryModeEnum.ManualSelection,
-            Rows = [changedFacts],
-        });
-
-        Assert.AreNotSame(retainedItem, viewModel.Items.Single());
-        Assert.AreNotEqual(retainedItem.CommandItemId, viewModel.Items.Single().CommandItemId);
-        Assert.AreEqual(9m, viewModel.Items.Single().PurchaseQty);
-        StringAssert.Contains(viewModel.StatusText, "版本或剩余额度");
-    }
-
-    /// <summary>准备输入变化使旧审核和警告失效，迟到成功不能重新启用创建。</summary>
-    [TestMethod]
-    public async Task InputChangeDuringPreview_ShouldRejectLateSuccessAndClearConfirmation()
-    {
-        var api = new NetDemandApiStub { IncludeWarnings = true };
-        using var viewModel = CreateViewModel(api);
-        await OpenSessionAsync(viewModel, new PurchaseDraftPreviewOpenRequest
-        {
-            EntryMode = PurchaseDraftEntryModeEnum.ManualSelection,
-            Rows = [CreateRow(10m, api.SourceUid)],
-        });
-        foreach (var warning in viewModel.Warnings.Where(item => item.RequiresConfirmation))
-            warning.IsConfirmed = true;
-
-        var completion = new TaskCompletionSource<ServiceResult<PurchaseDraftPreviewResponse>>(
-            TaskCreationOptions.RunContinuationsAsynchronously);
-        PurchaseDraftPreviewRequest? captured = null;
-        api.PreviewHandler = (request, _) =>
-        {
-            captured = request;
-            return completion.Task;
-        };
-        var pending = viewModel.PreviewCommand.ExecuteAsync(null);
-        await Task.Yield();
-
-        viewModel.Items.Single().PurchaseQty = 7m;
-        completion.SetResult(ServiceResult<PurchaseDraftPreviewResponse>.Ok(api.CreatePreview(captured!, "LATE-SKU")));
-        await pending;
-
-        Assert.IsTrue(viewModel.IsStale);
-        Assert.HasCount(0, viewModel.Warnings);
-        Assert.HasCount(0, viewModel.PreviewLines);
-        StringAssert.Contains(viewModel.ProblemSummaryText, "采购审核已失效");
-        Assert.IsFalse(viewModel.CreateCommand.CanExecute(null));
-    }
-
-    [TestMethod]
-    public async Task InputChangeDuringPreview_ShouldRejectLateFailureStatus()
-    {
-        var api = new NetDemandApiStub();
-        using var viewModel = CreateViewModel(api);
-        await OpenSessionAsync(viewModel, new PurchaseDraftPreviewOpenRequest
-        {
-            EntryMode = PurchaseDraftEntryModeEnum.ManualSelection,
-            Rows = [CreateRow(10m, api.SourceUid)],
-        });
-        var completion = new TaskCompletionSource<ServiceResult<PurchaseDraftPreviewResponse>>(
-            TaskCreationOptions.RunContinuationsAsynchronously);
-        api.PreviewHandler = (_, _) => completion.Task;
-        var pending = viewModel.PreviewCommand.ExecuteAsync(null);
-        await Task.Yield();
-
-        viewModel.Items.Single().PurchaseQty = 7m;
-        completion.SetResult(ServiceResult<PurchaseDraftPreviewResponse>.Fail("旧请求失败"));
-        await pending;
-
-        StringAssert.Contains(viewModel.StatusText, "返回采购准备后重新校验");
-        Assert.AreNotEqual("旧请求失败", viewModel.StatusText);
-        Assert.IsTrue(viewModel.IsStale);
-    }
-
-    [TestMethod]
-    public async Task PartialSuccess_ShouldRetryOnlyFailedSourceWithStableIdentityAndKeepCumulativeResults()
-    {
-        var api = new NetDemandApiStub();
-        using var viewModel = CreateViewModel(api);
-        var sourceA = api.SourceUid;
-        var sourceB = Guid.NewGuid();
-        var rowA = CreateRow(10m, sourceA);
-        var rowB = CreateRow(8m, sourceB);
-        var sourceByDemand = new Dictionary<Guid, Guid>
-        {
-            [rowA.Uid] = sourceA,
-            [rowB.Uid] = sourceB,
-        };
-        api.PreviewHandler = (request, _) => Task.FromResult(
-            ServiceResult<PurchaseDraftPreviewResponse>.Ok(CreateMultiSourcePreview(api, request, sourceByDemand)));
-        var createCall = 0;
-        api.CreateHandler = (command, _) => Task.FromResult(++createCall == 1
-            ? CreateResult(command,
-                (sourceA, NetDemandCommandOutcomeEnum.Succeeded),
-                (sourceB, NetDemandCommandOutcomeEnum.Failed))
-            : CreateResult(command, (sourceB, NetDemandCommandOutcomeEnum.Succeeded)));
-
-        await OpenSessionAsync(viewModel, new PurchaseDraftPreviewOpenRequest
-        {
-            EntryMode = PurchaseDraftEntryModeEnum.ManualSelection,
-            Rows = [rowA, rowB],
-        });
-        await viewModel.CreateCommand.ExecuteAsync(null);
-        var firstCommand = api.CreateCommands[0];
-        var failedItem = firstCommand.Sources.Single(source => source.SourceUid == sourceB).Items.Single();
-
-        Assert.IsTrue(viewModel.HasAppliedResults);
-        Assert.HasCount(2, viewModel.Results);
-        Assert.IsTrue(viewModel.Results.All(result => result.SourceNo == "SO-1001"));
-        Assert.AreEqual(sourceB, viewModel.Items.Single().SourceUid);
-
-        await viewModel.PreviewCommand.ExecuteAsync(null);
-        await viewModel.CreateCommand.ExecuteAsync(null);
-        var retry = api.CreateCommands[1];
-
-        Assert.HasCount(1, retry.Sources);
-        Assert.AreEqual(sourceB, retry.Sources.Single().SourceUid);
-        Assert.AreEqual(firstCommand.ExecutionRequestId, retry.ExecutionRequestId);
-        Assert.AreEqual(failedItem.CommandItemId, retry.Sources.Single().Items.Single().CommandItemId);
-        Assert.IsTrue(viewModel.HasAppliedResults);
-        Assert.IsTrue(viewModel.Results.All(item => item.Outcome == NetDemandCommandOutcomeEnum.Succeeded));
-        Assert.IsTrue(viewModel.Results.All(item => item.OutcomeText == "创建成功"));
-    }
-
-    /// <summary>刷新失败保留已完成来源的累计回执，同时提示重新校验剩余输入。</summary>
-    [TestMethod]
-    public async Task AppliedResults_ShouldSurviveSelectionUpdateAndLaterPreviewFailure()
-    {
-        var api = new NetDemandApiStub();
-        using var viewModel = CreateViewModel(api);
-        await OpenSessionAsync(viewModel, new PurchaseDraftPreviewOpenRequest
-        {
-            EntryMode = PurchaseDraftEntryModeEnum.ManualSelection,
-            Rows = [CreateRow(10m, api.SourceUid)],
-        });
-        await viewModel.CreateCommand.ExecuteAsync(null);
-        var appliedResult = viewModel.Results.Single();
-        var nextSource = Guid.NewGuid();
-        api.PreviewHandler = (request, _) => Task.FromResult(
-            ServiceResult<PurchaseDraftPreviewResponse>.Ok(api.CreatePreview(request, sourceUid: nextSource)));
-
-        await viewModel.UpdateSelectionAsync(new PurchaseDraftPreviewOpenRequest
-        {
-            EntryMode = PurchaseDraftEntryModeEnum.ManualSelection,
-            Rows = [CreateRow(5m, nextSource)],
-        });
-        api.PreviewHandler = (_, _) => Task.FromResult(ServiceResult<PurchaseDraftPreviewResponse>.Fail("预览失败"));
-        await viewModel.PreviewCommand.ExecuteAsync(null);
-
-        Assert.IsTrue(viewModel.HasAppliedResults);
-        Assert.AreSame(appliedResult, viewModel.Results.Single());
-        StringAssert.StartsWith(viewModel.StatusText, "预览失败");
-        StringAssert.Contains(viewModel.StatusText, "重新校验");
-    }
-
-    /// <summary>结果未知时冻结原命令及输入，仅能重试同一身份以核实执行结果。</summary>
-    [TestMethod]
-    public async Task UnknownCreateResult_ShouldRetryFrozenCommandWithoutChangingIdentityOrPayload()
-    {
-        var api = new NetDemandApiStub();
-        using var viewModel = CreateViewModel(api, allowErrors: true);
-        await OpenSessionAsync(viewModel, new PurchaseDraftPreviewOpenRequest
-        {
-            EntryMode = PurchaseDraftEntryModeEnum.ManualSelection,
-            Rows = [CreateRow(10m, api.SourceUid)],
-        });
-        var call = 0;
-        api.CreateHandler = (command, _) => Task.FromResult(++call == 1
-            // Fail(message) 是确定的业务拒绝，不能模拟缺少结构化结果的网络中断。
-            ? new ServiceResult<CreatePurchaseDraftsResult> { Success = false, Message = "网络中断" }
-            : CreateResult(command, (api.SourceUid, NetDemandCommandOutcomeEnum.AlreadyApplied)));
-        var returnStates = new List<bool>();
-        var createStates = new List<bool>();
-        viewModel.ReturnToPreparationCommand.CanExecuteChanged += (_, _) =>
-            returnStates.Add(viewModel.ReturnToPreparationCommand.CanExecute(null));
-        viewModel.CreateCommand.CanExecuteChanged += (_, _) =>
-            createStates.Add(viewModel.CreateCommand.CanExecute(null));
-
-        await viewModel.CreateCommand.ExecuteAsync(null);
-        var frozen = api.CreateCommands[0];
-        viewModel.Items.Single().PurchaseQty = 3m;
-
-        Assert.IsTrue(viewModel.HasUnknownCreateResult);
-        Assert.IsFalse(viewModel.CanClose);
-        Assert.IsTrue(viewModel.CreateCommand.CanExecute(null));
-        Assert.IsFalse(viewModel.PreviewCommand.CanExecute(null));
-        Assert.IsTrue(returnStates.Count > 0);
-        Assert.IsTrue(createStates.Count > 0);
-        Assert.IsFalse(returnStates[^1]);
-        Assert.IsTrue(createStates[^1]);
-
-        await viewModel.CreateCommand.ExecuteAsync(null);
-        var replay = api.CreateCommands[1];
-
-        Assert.AreSame(frozen, replay);
-        Assert.AreEqual(10m, replay.Sources.Single().Items.Single().PurchaseQty);
-        Assert.AreEqual(frozen.ExecutionRequestId, replay.ExecutionRequestId);
-        Assert.IsFalse(viewModel.HasUnknownCreateResult);
-        Assert.IsTrue(viewModel.CanClose);
-        Assert.IsTrue(viewModel.HasAppliedResults);
-    }
-
-    /// <summary>未识别创建异常按未知结果冻结原命令；Busy 释放后只重新通知并开放原命令重试。</summary>
-    [TestMethod]
-    public async Task CreateException_ShouldNotifyFrozenRetryGateAfterBusyRelease()
-    {
-        var api = new NetDemandApiStub();
-        using var viewModel = CreateViewModel(api);
-        await OpenSessionAsync(viewModel, new PurchaseDraftPreviewOpenRequest
-        {
-            EntryMode = PurchaseDraftEntryModeEnum.ManualSelection,
-            Rows = [CreateRow(10m, api.SourceUid)],
-        });
-        api.CreateHandler = (_, _) => Task.FromException<ServiceResult<CreatePurchaseDraftsResult>>(
-            new InvalidOperationException("未识别创建异常"));
-        var returnStates = new List<bool>();
-        var createStates = new List<bool>();
-        viewModel.ReturnToPreparationCommand.CanExecuteChanged += (_, _) =>
-            returnStates.Add(viewModel.ReturnToPreparationCommand.CanExecute(null));
-        viewModel.CreateCommand.CanExecuteChanged += (_, _) =>
-            createStates.Add(viewModel.CreateCommand.CanExecute(null));
-
-        await viewModel.CreateCommand.ExecuteAsync(null);
-
-        Assert.IsTrue(viewModel.HasUnknownCreateResult);
-        Assert.IsFalse(viewModel.CanClose);
-        Assert.IsTrue(returnStates.Count > 0);
-        Assert.IsTrue(createStates.Count > 0);
-        Assert.IsFalse(returnStates[^1]);
-        Assert.IsTrue(createStates[^1]);
-        Assert.AreEqual("未识别创建异常", viewModel.ValidationSummary);
-    }
-
-    /// <summary>结构化业务失败是确定失败，不得误冻结为未知结果；审核失效后允许返回准备修正。</summary>
-    [TestMethod]
-    public async Task DefiniteCreateFailure_ShouldUnlockReturnWithoutUnknownRetryState()
-    {
-        var api = new NetDemandApiStub();
-        using var viewModel = CreateViewModel(api);
-        await OpenSessionAsync(viewModel, new PurchaseDraftPreviewOpenRequest
-        {
-            EntryMode = PurchaseDraftEntryModeEnum.ManualSelection,
-            Rows = [CreateRow(10m, api.SourceUid)],
-        });
-        api.CreateHandler = (_, _) => Task.FromResult(
-            ServiceResult<CreatePurchaseDraftsResult>.Fail("INVALID_COMMAND", "采购输入无效。"));
-
-        await viewModel.CreateCommand.ExecuteAsync(null);
-
-        Assert.IsFalse(viewModel.HasUnknownCreateResult);
-        Assert.IsTrue(viewModel.CanClose);
-        Assert.IsTrue(viewModel.ReturnToPreparationCommand.CanExecute(null));
-        Assert.IsFalse(viewModel.CreateCommand.CanExecute(null));
-        StringAssert.Contains(viewModel.StatusText, "返回采购准备修正后重新校验");
-    }
-
-    /// <summary>创建阶段的结构化事实冲突不自动查询候选，并保留返回准备显式刷新的安全路径。</summary>
-    [TestMethod]
-    public async Task CreateConflict_ShouldStayInvalidUntilPreparationRefresh()
-    {
-        var api = new NetDemandApiStub();
-        using var viewModel = CreateViewModel(api);
-        await OpenSessionAsync(viewModel, new PurchaseDraftPreviewOpenRequest
-        {
-            EntryMode = PurchaseDraftEntryModeEnum.ManualSelection,
-            Rows = [CreateRow(10m, api.SourceUid)],
-        });
-        api.CreateHandler = (_, _) => Task.FromResult(
-            ServiceResult<CreatePurchaseDraftsResult>.Fail(
-                PurchaseDraftErrorCodes.PreviewExpired,
-                "来源事实已变化。"));
-        var candidateQueriesBefore = api.CandidateQueries.Count;
-        var returnStates = new List<bool>();
-        var createStates = new List<bool>();
-        viewModel.ReturnToPreparationCommand.CanExecuteChanged += (_, _) =>
-            returnStates.Add(viewModel.ReturnToPreparationCommand.CanExecute(null));
-        viewModel.CreateCommand.CanExecuteChanged += (_, _) =>
-            createStates.Add(viewModel.CreateCommand.CanExecute(null));
-
-        await viewModel.CreateCommand.ExecuteAsync(null);
-
-        Assert.AreEqual(candidateQueriesBefore, api.CandidateQueries.Count);
-        Assert.IsFalse(viewModel.HasUnknownCreateResult);
-        Assert.IsTrue(viewModel.IsStale);
-        Assert.IsTrue(viewModel.ReturnToPreparationCommand.CanExecute(null));
-        Assert.IsFalse(viewModel.CreateCommand.CanExecute(null));
-        Assert.IsTrue(returnStates.Count > 0);
-        Assert.IsTrue(createStates.Count > 0);
-        Assert.IsTrue(returnStates[^1]);
-        Assert.IsFalse(createStates[^1]);
-        Assert.AreEqual(
-            "待采购数据已变化，请返回采购准备，刷新待采购数据后重新校验。",
-            viewModel.StatusText);
-    }
-
-    [TestMethod]
-    public async Task ClosedSessionPreview_ShouldNotWriteIntoReopenedSession()
-    {
-        var api = new NetDemandApiStub();
-        using var viewModel = CreateViewModel(api);
-        await OpenSessionAsync(viewModel, new PurchaseDraftPreviewOpenRequest
-        {
-            EntryMode = PurchaseDraftEntryModeEnum.ManualSelection,
-            Rows = [CreateRow(10m, api.SourceUid)],
-        });
-        var oldCompletion = new TaskCompletionSource<ServiceResult<PurchaseDraftPreviewResponse>>(
-            TaskCreationOptions.RunContinuationsAsynchronously);
-        var call = 0;
-        PurchaseDraftPreviewRequest? oldRequest = null;
-        api.PreviewHandler = (request, _) =>
-        {
-            if (++call == 1)
-            {
-                oldRequest = request;
-                return oldCompletion.Task;
-            }
-            return Task.FromResult(ServiceResult<PurchaseDraftPreviewResponse>.Ok(api.CreatePreview(request, "NEW-SESSION")));
-        };
-        var oldTask = viewModel.PreviewCommand.ExecuteAsync(null);
-        await Task.Yield();
-
-        viewModel.Close();
-        await OpenSessionAsync(viewModel, new PurchaseDraftPreviewOpenRequest
-        {
-            EntryMode = PurchaseDraftEntryModeEnum.ManualSelection,
-            Rows = [CreateRow(5m, api.SourceUid)],
-        });
-        oldCompletion.SetResult(ServiceResult<PurchaseDraftPreviewResponse>.Ok(api.CreatePreview(oldRequest!, "OLD-SESSION")));
-        await oldTask;
-
-        Assert.AreEqual("NEW-SESSION", viewModel.PreviewLines.Single().Sku);
-    }
-
-    /// <summary>明确推荐目标不被父件历史覆盖；清除后采购方与送达方仍须分别提交。</summary>
-    [TestMethod]
-    public async Task SupplierSelections_ShouldRemainIndependentAndRequireExplicitDeliveryWhenParentHasMultipleActualSuppliers()
-    {
-        var api = new NetDemandApiStub();
-        using var viewModel = CreateViewModel(api);
-        var suggestedDeliverySupplierId = Guid.NewGuid();
-        var firstActual = new PurchaseDraftActualSupplierFactDto
-        {
-            SupplierId = Guid.NewGuid(),
-            SupplierCode = "ACT-1",
-            SupplierName = "实际供应商一",
-            IsActive = true,
-            PurchaseOrderNos = "PO-001",
-        };
-        var secondActual = new PurchaseDraftActualSupplierFactDto
-        {
-            SupplierId = Guid.NewGuid(),
-            SupplierCode = "ACT-2",
-            SupplierName = "实际供应商二",
-            IsActive = true,
-            PurchaseOrderNos = "PO-002",
-        };
-        var row = PurchaseCandidateItemModel.FromDto(new PurchaseDraftCandidateDto
-        {
-            Uid = Guid.NewGuid(),
-            Version = 2,
-            SourceType = "SO",
-            SourceUid = api.SourceUid,
-            SourceNo = "SO-1001",
-            Sku = "CS-100",
-            LinkSku = "CUSTOMER-SUPPLIED",
-            IsCustomerSupplied = true,
-            SupplyType = SupplyTypeEnums.采购,
-            NetQty = 5m,
-            SuggestedDeliverySupplierId = suggestedDeliverySupplierId,
-            SuggestedDeliverySupplierCode = "SUG-DELIVERY",
-            SuggestedDeliverySupplierName = "建议送达供应商",
-            ParentActualPurchaseSuppliers = { firstActual, secondActual },
-        });
-
-        await OpenSessionAsync(viewModel, new PurchaseDraftPreviewOpenRequest
-        {
-            EntryMode = PurchaseDraftEntryModeEnum.ManualSelection,
-            Rows = [row],
-        });
-        var item = viewModel.Items.Single();
-
-        Assert.AreEqual(Guid.Empty, item.SupplierId);
-        // 明确推荐目标与父件多供应商历史是两件事实，相邻推荐保留用例也要求不覆盖该目标。
-        Assert.AreEqual(suggestedDeliverySupplierId, item.DeliveryTargetSupplierId);
-        Assert.IsFalse(item.RequiresExplicitDeliverySelection);
-        Assert.AreEqual(suggestedDeliverySupplierId, api.LastPreviewRequest!.Items.Single().DeliveryTargetSupplierId);
-        viewModel.ClearDeliverySupplierCommand.Execute(item);
-        Assert.IsNull(item.DeliveryTargetSupplierId);
-        Assert.IsTrue(item.RequiresExplicitDeliverySelection);
-        StringAssert.Contains(item.ParentActualSupplierEvidence, "PO-001");
-        StringAssert.Contains(item.ParentActualSupplierEvidence, "PO-002");
-        await viewModel.PreviewCommand.ExecuteAsync(null);
-        Assert.IsNull(api.LastPreviewRequest!.Items.Single().DeliveryTargetSupplierId);
-
-        item.PurchaseSupplierSelection = new ProcurementSupplierCandidateDto
-        {
-            Uid = firstActual.SupplierId,
-            SupplierCode = firstActual.SupplierCode,
-            SupplierName = firstActual.SupplierName,
-        };
-        viewModel.CommitPurchaseSupplierCommand.Execute(item);
-        Assert.IsTrue(viewModel.IsStale);
-        Assert.AreEqual(firstActual.SupplierId, item.SupplierId);
-        Assert.IsNull(item.DeliveryTargetSupplierId);
-
-        await viewModel.PreviewCommand.ExecuteAsync(null);
-        item.DeliverySupplierSelection = new ProcurementSupplierCandidateDto
-        {
-            Uid = secondActual.SupplierId,
-            SupplierCode = secondActual.SupplierCode,
-            SupplierName = secondActual.SupplierName,
-        };
-        viewModel.CommitDeliverySupplierCommand.Execute(item);
-        Assert.IsTrue(viewModel.IsStale);
-        Assert.AreEqual(firstActual.SupplierId, item.SupplierId);
-        Assert.AreEqual(secondActual.SupplierId, item.DeliveryTargetSupplierId);
-
-        await viewModel.PreviewCommand.ExecuteAsync(null);
-        Assert.AreEqual(firstActual.SupplierId, api.LastPreviewRequest!.Items.Single().SupplierId);
-        Assert.AreEqual(secondActual.SupplierId, api.LastPreviewRequest.Items.Single().DeliveryTargetSupplierId);
-
-        viewModel.ClearPurchaseSupplierCommand.Execute(item);
-        await viewModel.PreviewCommand.ExecuteAsync(null);
-        Assert.AreEqual(Guid.Empty, api.LastPreviewRequest!.Items.Single().SupplierId);
-    }
-
-    [TestMethod]
-    public async Task RecommendedDeliverySupplier_ShouldNotBeOverriddenByParentPurchaseEvidence()
-    {
-        var api = new NetDemandApiStub();
-        using var viewModel = CreateViewModel(api);
-        var suggestedId = Guid.NewGuid();
-        var actualId = Guid.NewGuid();
-        var row = PurchaseCandidateItemModel.FromDto(new PurchaseDraftCandidateDto
-        {
-            Uid = Guid.NewGuid(),
-            Version = 2,
-            SourceType = "SO",
-            SourceUid = api.SourceUid,
-            SourceNo = "SO-1001",
-            Sku = "CS-200",
-            LinkSku = "CUSTOMER-SUPPLIED-2",
-            IsCustomerSupplied = true,
-            SupplyType = SupplyTypeEnums.采购,
-            NetQty = 5m,
-            SuggestedPurchaseSupplierId = Guid.NewGuid(),
-            SuggestedDeliverySupplierId = suggestedId,
-            SuggestedDeliverySupplierCode = "SUG",
-            SuggestedDeliverySupplierName = "建议供应商",
-            ParentActualPurchaseSuppliers =
-            {
-                new PurchaseDraftActualSupplierFactDto
-                {
-                    SupplierId = actualId,
-                    SupplierCode = "ACT",
-                    SupplierName = "实际供应商",
-                    IsActive = true,
-                    PurchaseOrderNos = "PO-ACTUAL",
-                },
-            },
-        });
-
-        await OpenSessionAsync(viewModel, new PurchaseDraftPreviewOpenRequest
-        {
-            EntryMode = PurchaseDraftEntryModeEnum.ManualSelection,
-            Rows = [row],
-        });
-
-        Assert.AreEqual(suggestedId, viewModel.Items.Single().DeliveryTargetSupplierId);
-        Assert.AreNotEqual(actualId, viewModel.Items.Single().DeliveryTargetSupplierId);
-        StringAssert.Contains(viewModel.Items.Single().ParentActualSupplierEvidence, "PO-ACTUAL");
-    }
-
-    [TestMethod]
-    public async Task RebuildWarnings_ShouldMergeAllAffectedIdentitiesBySourceAndCode()
-    {
-        var api = new NetDemandApiStub();
-        using var viewModel = CreateViewModel(api);
-        var first = CreateRow(5m, api.SourceUid);
-        var second = CreateRow(6m, api.SourceUid);
-        var firstSupplier = Guid.NewGuid();
-        var secondSupplier = Guid.NewGuid();
-        api.PreviewHandler = (request, _) =>
-        {
-            var response = api.CreatePreview(request);
-            response.HasBlockers = true;
-            response.Warnings.Add(new PurchaseDraftWarningDto
-            {
-                Code = PurchaseDraftWarningCodes.PurchaseSupplierInvalid,
-                Message = "供应商一已失效。",
-                IsBlocker = true,
-                SourceType = "SO",
-                SourceUid = api.SourceUid,
-                SupplierId = firstSupplier,
-                NetDemandIds = { first.Uid },
-            });
-            response.Warnings.Add(new PurchaseDraftWarningDto
-            {
-                Code = PurchaseDraftWarningCodes.PurchaseSupplierInvalid,
-                Message = "供应商二已失效。",
-                IsBlocker = true,
-                SourceType = "SO",
-                SourceUid = api.SourceUid,
-                SupplierId = secondSupplier,
-                NetDemandIds = { second.Uid },
-            });
-            return Task.FromResult(ServiceResult<PurchaseDraftPreviewResponse>.Ok(response));
-        };
-
-        await OpenSessionAsync(viewModel, new PurchaseDraftPreviewOpenRequest
-        {
-            EntryMode = PurchaseDraftEntryModeEnum.ManualSelection,
-            Rows = [first, second],
-        });
-
-        Assert.HasCount(1, viewModel.Warnings);
-        Assert.AreEqual(2, viewModel.Warnings.Single().NetDemandIds.Count);
-        Assert.AreEqual(2, viewModel.Warnings.Single().SupplierIds.Count);
-        Assert.AreEqual(2, viewModel.Warnings.Single().AffectedItems.Count);
-        Assert.AreEqual(2, viewModel.BlockerCount);
-        Assert.IsFalse(viewModel.CreateCommand.CanExecute(null));
-
-        viewModel.LocateWarningCommand.Execute(viewModel.Warnings.Single());
-        Assert.IsNotNull(viewModel.SelectedInputItem);
-    }
-
-    [TestMethod]
-    public async Task RelatedWarning_ShouldDisplayUnselectedAffectedCustomerSuppliedDemand()
-    {
-        var api = new NetDemandApiStub();
-        using var viewModel = CreateViewModel(api);
-        var parent = CreateRow(5m, api.SourceUid);
-        var relatedChildId = Guid.NewGuid();
-        api.PreviewHandler = (request, _) =>
-        {
-            var response = api.CreatePreview(request);
-            response.RequiresConfirmation = true;
-            response.Warnings.Add(new PurchaseDraftWarningDto
-            {
-                Code = PurchaseDraftWarningCodes.RelatedCustomerSuppliedRemaining,
-                Message = "仍有关联客供件未转采购。",
-                RequiresConfirmation = true,
-                SourceType = "SO",
-                SourceUid = api.SourceUid,
-                NetDemandIds = { parent.Uid, relatedChildId },
-                AffectedObjects =
-                {
-                    new PurchaseDraftWarningAffectedObjectDto
-                    {
-                        NetDemandId = parent.Uid,
-                        SourceNo = parent.SourceNo,
-                        SourceLineNumber = 1,
-                        Sku = parent.Sku,
-                        LinkSku = parent.LinkSku,
-                        IsIncludedInCurrentPurchase = true,
-                    },
-                    new PurchaseDraftWarningAffectedObjectDto
-                    {
-                        NetDemandId = relatedChildId,
-                        SourceNo = parent.SourceNo,
-                        SourceLineNumber = 2,
-                        Sku = "CS-CHILD",
-                        LinkSku = "MODEL-CS-CHILD",
-                        IsIncludedInCurrentPurchase = false,
-                        RemainingAfterSelectionQty = 3m,
-                    },
-                },
-            });
-            return Task.FromResult(ServiceResult<PurchaseDraftPreviewResponse>.Ok(response));
-        };
-
-        await OpenSessionAsync(viewModel, new PurchaseDraftPreviewOpenRequest
-        {
-            EntryMode = PurchaseDraftEntryModeEnum.ManualSelection,
-            Rows = [parent],
-        });
-
-        var warning = viewModel.Warnings.Single();
-        Assert.AreEqual(2, warning.AffectedCount);
-        Assert.HasCount(1, warning.AffectedItems);
-        StringAssert.Contains(warning.AffectedObjectText, "关联未选");
-        StringAssert.Contains(warning.AffectedObjectText, "MODEL-CS-CHILD");
-        StringAssert.Contains(warning.AffectedObjectText, "3.0000");
-        Assert.IsTrue(warning.CanLocate);
-    }
-
-    /// <summary>准备页必须展示关联客供件真实确认内容，并在确认后直接解锁进入审核而非停留在失效提示。</summary>
-    [TestMethod]
-    public async Task PreparationRelatedWarning_ShouldShowAffectedFactsAndUnlockAfterConfirmation()
-    {
-        var api = new NetDemandApiStub();
-        using var picker = new PurchaseCandidateSelectionViewModel(api, new DirectApiCallRunner());
-        using var preview = CreateViewModel(api);
-        picker.AttachWorkflow(preview);
-        preview.BeginSession();
-        var parentDto = new PurchaseDraftCandidateDto
-        {
-            Uid = Guid.NewGuid(), Version = 2, SourceType = "SO", SourceUid = api.SourceUid,
-            SourceNo = "SO-1001", SourceLineNumber = 1, Sku = "PARENT-SKU", LinkSku = "PARENT-MODEL",
-            SupplyType = SupplyTypeEnums.采购, NetQty = 5m,
-            SuggestedPurchaseSupplierId = api.SupplierId,
-            SuggestedPurchaseSupplierCode = "S001",
-            SuggestedPurchaseSupplierName = "供应商一",
-        };
-        var relatedChildDto = new PurchaseDraftCandidateDto
-        {
-            Uid = Guid.NewGuid(), Version = 2, SourceType = "SO", SourceUid = api.SourceUid,
-            SourceNo = "SO-1001", SourceLineNumber = 2, Sku = "CS-CHILD", LinkSku = "MODEL-CS-CHILD",
-            SupplyType = SupplyTypeEnums.采购, NetQty = 3m, IsCustomerSupplied = true,
-            DeliveryTargetNetDemandId = parentDto.Uid,
-            SuggestedPurchaseSupplierId = Guid.NewGuid(),
-            SuggestedPurchaseSupplierCode = "S002",
-            SuggestedPurchaseSupplierName = "客供采购方",
-            SuggestedDeliverySupplierId = api.SupplierId,
-            SuggestedDeliverySupplierCode = "S001",
-            SuggestedDeliverySupplierName = "供应商一",
-        };
-        api.CandidateGroups.Add(new PurchaseDraftCandidateSourceGroupDto
-        {
-            SourceType = "SO", SourceUid = api.SourceUid, SourceNo = "SO-1001", CandidateCount = 2,
-        });
-        api.Candidates.AddRange([parentDto, relatedChildDto]);
-        await picker.OpenAsync();
-        await picker.SelectSourceGroupCommand.ExecuteAsync(picker.SourceGroups[1]);
-        var parent = picker.Items.Single(item => item.Uid == parentDto.Uid);
-        var relatedChild = picker.Items.Single(item => item.Uid == relatedChildDto.Uid);
-        parent.IsChecked = true;
-        Assert.IsTrue(relatedChild.IsChecked);
-        relatedChild.IsChecked = false;
-        api.PreviewHandler = (request, _) =>
-        {
-            var response = api.CreatePreview(request);
-            response.RequiresConfirmation = true;
-            response.Warnings.Add(new PurchaseDraftWarningDto
-            {
-                Code = PurchaseDraftWarningCodes.RelatedCustomerSuppliedRemaining,
-                Message = "父件仍有关联客供件未转采购。",
-                RequiresConfirmation = true,
-                SourceType = "SO",
-                SourceUid = api.SourceUid,
-                NetDemandIds = { parent.Uid, relatedChild.Uid },
-                AffectedObjects =
-                {
-                    new PurchaseDraftWarningAffectedObjectDto
-                    {
-                        NetDemandId = parent.Uid,
-                        SourceNo = parent.SourceNo,
-                        SourceLineNumber = 1,
-                        Sku = parent.Sku,
-                        LinkSku = parent.LinkSku,
-                        IsIncludedInCurrentPurchase = true,
-                    },
-                    new PurchaseDraftWarningAffectedObjectDto
-                    {
-                        NetDemandId = relatedChild.Uid,
-                        SourceNo = parent.SourceNo,
-                        SourceLineNumber = 2,
-                        Sku = "CS-CHILD",
-                        LinkSku = "MODEL-CS-CHILD",
-                        IsIncludedInCurrentPurchase = false,
-                        RemainingAfterSelectionQty = 3m,
-                    },
-                },
-            });
-            return Task.FromResult(ServiceResult<PurchaseDraftPreviewResponse>.Ok(response));
-        };
-        var previewRequested = 0;
-        picker.PreviewRequested += (_, _) => previewRequested++;
-
-        await picker.ValidateSelectionCommand.ExecuteAsync(null);
-
-        Assert.IsFalse(preview.IsStale);
-        Assert.IsTrue(picker.HasValidatedSelection);
-        Assert.IsFalse(picker.EnterPreviewCommand.CanExecute(null));
-        Assert.IsFalse(picker.SelectionValidationText.Contains("预览已失效", StringComparison.Ordinal));
-        StringAssert.Contains(picker.SelectionValidationText, "已选父件仍有关联客供件未选");
-        StringAssert.Contains(picker.SelectionValidationText, "MODEL-CS-CHILD");
-        StringAssert.Contains(picker.SelectionValidationText, "3.0000");
-
-        preview.Warnings.Single().IsConfirmed = true;
-
-        Assert.IsTrue(preview.HasValidPreparation);
-        Assert.IsTrue(picker.EnterPreviewCommand.CanExecute(null));
-        StringAssert.Contains(picker.SelectionValidationText, "可以进入采购审核");
-        picker.EnterPreviewCommand.Execute(null);
-        Assert.AreEqual(1, previewRequested);
-
-        relatedChild.IsChecked = true;
-        Assert.IsTrue(preview.IsStale);
-        Assert.HasCount(0, preview.Warnings);
-        Assert.IsFalse(picker.EnterPreviewCommand.CanExecute(null));
-    }
-
-    [TestMethod]
-    public async Task AggregatedConfirmation_ShouldSendOneSourceScopedWarningCode()
-    {
-        var api = new NetDemandApiStub();
-        using var viewModel = CreateViewModel(api);
-        var first = CreateRow(5m, api.SourceUid);
-        var second = CreateRow(6m, api.SourceUid);
-        api.PreviewHandler = (request, _) =>
-        {
-            var response = api.CreatePreview(request);
-            response.RequiresConfirmation = true;
-            foreach (var row in new[] { first, second })
-            {
-                response.Warnings.Add(new PurchaseDraftWarningDto
-                {
-                    Code = PurchaseDraftWarningCodes.RelatedCustomerSuppliedRemaining,
-                    Message = $"{row.Sku} 仍有关联客供件未转采购。",
-                    RequiresConfirmation = true,
-                    SourceType = "SO",
-                    SourceUid = api.SourceUid,
-                    NetDemandIds = { row.Uid },
-                });
-            }
-            return Task.FromResult(ServiceResult<PurchaseDraftPreviewResponse>.Ok(response));
-        };
-
-        await OpenSessionAsync(viewModel, new PurchaseDraftPreviewOpenRequest
-        {
-            EntryMode = PurchaseDraftEntryModeEnum.ManualSelection,
-            Rows = [first, second],
-        });
-
-        Assert.HasCount(1, viewModel.Warnings);
-        Assert.AreEqual(2, viewModel.Warnings.Single().AffectedCount);
-        Assert.IsFalse(viewModel.CreateCommand.CanExecute(null));
-        viewModel.Warnings.Single().IsConfirmed = true;
-        Assert.IsTrue(viewModel.CreateCommand.CanExecute(null));
-
-        await viewModel.CreateCommand.ExecuteAsync(null);
-        CollectionAssert.AreEqual(
-            new[] { PurchaseDraftWarningCodes.RelatedCustomerSuppliedRemaining },
-            api.LastCreateCommand!.Sources.Single().ConfirmedWarningCodes);
-    }
-
-    /// <summary>原生 Cell 提交失败时不发送旧值；修正后同一入口可重新校验并进入审核。</summary>
-    [TestMethod]
-    public async Task Preparation_ShouldRecoverAfterPendingCellCommitFailure()
-    {
-        var api = new NetDemandApiStub();
-        using var picker = new PurchaseCandidateSelectionViewModel(api, new DirectApiCallRunner());
-        using var preview = CreateViewModel(api);
-        using var viewModel = new PurchaseOrderFromMaterialViewModel(picker, preview);
-        preview.BeginSession();
-        var row = CreateRow(5m, api.SourceUid);
-        row.SupplierId = api.SupplierId;
-        row.PurchaseSupplierCode = "S001";
-        row.PurchaseSupplierName = "供应商一";
-        row.IsChecked = true;
-        picker.Items.Add(row);
-        picker.CommitPendingEdits = static () => false;
-
-        await picker.ValidateSelectionCommand.ExecuteAsync(null);
-
-        Assert.IsNull(api.LastPreviewRequest);
-        Assert.AreEqual(PurchaseOrderFromMaterialStage.Selection, viewModel.Stage);
-        Assert.AreEqual("重新校验所选物料", picker.ValidationActionText);
-        StringAssert.Contains(picker.SelectionValidationText, "当前单元格");
-
-        picker.CommitPendingEdits = static () => true;
-        await picker.ValidateSelectionCommand.ExecuteAsync(null);
-        picker.EnterPreviewCommand.Execute(null);
-
-        Assert.IsNotNull(api.LastPreviewRequest);
-        Assert.AreEqual(row.SupplierId, api.LastPreviewRequest.Items.Single().SupplierId);
-        Assert.AreEqual(PurchaseOrderFromMaterialStage.Preview, viewModel.Stage);
-        Assert.IsFalse(row.IsInputEnabled);
-    }
-
-    /// <summary>准备页刷新只读取一次当前来源候选，保留采购输入并失效旧审核；重新校验后进入审核不重复请求。</summary>
-    [TestMethod]
-    public async Task PreparationRefresh_ShouldPreserveInputsInvalidatePreviewAndReuseRevalidation()
-    {
-        var api = new NetDemandApiStub();
-        var candidate = new PurchaseDraftCandidateDto
-        {
-            Uid = Guid.NewGuid(),
-            Version = 1,
-            SourceType = "SO",
-            SourceUid = api.SourceUid,
-            SourceNo = "SO-1001",
-            SourceLineNumber = 1,
-            Sku = "SKU-REFRESH",
-            LinkSku = "MODEL-REFRESH",
-            SupplyType = SupplyTypeEnums.采购,
-            NetQty = 10m,
-            SuggestedPurchaseSupplierId = api.SupplierId,
-            SuggestedPurchaseSupplierCode = "S001",
-            SuggestedPurchaseSupplierName = "供应商一",
-        };
-        api.CandidateGroups.Add(new PurchaseDraftCandidateSourceGroupDto
-        {
-            SourceType = "SO",
-            SourceUid = api.SourceUid,
-            SourceNo = "SO-1001",
-            CandidateCount = 1,
-        });
-        api.Candidates.Add(candidate);
-        using var picker = new PurchaseCandidateSelectionViewModel(api, new DirectApiCallRunner());
-        using var preview = CreateViewModel(api);
-        using var container = new PurchaseOrderFromMaterialViewModel(picker, preview);
-        await container.OpenAsync();
-        await picker.SelectSourceGroupCommand.ExecuteAsync(picker.SourceGroups[1]);
-        var row = picker.Items.Single();
-        row.IsChecked = true;
-        row.PurchaseQty = 6m;
-        row.UnitPrice = 12.5m;
-        row.TaxPrice = 13.8m;
-        var plannedDate = new DateTime(2026, 11, 12);
-        row.PlannedDeliveryDate = plannedDate;
-
-        await picker.ValidateSelectionCommand.ExecuteAsync(null);
-        picker.EnterPreviewCommand.Execute(null);
-        preview.ReturnToPreparationCommand.Execute(null);
-        var previewCallsBeforeRefresh = api.PreviewCallCount;
-        var candidateCallsBeforeRefresh = api.CandidateQueries.Count;
-        candidate.Version = 2;
-
-        await picker.RefreshCandidateDataCommand.ExecuteAsync(null);
-
-        Assert.AreEqual(candidateCallsBeforeRefresh + 1, api.CandidateQueries.Count);
-        Assert.AreEqual(previewCallsBeforeRefresh, api.PreviewCallCount);
-        Assert.HasCount(0, api.CreateCommands);
-        row = picker.Items.Single();
-        Assert.AreEqual(2, row.Version);
-        Assert.IsTrue(row.IsChecked);
-        Assert.AreEqual(6m, row.PurchaseQty);
-        Assert.AreEqual(12.5m, row.UnitPrice);
-        Assert.AreEqual(13.8m, row.TaxPrice);
-        Assert.AreEqual(plannedDate, row.PlannedDeliveryDate);
-        Assert.IsTrue(preview.IsStale);
-        Assert.IsFalse(picker.EnterPreviewCommand.CanExecute(null));
-        StringAssert.Contains(picker.SelectionValidationText, "重新校验");
-
-        await picker.ValidateSelectionCommand.ExecuteAsync(null);
-        var previewCallsAfterValidation = api.PreviewCallCount;
-        picker.EnterPreviewCommand.Execute(null);
-
-        Assert.AreEqual(previewCallsBeforeRefresh + 1, previewCallsAfterValidation);
-        Assert.AreEqual(previewCallsAfterValidation, api.PreviewCallCount);
-        Assert.AreEqual(PurchaseOrderFromMaterialStage.Preview, container.Stage);
-    }
-
-    /// <summary>审核目标变化后必须返回准备重新校验，重新接纳时复用目标选择而不由审核页直接刷新。</summary>
-    [TestMethod]
-    public async Task StalePreview_ShouldRequirePreparationRevalidation()
-    {
-        var api = new NetDemandApiStub { IncludeSafeAppend = true };
-        using var viewModel = CreateViewModel(api);
-        await OpenSessionAsync(viewModel, new PurchaseDraftPreviewOpenRequest
-        {
-            EntryMode = PurchaseDraftEntryModeEnum.ManualSelection,
-            Rows = [CreateRow(5m, api.SourceUid)],
-        });
-        var initialCallCount = api.PreviewCallCount;
-        var target = viewModel.Targets.Single();
-        Assert.IsTrue(target.HasMultipleChoices);
-
-        target.SelectedChoice = target.Choices.Last();
-
-        Assert.IsTrue(viewModel.IsStale);
-        Assert.IsTrue(viewModel.ReturnToPreparationCommand.CanExecute(null));
-        Assert.IsFalse(viewModel.CreateCommand.CanExecute(null));
-        StringAssert.Contains(viewModel.StatusText, "返回采购准备");
-
-        await viewModel.UpdateSelectionAsync(new PurchaseDraftPreviewOpenRequest
-        {
-            EntryMode = PurchaseDraftEntryModeEnum.ManualSelection,
-            Rows = [CreateRow(5m, api.SourceUid)],
-        });
-
-        Assert.AreEqual(initialCallCount + 1, api.PreviewCallCount);
-        Assert.IsFalse(viewModel.IsStale);
-        Assert.AreEqual(PurchaseDraftTargetModeEnum.AppendExisting, viewModel.Targets.Single().SelectedChoice?.TargetMode);
-    }
-
-    /// <summary>预览事实冲突只失效审核并给出准备页刷新动作，不再从审核页自动查询候选。</summary>
-    [TestMethod]
-    public async Task PreviewConflict_ShouldRequirePreparationRefreshWithoutCandidateQuery()
-    {
-        var api = new NetDemandApiStub();
-        using var viewModel = CreateViewModel(api);
-        await OpenSessionAsync(viewModel, new PurchaseDraftPreviewOpenRequest
-        {
-            EntryMode = PurchaseDraftEntryModeEnum.ManualSelection,
-            Rows = [CreateRow(5m, api.SourceUid)],
-        });
-        api.PreviewHandler = (_, _) => Task.FromResult(
-            ServiceResult<PurchaseDraftPreviewResponse>.Fail(
-                PurchaseDraftErrorCodes.PreviewFactChanged,
-                "需求事实已变化。"));
-        var candidateQueriesBefore = api.CandidateQueries.Count;
-
-        await viewModel.PreviewCommand.ExecuteAsync(null);
-
-        Assert.IsTrue(viewModel.IsStale);
-        Assert.AreEqual(candidateQueriesBefore, api.CandidateQueries.Count);
-        Assert.IsTrue(viewModel.ReturnToPreparationCommand.CanExecute(null));
-        Assert.IsFalse(viewModel.CreateCommand.CanExecute(null));
-        StringAssert.Contains(viewModel.StatusText, "刷新待采购数据后重新校验");
-        StringAssert.Contains(viewModel.ResultSummary, "事实已变化");
-        StringAssert.Contains(viewModel.ResultSummary, PurchaseDraftErrorCodes.PreviewExpired);
-    }
-
-    /// <summary>部分成功先累计并排除；冲突来源留在审核页并要求用户返回准备显式刷新。</summary>
-    [TestMethod]
-    public async Task PartialSuccessWithConflict_ShouldStayInPreviewAndPreserveCompletedIdentity()
-    {
-        var api = new NetDemandApiStub();
-        var secondSourceUid = Guid.NewGuid();
-        var first = CreateRow(5m, api.SourceUid);
-        var second = CreateRow(4m, secondSourceUid);
-        api.PreviewHandler = (request, _) => Task.FromResult(
-            ServiceResult<PurchaseDraftPreviewResponse>.Ok(CreateMultiSourcePreview(
-                api,
-                request,
-                new Dictionary<Guid, Guid>
-                {
-                    [first.Uid] = api.SourceUid,
-                    [second.Uid] = secondSourceUid,
-                })));
-        using var viewModel = CreateViewModel(api);
-        await OpenSessionAsync(viewModel, new PurchaseDraftPreviewOpenRequest
-        {
-            EntryMode = PurchaseDraftEntryModeEnum.ManualSelection,
-            Rows = [first, second],
-        });
-        api.CreateHandler = (command, _) => Task.FromResult(
-            ServiceResult<CreatePurchaseDraftsResult>.Ok(new CreatePurchaseDraftsResult
-            {
-                ExecutionRequestId = command.ExecutionRequestId,
-                Sources =
-                {
-                    new CreatePurchaseDraftSourceResult
-                    {
-                        SourceType = "SO",
-                        SourceUid = api.SourceUid,
-                        Outcome = NetDemandCommandOutcomeEnum.Succeeded,
-                        Message = "已创建",
-                    },
-                    new CreatePurchaseDraftSourceResult
-                    {
-                        SourceType = "SO",
-                        SourceUid = secondSourceUid,
-                        Outcome = NetDemandCommandOutcomeEnum.Failed,
-                        ErrorCode = PurchaseDraftErrorCodes.PreviewExpired,
-                        Message = "事实已变化",
-                    },
-                },
-            }));
-        var creationCompleted = 0;
-        viewModel.CreationCompleted += (_, _) => creationCompleted++;
-
-        await viewModel.CreateCommand.ExecuteAsync(null);
-
-        Assert.IsTrue(viewModel.HasAppliedResults);
-        Assert.HasCount(2, viewModel.Results);
-        Assert.HasCount(1, viewModel.Items);
-        Assert.AreEqual(second.Uid, viewModel.Items.Single().NetDemandId);
-        Assert.AreEqual(0, creationCompleted);
-        Assert.IsTrue(viewModel.GetCompletedSourceKeys().Single()
-            .Contains(api.SourceUid.ToString("N"), StringComparison.OrdinalIgnoreCase));
-        Assert.IsTrue(viewModel.ReturnToPreparationCommand.CanExecute(null));
-        Assert.IsFalse(viewModel.CreateCommand.CanExecute(null));
-        StringAssert.Contains(viewModel.StatusText, "刷新待采购数据后重新校验");
-    }
-
-    private static PurchaseDraftWorkflowViewModel CreateViewModel(NetDemandApiStub api, bool allowErrors = false) =>
-        new(api, new ProcurementMasterDataApiStub(), new DirectApiCallRunner(), new MessageServiceStub { AllowErrors = allowErrors });
-
-    private static Task OpenSessionAsync(
-        PurchaseDraftWorkflowViewModel viewModel,
-        PurchaseDraftPreviewOpenRequest request)
-    {
-        viewModel.BeginSession();
-        return viewModel.UpdateSelectionAsync(request);
-    }
-
-    private static PurchaseDraftPreviewResponse CreateMultiSourcePreview(
-        NetDemandApiStub api,
-        PurchaseDraftPreviewRequest request,
-        IReadOnlyDictionary<Guid, Guid> sourceByDemand)
-    {
-        var combined = new PurchaseDraftPreviewResponse
-        {
-            ExecutionRequestId = request.ExecutionRequestId,
-            EntryMode = request.EntryMode,
-            LineMode = request.LineMode,
-            PreviewToken = Guid.NewGuid().ToString("N"),
-            Currency = "CNY",
-        };
-        foreach (var item in request.Items)
-        {
-            var singleRequest = new PurchaseDraftPreviewRequest
-            {
-                ExecutionRequestId = request.ExecutionRequestId,
-                EntryMode = request.EntryMode,
-                LineMode = request.LineMode,
-                Items = [item],
-                Targets = request.Targets,
-            };
-            var source = api.CreatePreview(singleRequest, sourceUid: sourceByDemand[item.NetDemandId]);
-            combined.SourceGroups.AddRange(source.SourceGroups);
-        }
-        return combined;
-    }
-
-    private static ServiceResult<CreatePurchaseDraftsResult> CreateResult(
-        CreatePurchaseDraftsCommand command,
-        params (Guid SourceUid, NetDemandCommandOutcomeEnum Outcome)[] sources) =>
-        ServiceResult<CreatePurchaseDraftsResult>.Ok(new CreatePurchaseDraftsResult
-        {
-            ExecutionRequestId = command.ExecutionRequestId,
-            Sources = sources.Select(source => new CreatePurchaseDraftSourceResult
-            {
-                SourceType = "SO",
-                SourceUid = source.SourceUid,
-                Outcome = source.Outcome,
-                Message = source.Outcome == NetDemandCommandOutcomeEnum.Failed ? "失败" : "已执行",
-            }).ToList(),
-        });
-
-    private static PurchaseCandidateItemModel CreateRow(decimal remainingQty, Guid? sourceUid = null) => PurchaseCandidateItemModel.FromDto(new PurchaseDraftCandidateDto
-    {
-        Uid = Guid.NewGuid(),
-        Version = 2,
-        SourceType = "SO",
-        SourceUid = sourceUid ?? Guid.NewGuid(),
-        SourceNo = "SO-1001",
-        Sku = "A-100",
-        LinkSku = "MODEL-A-100",
-        SupplyType = SupplyTypeEnums.采购,
-        NetQty = remainingQty,
-        SuggestedPurchaseSupplierId = Guid.NewGuid(),
-        SuggestedPurchaseSupplierCode = "S001",
-        SuggestedPurchaseSupplierName = "供应商一",
+        var api = new DraftApi(); using var vm = Create(api); using var picker = new PurchaseCandidateSelectionViewModel(api, new DirectApiCallRunner());
+        using var container = new PurchaseOrderFromMaterialViewModel(picker, vm);
+        await container.OpenAsync(); await vm.UpdateSelectionAsync(new() { Rows = [Row()] }); await vm.CreateCommand.ExecuteAsync(null);
+        Assert.AreEqual(PurchaseOrderFromMaterialStage.Result, container.Stage);
+        var result = (PurchaseDraftResultViewModel)container.CurrentPage; result.ReturnToPreparationCommand.Execute(null);
+        Assert.AreEqual(PurchaseOrderFromMaterialStage.Selection, container.Stage); Assert.AreSame(picker, container.CurrentPage);
+        Assert.AreEqual(1, vm.Results.Count);
     });
 
-    private sealed class NetDemandApiStub : IPurchaseDraftApi
+    private static IEnumerable<System.Windows.DependencyObject> Descendants(System.Windows.DependencyObject root)
     {
-        public Guid SourceUid { get; } = Guid.NewGuid();
-        public Guid SupplierId { get; } = Guid.NewGuid();
-        public bool IncludeWarnings { get; set; }
-        public bool IncludeSafeAppend { get; set; }
-        public int PreviewCallCount { get; private set; }
-        public PurchaseDraftPreviewRequest? LastPreviewRequest { get; private set; }
-        public CreatePurchaseDraftsCommand? LastCreateCommand { get; private set; }
-        public List<CreatePurchaseDraftsCommand> CreateCommands { get; } = [];
-        public List<PurchaseDraftCandidateSourceGroupDto> CandidateGroups { get; } = [];
-        public List<PurchaseDraftCandidateDto> Candidates { get; } = [];
-        public List<PurchaseDraftCandidateQuery> CandidateQueries { get; } = [];
-        public Func<PurchaseDraftPreviewRequest, CancellationToken, Task<ServiceResult<PurchaseDraftPreviewResponse>>>? PreviewHandler { get; set; }
-        public Func<CreatePurchaseDraftsCommand, CancellationToken, Task<ServiceResult<CreatePurchaseDraftsResult>>>? CreateHandler { get; set; }
-
-        public Task<ServiceResult<PurchaseDraftPreviewResponse>> PreviewAsync(PurchaseDraftPreviewRequest request, CancellationToken cancellationToken = default)
-        {
-            PreviewCallCount++;
-            LastPreviewRequest = request;
-            return PreviewHandler?.Invoke(request, cancellationToken)
-                ?? Task.FromResult(ServiceResult<PurchaseDraftPreviewResponse>.Ok(CreatePreview(request)));
-        }
-
-        public PurchaseDraftPreviewResponse CreatePreview(
-            PurchaseDraftPreviewRequest request,
-            string sku = "A-100",
-            Guid? sourceUid = null)
-        {
-            var item = request.Items.FirstOrDefault() ?? new PurchaseDraftPreviewItem
-            {
-                CommandItemId = Guid.NewGuid(),
-                NetDemandId = Guid.NewGuid(),
-                SupplierId = SupplierId,
-                ExpectedVersion = 2,
-                ExpectedRemainingQty = 10m,
-                PurchaseQty = 10m,
-            };
-            var requestedTarget = request.Targets.FirstOrDefault();
-            var response = new PurchaseDraftPreviewResponse
-            {
-                ExecutionRequestId = request.ExecutionRequestId,
-                EntryMode = request.EntryMode,
-                LineMode = request.LineMode,
-                Currency = "CNY",
-                PreviewToken = Guid.NewGuid().ToString("N"),
-                RequiresConfirmation = IncludeWarnings,
-            };
-            var source = new PurchaseDraftPreviewSourceGroupDto
-            {
-                SourceType = "SO",
-                SourceUid = sourceUid ?? SourceUid,
-                SourceNo = "SO-1001",
-                SourcePreviewToken = Guid.NewGuid().ToString("N"),
-                CanCreate = true,
-                DocumentCount = 1,
-            };
-            var document = new PurchaseDraftPreviewDocumentDto
-            {
-                SourceType = "SO",
-                SourceUid = sourceUid ?? SourceUid,
-                SourceNo = "SO-1001",
-                SupplierId = SupplierId,
-                SupplierCode = "S001",
-                SupplierName = "供应商一",
-                Currency = "CNY",
-                TargetMode = requestedTarget?.TargetMode ?? PurchaseDraftTargetModeEnum.CreateNew,
-                ExistingPurchaseOrderId = requestedTarget?.ExistingPurchaseOrderId,
-                ExpectedPurchaseOrderVersion = requestedTarget?.ExpectedPurchaseOrderVersion,
-                SourceLineCount = 1,
-                PreviewLineCount = 1,
-                TotalQty = item.PurchaseQty,
-                Header = new PurchaseDraftPreviewHeaderDto
-                {
-                    CustomerPoNo = "CUSTOMER-PO",
-                    BoNo = "CINV-S",
-                    Currency = "CNY",
-                    DiscountRate = 0.95m,
-                    UntaxedTotalAmount = 12m * item.PurchaseQty,
-                    TaxIncludedTotalAmount = 13.56m * item.PurchaseQty,
-                    ExpectedDate = new DateTime(2026, 8, 10),
-                    SalesPerson = "业务员甲",
-                    PurchasePerson = "采购员乙"
-                },
-            };
-            if (IncludeSafeAppend)
-            {
-                document.SafeAppendCandidates.Add(new SafePurchaseDraftCandidateDto
-                {
-                    PurchaseOrderId = Guid.Parse("11111111-1111-1111-1111-111111111111"),
-                    Version = 3,
-                    OrderNo = "PO-DRAFT-1",
-                    SourceType = "SO",
-                    SourceUid = sourceUid ?? SourceUid,
-                    SupplierId = SupplierId,
-                });
-            }
-            document.Lines.Add(new PurchaseDraftPreviewLineDto
-            {
-                Sku = sku,
-                LinkSku = "MODEL-A-100",
-                Description = "测试采购物料",
-                ImagePath = "products/a-100.png",
-                MaterialType = "成品",
-                Unit = "PCS",
-                SupplierSku = "SUP-A-100",
-                UnitPrice = 12m,
-                TaxPrice = 13.56m,
-                PurchaseQty = item.PurchaseQty,
-                Contributions =
-                {
-                    new PurchaseDraftSourceContributionDto
-                    {
-                        CommandItemId = item.CommandItemId,
-                        NetDemandId = item.NetDemandId,
-                        NetDemandVersion = item.ExpectedVersion,
-                        SupplierId = item.SupplierId,
-                        SourceType = "SO",
-                        SourceNo = "SO-1001",
-                        SourceLineNumber = 1,
-                        Sku = sku,
-                        LinkSku = "MODEL-A-100",
-                        ImagePath = "products/source-a-100.png",
-                        ExpectedRemainingQty = item.ExpectedRemainingQty,
-                        PurchaseQty = item.PurchaseQty,
-                    },
-                },
-            });
-            source.Documents.Add(document);
-            response.SourceGroups.Add(source);
-            if (IncludeWarnings)
-            {
-                response.Warnings.Add(new PurchaseDraftWarningDto
-                {
-                    Code = PurchaseDraftWarningCodes.DifferentPlannedDeliveryDates,
-                    Message = "交期不同，合并后取最早交期。",
-                    RequiresConfirmation = true,
-                    SourceType = "SO",
-                    SourceUid = SourceUid,
-                });
-                response.Warnings.Add(new PurchaseDraftWarningDto
-                {
-                    Code = PurchaseDraftWarningCodes.RelatedCustomerSuppliedRemaining,
-                    Message = "父件仍有关联客供件未转采购。",
-                    RequiresConfirmation = true,
-                    SourceType = "SO",
-                    SourceUid = SourceUid,
-                });
-                response.Warnings.Add(new PurchaseDraftWarningDto
-                {
-                    Code = PurchaseDraftWarningCodes.PurchaseDataIncomplete,
-                    Message = "采购价格待补充。",
-                    RequiresConfirmation = false,
-                    SourceType = "SO",
-                    SourceUid = SourceUid,
-                });
-            }
-            return response;
-        }
-
-        public Task<ServiceResult<CreatePurchaseDraftsResult>> CreateAsync(CreatePurchaseDraftsCommand command, CancellationToken cancellationToken = default)
-        {
-            LastCreateCommand = command;
-            CreateCommands.Add(command);
-            return CreateHandler?.Invoke(command, cancellationToken)
-                ?? Task.FromResult(CreateSucceededResult());
-        }
-
-        public ServiceResult<CreatePurchaseDraftsResult> CreateSucceededResult()
-        {
-            return ServiceResult<CreatePurchaseDraftsResult>.Ok(new CreatePurchaseDraftsResult
-            {
-                ExecutionRequestId = LastCreateCommand?.ExecutionRequestId ?? Guid.NewGuid(),
-                Sources =
-                {
-                    new CreatePurchaseDraftSourceResult
-                    {
-                        SourceType = "SO",
-                        SourceUid = SourceUid,
-                        Outcome = NetDemandCommandOutcomeEnum.Succeeded,
-                        Message = "已创建",
-                    },
-                },
-            });
-        }
-
-        public Task<ServiceResult<List<PurchaseDraftCandidateSourceGroupDto>>> GetCandidateSourceGroupsAsync(CancellationToken cancellationToken = default) =>
-            Task.FromResult(ServiceResult<List<PurchaseDraftCandidateSourceGroupDto>>.Ok(CandidateGroups.ToList()));
-
-        public Task<ServiceResult<List<PurchaseDraftCandidateDto>>> GetCandidatesAsync(PurchaseDraftCandidateQuery request, CancellationToken cancellationToken = default)
-        {
-            CandidateQueries.Add(request);
-            return Task.FromResult(ServiceResult<List<PurchaseDraftCandidateDto>>.Ok(request.SourceUid.HasValue
-                ? Candidates.Where(item => item.SourceUid == request.SourceUid
-                    && string.Equals(item.SourceType, request.SourceType, StringComparison.OrdinalIgnoreCase)).ToList()
-                : Candidates.ToList()));
-        }
+        for (var i = 0; i < System.Windows.Media.VisualTreeHelper.GetChildrenCount(root); i++)
+        { var child = System.Windows.Media.VisualTreeHelper.GetChild(root, i); yield return child; foreach (var item in Descendants(child)) yield return item; }
+    }
+    /// <summary>缺少供应商产品关系不再依赖预览阻断；创建仅发送用户输入及需求并发身份。</summary>
+    [TestMethod]
+    public async Task DirectCreate_SendsVersionAndInputsWithoutPreviewOrProductSnapshot()
+    {
+        var api = new DraftApi(); using var vm = Create(api); var row = Row();
+        await Open(vm, row); await vm.CreateCommand.ExecuteAsync(null);
+        var command = api.Commands.Single(); var item = command.Sources.Single().Items.Single();
+        Assert.AreEqual(row.Uid, item.NetDemandId); Assert.AreEqual(row.Version, item.ExpectedVersion);
+        Assert.AreEqual(3m, item.PurchaseQty); Assert.AreEqual(row.SupplierId, item.SupplierId);
+        Assert.AreEqual(7m, item.UnitPrice); Assert.AreEqual(0, api.PreviewCalls);
+        var json = JsonSerializer.Serialize(command);
+        Assert.IsFalse(json.Contains("PreviewToken")); Assert.IsFalse(json.Contains("ExpectedRemainingQty"));
+        Assert.IsFalse(json.Contains("Sku")); Assert.IsTrue(vm.HasAppliedResults); Assert.AreEqual(0, vm.Items.Count);
+        Assert.IsTrue(vm.CanClose); Assert.AreEqual(1, vm.Results.Single().PurchaseDrafts.Count);
     }
 
+    /// <summary>明确业务拒绝保留所有输入与精确来源、错误码和原因，修正后才能新提交。</summary>
+    [TestMethod]
+    public async Task DefinitiveFailure_RetainsInputsAndPersistentDiagnostics()
+    {
+        var api = new DraftApi { Handler = _ => Task.FromResult(ServiceResult<CreatePurchaseDraftsResult>.Fail("CAPACITY_CHANGED", "当前可创建数量仅为 2。")) };
+        using var vm = Create(api); var row = Row(); await Open(vm, row); var id = vm.ExecutionRequestId;
+        await vm.CreateCommand.ExecuteAsync(null);
+        StringAssert.Contains(vm.ResultSummary, row.SourceNo); StringAssert.Contains(vm.ResultSummary, "CAPACITY_CHANGED");
+        StringAssert.Contains(vm.ResultSummary, "当前可创建数量仅为 2"); Assert.AreEqual(3m, vm.Items.Single().PurchaseQty);
+        Assert.IsFalse(vm.HasUnknownCreateResult); Assert.IsTrue(vm.CanClose); Assert.IsTrue(vm.IsStale);
+        Assert.AreNotEqual(id, vm.ExecutionRequestId); Assert.IsFalse(vm.CreateCommand.CanExecute(null));
+        row.PurchaseQty = 2; await vm.UpdateSelectionAsync(new() { Rows = [row] });
+        Assert.IsTrue(vm.CreateCommand.CanExecute(null));
+    }
+
+    /// <summary>逐来源部分成功只排除已成功来源，失败来源的数量、价格、交期仍可恢复。</summary>
+    [TestMethod]
+    public async Task PartialSuccess_KeepsFailureInputsAndExcludesSuccessfulSourceFromNextRequest()
+    {
+        var api = new DraftApi(); using var vm = Create(api); var a = Row(); var b = Row();
+        api.Handler = command => { var response = Success(command); response.Data.Sources[1].Outcome = NetDemandCommandOutcomeEnum.Failed;
+            response.Data.Sources[1].ErrorCode = "SUPPLIER_CHANGED"; response.Data.Sources[1].Message = "供应商已停用。";
+            response.Data.Sources[1].PurchaseDrafts.Clear(); return Task.FromResult(response); };
+        await Open(vm, a, b); var completed = 0; vm.CreationCompleted += (_, _) => completed++;
+        await vm.CreateCommand.ExecuteAsync(null);
+        Assert.AreEqual(1, completed); Assert.IsTrue(vm.IsSourceCompleted(a.SourceType, a.SourceUid));
+        Assert.AreEqual(b.Uid, vm.Items.Single().NetDemandId); Assert.AreEqual(b.PlannedDeliveryDate, vm.Items.Single().PlannedDeliveryDate);
+        StringAssert.Contains(vm.ResultSummary, "SUPPLIER_CHANGED");
+        await vm.UpdateSelectionAsync(new() { Rows = [a, b] }); api.Handler = command => Task.FromResult(Success(command));
+        await vm.CreateCommand.ExecuteAsync(null);
+        Assert.AreEqual(b.SourceUid, api.Commands.Last().Sources.Single().SourceUid); Assert.AreEqual(2, vm.Results.Count);
+    }
+
+    /// <summary>返回准备页时只清除已成功来源选择，失败行保留输入及可定位错误。</summary>
+    [TestMethod]
+    public void PartialSuccess_UpdatesOnlySuccessfulCandidateSelection() => TestInfrastructure.StaTest.RunAsync(async () =>
+    {
+        var api = new DraftApi(); using var vm = Create(api); using var picker = new PurchaseCandidateSelectionViewModel(api, new DirectApiCallRunner());
+        picker.AttachWorkflow(vm); var a = Row(); var b = Row(); a.IsChecked = true; b.IsChecked = true; picker.Items.Add(a); picker.Items.Add(b);
+        api.Handler = command => { var response = Success(command); response.Data.Sources[1].Outcome = NetDemandCommandOutcomeEnum.Failed;
+            response.Data.Sources[1].ErrorCode = "SUPPLIER_CHANGED"; response.Data.Sources[1].Message = "供应商已停用。";
+            response.Data.Sources[1].PurchaseDrafts.Clear(); return Task.FromResult(response); };
+        await Open(vm, a, b); await vm.CreateCommand.ExecuteAsync(null);
+        Assert.IsFalse(a.IsChecked); Assert.IsTrue(b.IsChecked); Assert.AreEqual(3m, b.PurchaseQty); Assert.AreEqual(7m, b.UnitPrice);
+        StringAssert.Contains(b.ValidationMessage, "SUPPLIER_CHANGED"); StringAssert.Contains(b.ValidationMessage, "供应商已停用");
+    });
+
+    /// <summary>未知时原身份和负载被冻结，保存后可关闭；重开仍只重试原提交。</summary>
+    [TestMethod]
+    [DataRow(ServiceErrorCodes.OutcomeUnknown)]
+    [DataRow(ServiceErrorCodes.Unexpected)]
+    [DataRow(ServiceErrorCodes.CommandBusy)]
+    [DataRow(PurchaseDraftErrorCodes.IdempotencyPartialState)]
+    public async Task UnknownFailure_RetriesIdenticalPayloadAndRejectsNewSession(string code)
+    {
+        var api = new DraftApi { Handler = _ => Task.FromResult(ServiceResult<CreatePurchaseDraftsResult>.Fail(code, "待核实")) };
+        using var vm = Create(api); await Open(vm, Row()); var id = vm.ExecutionRequestId;
+        await vm.CreateCommand.ExecuteAsync(null); Assert.IsTrue(vm.HasUnknownCreateResult); Assert.IsTrue(vm.CanClose);
+        Assert.ThrowsExactly<InvalidOperationException>(() => vm.BeginSession()); vm.Close(); Assert.AreEqual(1, vm.Items.Count);
+        vm.OpenSession(); Assert.AreEqual(id, vm.ExecutionRequestId);
+        var original = JsonSerializer.Serialize(api.Commands.Single()); vm.Items.Single().PurchaseQty = 99;
+        api.Handler = command => Task.FromResult(Success(command)); await vm.CreateCommand.ExecuteAsync(null);
+        Assert.AreEqual(original, JsonSerializer.Serialize(api.Commands.Last())); Assert.AreEqual(id, api.Commands.Last().ExecutionRequestId);
+        Assert.IsFalse(vm.HasUnknownCreateResult); Assert.IsTrue(vm.CanClose);
+    }
+
+    /// <summary>成功来源与未知来源混合时仍重放完整原请求，不能拆成新身份或丢弃已成功部分。</summary>
+    [TestMethod]
+    public async Task PartialUnknown_KeepsWholeOriginalRequestUntilEverySourceIsDefinite()
+    {
+        var api = new DraftApi(); api.Handler = command => { var result = Success(command);
+            result.Data.Sources[1].Outcome = NetDemandCommandOutcomeEnum.Failed; result.Data.Sources[1].ErrorCode = PurchaseDraftErrorCodes.IdempotencyPartialState;
+            result.Data.Sources[1].PurchaseDrafts.Clear(); return Task.FromResult(result); };
+        using var vm = Create(api); await Open(vm, Row(), Row()); await vm.CreateCommand.ExecuteAsync(null);
+        Assert.IsTrue(vm.HasUnknownCreateResult); Assert.AreEqual(2, vm.Items.Count); Assert.IsTrue(vm.HasAppliedResults);
+        var original = JsonSerializer.Serialize(api.Commands.Single()); api.Handler = c => Task.FromResult(Success(c));
+        await vm.CreateCommand.ExecuteAsync(null); Assert.AreEqual(original, JsonSerializer.Serialize(api.Commands.Last()));
+        Assert.AreEqual(2, vm.Results.Count); Assert.AreEqual(0, vm.Items.Count);
+    }
+
+    /// <summary>身份、结果枚举和成功引用必须完整，否则视为未知结果保留原请求。</summary>
+    [TestMethod]
+    [DataRow("identity")][DataRow("outcome")][DataRow("draft")][DataRow("source")]
+    public async Task MalformedSuccess_RemainsUnknown(string defect)
+    {
+        var api = new DraftApi(); api.Handler = command => { var result = Success(command);
+            switch (defect) { case "identity": result.Data.ExecutionRequestId = Guid.NewGuid(); break;
+                case "outcome": result.Data.Sources[0].Outcome = (NetDemandCommandOutcomeEnum)999; break;
+                case "draft": result.Data.Sources[0].PurchaseDrafts.Clear(); break;
+                case "source": result.Data.Sources.Clear(); break; }
+            return Task.FromResult(result); };
+        using var vm = Create(api); await Open(vm, Row()); var id = vm.ExecutionRequestId;
+        await vm.CreateCommand.ExecuteAsync(null); Assert.IsTrue(vm.HasUnknownCreateResult);
+        Assert.AreEqual(id, vm.ExecutionRequestId); Assert.AreEqual(1, vm.Items.Count);
+    }
+
+    /// <summary>在途写入禁止重复创建和关闭；连接异常结束后只允许原提交重试。</summary>
+    [TestMethod]
+    public async Task InflightAndThrownTransport_ProtectOriginalRequest()
+    {
+        var pending = new TaskCompletionSource<ServiceResult<CreatePurchaseDraftsResult>>();
+        var api = new DraftApi { Handler = _ => pending.Task }; using var vm = Create(api); await Open(vm, Row());
+        var task = vm.CreateCommand.ExecuteAsync(null); Assert.IsFalse(vm.CanClose); Assert.IsFalse(vm.CreateCommand.CanExecute(null));
+        pending.SetException(new HttpRequestException("offline")); await task;
+        Assert.IsTrue(vm.HasUnknownCreateResult); Assert.IsTrue(vm.CreateCommand.CanExecute(null));
+    }
+
+    /// <summary>没有采购读取权限不请求追加接口，仍允许明确新建草稿。</summary>
+    [TestMethod]
+    public async Task NoReadPermission_AllowsCreateNewWithoutAppendLookup()
+    {
+        var api = new DraftApi(); using var vm = Create(api, false); await Open(vm, Row());
+        Assert.AreEqual(0, api.AppendCalls); Assert.IsTrue(vm.Targets.Single().IsCreateNew);
+        Assert.IsTrue(vm.CreateCommand.CanExecute(null)); await vm.CreateCommand.ExecuteAsync(null);
+        Assert.AreEqual(PurchaseDraftTargetModeEnum.CreateNew, api.Commands.Single().Sources.Single().Targets.Single().TargetMode);
+    }
+
+    /// <summary>选定追加后撤销读取权限也要阻断追加，明确改新建仍可创建。</summary>
+    [TestMethod]
+    public async Task RevokedReadPermission_PreventsAppendButPreservesExplicitNewChoice()
+    {
+        var api = new DraftApi { AppendHandler = (_, _, _) => Task.FromResult(ServiceResult<List<SafePurchaseDraftCandidateDto>>.Ok([new() { PurchaseOrderId = Guid.NewGuid(), Version = 1, OrderNo = "PO-APPEND" }])) };
+        var user = new CurrentUserStub(true); using var vm = new PurchaseDraftWorkflowViewModel(api, new ProcurementMasterDataApiStub(), new DirectApiCallRunner(), new MessageServiceStub(), currentUser: user);
+        await Open(vm, Row()); vm.Targets.Single().SelectedChoice = vm.Targets.Single().Choices[1]; Assert.IsTrue(vm.CreateCommand.CanExecute(null));
+        user.Read = false; Assert.IsFalse(vm.CreateCommand.CanExecute(null));
+        vm.Targets.Single().SelectedChoice = vm.Targets.Single().Choices[0]; Assert.IsTrue(vm.CreateCommand.CanExecute(null));
+    }
+
+    /// <summary>追加候选限定来源及供应商；加载失败保留原追加目标但不能提交，明确改新建才解除。</summary>
+    [TestMethod]
+    public async Task AppendFailure_DoesNotSilentlySwitchExistingSelectionOrBlockNewDraft()
+    {
+        var api = new DraftApi(); var row = Row(); var order = Guid.NewGuid();
+        api.AppendHandler = (_, _, _) => Task.FromResult(ServiceResult<List<SafePurchaseDraftCandidateDto>>.Ok([new() { PurchaseOrderId = order, Version = 7, OrderNo = "PO-1" }]));
+        using var vm = Create(api); await Open(vm, row); var target = vm.Targets.Single(); target.SelectedChoice = target.Choices[1];
+        Assert.AreEqual((row.SourceType, row.SourceUid, row.SupplierId), api.LastAppend);
+        api.AppendHandler = (_, _, _) => Task.FromResult(ServiceResult<List<SafePurchaseDraftCandidateDto>>.Fail(ServiceErrorCodes.Forbidden, "无读取权限"));
+        await vm.UpdateSelectionAsync(new() { Rows = [row] });
+        Assert.AreEqual(order, vm.Targets.Single().SelectedChoice!.ExistingPurchaseOrderId);
+        Assert.IsFalse(vm.CreateCommand.CanExecute(null)); Assert.IsFalse(vm.Targets.Single().SelectedChoice!.IsAvailable);
+        vm.Targets.Single().SelectedChoice = vm.Targets.Single().Choices[0];
+        Assert.IsTrue(vm.CreateCommand.CanExecute(null));
+    }
+
+    /// <summary>迟到的追加查询不能覆盖更新后的选项和输入。</summary>
+    [TestMethod]
+    public async Task LateAppendResponse_DoesNotOverwriteNewSelection()
+    {
+        var api = new DraftApi(); var delayed = new TaskCompletionSource<ServiceResult<List<SafePurchaseDraftCandidateDto>>>();
+        api.AppendHandler = (_, _, _) => delayed.Task;
+        using var vm = Create(api); vm.BeginSession(); var first = vm.UpdateSelectionAsync(new() { Rows = [Row()] });
+        var newer = Row(); api.AppendHandler = (_, _, _) => Task.FromResult(ServiceResult<List<SafePurchaseDraftCandidateDto>>.Ok([]));
+        await vm.UpdateSelectionAsync(new() { Rows = [newer] }); delayed.SetResult(ServiceResult<List<SafePurchaseDraftCandidateDto>>.Ok([new() { PurchaseOrderId = Guid.NewGuid(), Version = 1 }]));
+        await first; Assert.AreEqual(newer.SourceUid, vm.Targets.Single().SourceUid); Assert.AreEqual(1, vm.Targets.Single().Choices.Count);
+    }
+
+    /// <summary>实际供应商、客供送达方和可创建量是本地门禁，不能用显示名称代替身份。</summary>
+    [TestMethod]
+    public async Task LocalValidation_RejectsMissingSupplierAndExcessQuantity()
+    {
+        var api = new DraftApi(); using var vm = Create(api);
+        await Open(vm, new PurchaseCandidateItemModel { Uid = Guid.NewGuid(), Version = 1, SourceUid = Guid.NewGuid(), SourceType = "SO", RemainingQty = 5, PurchaseQty = 3 });
+        Assert.IsFalse(vm.CreateCommand.CanExecute(null)); StringAssert.Contains(vm.CreateBlockReason, "实际采购供应商");
+        var row = Row(); row.PurchaseQty = 9; await vm.UpdateSelectionAsync(new() { Rows = [row] });
+        Assert.IsFalse(vm.CreateCommand.CanExecute(null)); Assert.AreEqual(0, api.Commands.Count);
+    }
+
+    /// <summary>行模式或准备输入变更使本地校验失效，不自动提交旧意图。</summary>
+    [TestMethod]
+    public async Task ChangedInput_RequiresFreshLocalValidation()
+    {
+        var api = new DraftApi(); using var vm = Create(api); await Open(vm, Row());
+        Assert.IsTrue(vm.CreateCommand.CanExecute(null)); vm.LineMode = PurchaseDraftLineModeEnum.KeepSourceLines;
+        Assert.IsFalse(vm.CreateCommand.CanExecute(null)); vm.InvalidatePreparation(); Assert.IsTrue(vm.IsStale);
+    }
+
+    private static PurchaseDraftWorkflowViewModel Create(DraftApi api, bool read = true, PurchaseDraftPendingSession? pendingSession = null, CurrentUserStub? user = null)
+        => new(api, new ProcurementMasterDataApiStub(), new DirectApiCallRunner(), new MessageServiceStub(), currentUser: user ?? new CurrentUserStub(read), pendingSession: pendingSession);
+    private static async Task Open(PurchaseDraftWorkflowViewModel vm, params PurchaseCandidateItemModel[] rows)
+    { vm.BeginSession(); await vm.UpdateSelectionAsync(new() { EntryMode = PurchaseDraftEntryModeEnum.ManualSelection, Rows = rows }); }
+    private static PurchaseCandidateItemModel Row() => new()
+    {
+        Uid = Guid.NewGuid(), Version = 4, SourceType = "SO", SourceUid = Guid.NewGuid(), SourceNo = "SO-" + Guid.NewGuid().ToString("N")[..6],
+        SupplierId = Guid.NewGuid(), PurchaseSupplierName = "实际供应商", RemainingQty = 5, CreatableQty = 5,
+        PurchaseQty = 3, UnitPrice = 7, TaxPrice = 8, PlannedDeliveryDate = new DateTime(2026, 10, 30)
+    };
+    private static ServiceResult<CreatePurchaseDraftsResult> Success(CreatePurchaseDraftsCommand command) => ServiceResult<CreatePurchaseDraftsResult>.Ok(new()
+    {
+        ExecutionRequestId = command.ExecutionRequestId, Sources = command.Sources.Select(s => new CreatePurchaseDraftSourceResult
+        {
+            SourceType = s.SourceType, SourceUid = s.SourceUid, Outcome = NetDemandCommandOutcomeEnum.Succeeded, Message = "已创建",
+            PurchaseDrafts = [new() { PurchaseOrderId = Guid.NewGuid(), Version = 1, OrderNo = "PO-NEW" }]
+        }).ToList()
+    });
+    private sealed class DraftApi : IPurchaseDraftApi
+    {
+        public int PreviewCalls, AppendCalls;
+        public int GroupCalls;
+        public (string, Guid, Guid) LastAppend;
+        public List<CreatePurchaseDraftsCommand> Commands { get; } = [];
+        public Func<CreatePurchaseDraftsCommand, Task<ServiceResult<CreatePurchaseDraftsResult>>>? Handler;
+        public Func<string, Guid, Guid, Task<ServiceResult<List<SafePurchaseDraftCandidateDto>>>>? AppendHandler;
+        public Task<ServiceResult<CreatePurchaseDraftsResult>> CreateAsync(CreatePurchaseDraftsCommand command, CancellationToken cancellationToken = default)
+        { Commands.Add(command); return Handler?.Invoke(command) ?? Task.FromResult(Success(command)); }
+        public Task<ServiceResult<List<SafePurchaseDraftCandidateDto>>> GetAppendCandidatesAsync(string sourceType, Guid sourceUid, Guid supplierId, CancellationToken cancellationToken = default)
+        { AppendCalls++; LastAppend = (sourceType, sourceUid, supplierId); return AppendHandler?.Invoke(sourceType, sourceUid, supplierId) ?? Task.FromResult(ServiceResult<List<SafePurchaseDraftCandidateDto>>.Ok([])); }
+        public Task<ServiceResult<PurchaseDraftPreviewResponse>> PreviewAsync(PurchaseDraftPreviewRequest request, CancellationToken cancellationToken = default)
+        { PreviewCalls++; throw new AssertFailedException("直接创建流程不得调用预览。"); }
+        public Task<ServiceResult<List<PurchaseDraftCandidateSourceGroupDto>>> GetCandidateSourceGroupsAsync(CancellationToken cancellationToken = default)
+        { GroupCalls++; return Task.FromResult(ServiceResult<List<PurchaseDraftCandidateSourceGroupDto>>.Ok([])); }
+        public Task<ServiceResult<List<PurchaseDraftCandidateDto>>> GetCandidatesAsync(PurchaseDraftCandidateQuery request, CancellationToken cancellationToken = default) => Task.FromResult(ServiceResult<List<PurchaseDraftCandidateDto>>.Ok([]));
+    }
+    private sealed class CurrentUserStub(bool read) : ICurrentUserService
+    {
+        public bool Read { get; set; } = read;
+        public bool CreateAllowed { get; set; } = true;
+        public string UserId { get; private set; } = "draft-user";
+        public event EventHandler? CurrentUserChanged;
+        public bool IsAuthenticated => true;
+        public MeDto? CurrentUser => new() { UserId = UserId };
+        public string DisplayName => "测试用户";
+        public IReadOnlyList<string> Roles => [];
+        public IReadOnlyList<string> Permissions => (Read ? new[] { PermissionKeys.ProcurementOrderRead } : []).Concat(CreateAllowed ? new[] { PermissionKeys.ProcurementOrderCreate } : []).ToArray();
+        public bool IsAdmin => false;
+        public bool HasPermission(string key) => Permissions.Contains(key);
+        public void SetCurrentUser(MeDto user) { UserId = user.UserId; Read = user.Permissions.Contains(PermissionKeys.ProcurementOrderRead); CreateAllowed = user.Permissions.Contains(PermissionKeys.ProcurementOrderCreate); CurrentUserChanged?.Invoke(this, EventArgs.Empty); }
+        public void Clear() { UserId = string.Empty; Read = false; CreateAllowed = false; CurrentUserChanged?.Invoke(this, EventArgs.Empty); }
+    }
     private sealed class DirectApiCallRunner : IApiCallRunner
     {
         public Task<ServiceResult<T>> RunAsync<T>(Func<Task<ServiceResult<T>>> action, string failureMessage = "请求失败") => action();

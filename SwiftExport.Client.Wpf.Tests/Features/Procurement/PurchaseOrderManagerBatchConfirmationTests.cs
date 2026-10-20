@@ -1,4 +1,4 @@
-﻿using System.Collections.ObjectModel;
+using System.Collections.ObjectModel;
 using System.ComponentModel;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using SwiftExport.Contracts.Apis.Procurement;
@@ -268,7 +268,7 @@ public sealed partial class PurchaseOrderManagerBatchConfirmationTests
     private static Fixture CreateFixture(
         PurchaseOrderManagerListItemDto[] orders,
         bool includeConfirmPermission,
-        bool includeReadPermission = true, bool includeEditPermission = false)
+        bool includeReadPermission = true, bool includeEditPermission = false, IProcurementReversalDialogService? reversalDialogs = null)
     {
         var manager = new ManagerApiStub(orders);
         var orderApi = new OrderApiStub(orders);
@@ -280,7 +280,7 @@ public sealed partial class PurchaseOrderManagerBatchConfirmationTests
         var session = new ProcurementCommandSession();
         var viewModel = new PurchaseOrderManagerViewModel(manager, orderApi, new ProcurementDialogStub(),
             new NavigationStub(), dialogs, new ApiCallRunnerStub(), new MessageStub(),
-            new CurrentUserStub(permissions), commandSession: session);
+            new CurrentUserStub(permissions), reversalDialogs: reversalDialogs, commandSession: session);
         return new Fixture(viewModel, manager, orderApi, dialogs, session);
     }
 
@@ -350,6 +350,8 @@ public sealed partial class PurchaseOrderManagerBatchConfirmationTests
         public Func<Guid, ConfirmProcurementOrderCommand, Task<ServiceResult<ProcurementOrderCommandResult>>>? ConfirmHandler { get; set; }
         public Func<Guid, Task<ServiceResult<PurchaseOrderDetailDto>>>? DetailHandler { get; set; }
         public Func<Guid, UpdatePurchaseOrderDraftCommand, Task<ServiceResult<ProcurementOrderCommandResult>>>? SaveHandler { get; set; }
+        public Func<Guid, ProcurementReversalPreviewRequest, Task<ServiceResult<ProcurementReversalPreviewDto>>>? DeleteDraftPreviewHandler { get; set; }
+        public Func<Guid, DeleteProcurementDraftCommand, Task<ServiceResult<ProcurementOrderCommandResult>>>? DeleteDraftHandler { get; set; }
         public List<UpdatePurchaseOrderDraftCommand> SaveCalls { get; } = [];
         public Task<ServiceResult<ProcurementConfirmationContextDto>> GetConfirmationContextAsync(Guid uid, CancellationToken cancellationToken = default)
             => ContextHandler?.Invoke(uid) ?? Task.FromResult(ServiceResult<ProcurementConfirmationContextDto>.Ok(Context(_orders[uid])));
@@ -368,6 +370,8 @@ public sealed partial class PurchaseOrderManagerBatchConfirmationTests
         public Task<ServiceResult<ProcurementReversalPreviewDto>> PreviewVoidAsync(Guid uid, ProcurementReversalPreviewRequest request, CancellationToken cancellationToken = default) => throw new NotSupportedException();
         public Task<ServiceResult<ProcurementReversalPreviewDto>> PreviewDeleteLinesAsync(Guid uid, ProcurementReversalPreviewRequest request, CancellationToken cancellationToken = default) => throw new NotSupportedException();
         public Task<ServiceResult<ProcurementOrderCommandResult>> VoidAsync(Guid uid, VoidProcurementOrderCommand request, CancellationToken cancellationToken = default) => throw new NotSupportedException();
+        public Task<ServiceResult<ProcurementReversalPreviewDto>> PreviewDeleteDraftAsync(Guid uid, ProcurementReversalPreviewRequest request, CancellationToken cancellationToken = default) => DeleteDraftPreviewHandler?.Invoke(uid, request) ?? throw new NotSupportedException();
+        public Task<ServiceResult<ProcurementOrderCommandResult>> DeleteDraftAsync(Guid uid, DeleteProcurementDraftCommand request, CancellationToken cancellationToken = default) => DeleteDraftHandler?.Invoke(uid, request) ?? throw new NotSupportedException();
         public Task<ServiceResult<ProcurementOrderCommandResult>> DeleteLinesAsync(Guid uid, DeleteProcurementDraftLinesCommand request, CancellationToken cancellationToken = default) => throw new NotSupportedException();
         /// <inheritdoc/>
         public Task<ServiceResult<ProcurementDemandAssociationContextDto>> GetDemandAssociationContextAsync(Guid uid, CancellationToken cancellationToken = default) => throw new NotSupportedException();

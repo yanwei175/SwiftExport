@@ -74,7 +74,7 @@ public sealed partial class OrderTrackingDemandRowModel : ObservableObjectEx
     public string MaterialText => ReadDimension(Access.Material, Summary?.MaterialAvailability, () => $"{(Summary!.IsActive ? "活动" : "非活动")} {TrackingSummaryText.Count(Summary.ActiveMaterialCount)} / 历史 {TrackingSummaryText.Count(Summary.HistoricalMaterialCount)} / 核实 {TrackingSummaryText.Count(Summary.MaterialReviewCount)}");
     /// <summary>承接状态使用服务端状态，不由行数或零数量推导完成。</summary>
     public string PurchaseText => ReadDimension(Access.Purchase, Summary?.PurchaseAvailability, () => !Summary!.IsActive ? "不适用（非活动）" : Summary.PurchaseStatus switch
-    { "NotApplicable" => "不适用", "Unallocated" => "未承接", "Partial" => "部分承接", "Allocated" => "已承接（非确认）", "Excess" => "承接超量", "Review" => "待核实", "Inactive" => "不适用（非活动）", _ => "未知" });
+    { "NotApplicable" => "不适用", "Unallocated" => "未采购", "Partial" => "部分已采购", "Allocated" => "已采购", "Excess" => "采购占用超量", "Review" => "待核实", "Inactive" => "不适用（非活动）", _ => "未知" });
     /// <summary>关联采购整行计数不是本需求实收份额。</summary>
     public string ReceiptText => ReadDimension(Access.Receipt, Summary?.ReceiptAvailability, () => !Summary!.IsActive ? "不适用（非活动）" : Summary.ReceiptStatus == "None" ? "无关联采购行" : $"整行收足 {TrackingSummaryText.Count(Summary.ReceiptCompletedLineCount)} / 未收足 {TrackingSummaryText.Count(Summary.ReceiptOutstandingLineCount)} / 超收 {TrackingSummaryText.Count(Summary.ReceiptExcessLineCount)} / 核实 {TrackingSummaryText.Count(Summary.ReceiptReviewLineCount)}");
 }

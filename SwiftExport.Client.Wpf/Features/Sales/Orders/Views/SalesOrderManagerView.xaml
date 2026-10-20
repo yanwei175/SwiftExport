@@ -315,7 +315,7 @@
                   HeadersVisibility="Column"
                   IsReadOnly="True"
                   SelectionMode="Extended"
-                  SelectionUnit="CellOrRowHeader"
+                  SelectionUnit="FullRow"
                   AutoGenerateColumns="False">
                 <DataGrid.Columns>
                     <DataGridTextColumn Header="行" Width="35" Binding="{Binding LineNumber}"

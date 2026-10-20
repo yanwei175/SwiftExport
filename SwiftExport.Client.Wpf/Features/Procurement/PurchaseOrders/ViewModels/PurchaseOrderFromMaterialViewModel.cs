@@ -1,126 +1,54 @@
 using CommunityToolkit.Mvvm.ComponentModel;
-using SwiftExport.Contracts.SysEnums;
+using SwiftExportClient.Authentication;
 using SwiftExportClient.Features.Procurement.PurchaseOrders.Models;
 using SwiftExportClient.Mvvm;
-
+using SwiftExportClient.Navigation;
 namespace SwiftExportClient.Features.Procurement.PurchaseOrders.ViewModels;
-
-/// <summary>作为统一采购 Dialog 的薄容器，只负责页面切换、关闭门禁和最终结果交接。</summary>
+/// <summary>统一采购弹窗只在准备和创建结果之间切换，未决提交期间保留会话。</summary>
 public sealed partial class PurchaseOrderFromMaterialViewModel : ViewModelBaseEx, IDisposable
 {
     private readonly PurchaseCandidateSelectionViewModel _preparation;
-    private readonly PurchaseDraftWorkflowViewModel _preview;
+    private readonly PurchaseDraftWorkflowViewModel _session;
     private readonly PurchaseDraftResultViewModel _result;
     private bool _disposed;
-
-    /// <summary>初始化三个页面并连接页面级导航事件，不持有任何业务表格状态。</summary>
-    public PurchaseOrderFromMaterialViewModel(
-        PurchaseCandidateSelectionViewModel preparation,
-        PurchaseDraftWorkflowViewModel preview)
+    /// <summary>连接输入、直接创建及结果，不构造独立审核页面。</summary>
+    public PurchaseOrderFromMaterialViewModel(PurchaseCandidateSelectionViewModel preparation, PurchaseDraftWorkflowViewModel workflow,
+        INavigationService? navigation = null, ICurrentUserService? currentUser = null)
     {
-        _preparation = preparation;
-        _preview = preview;
-        _result = new PurchaseDraftResultViewModel(preview);
-        _preparation.AttachWorkflow(preview);
-        _preparation.PreviewRequested += OnPreviewRequested;
-        _preview.ReturnToPreparationRequested += OnReturnToPreparationRequested;
-        _preview.CreationCompleted += OnCreationCompleted;
-        _preview.PropertyChanged += OnPreviewPropertyChanged;
-        _result.ReturnToPreviewRequested += OnReturnToPreviewRequested;
-        CurrentPage = _preparation;
-        Title = "从物料需求建立采购草稿";
+        _preparation = preparation; _session = workflow; _result = new(workflow, navigation, currentUser);
+        preparation.AttachWorkflow(workflow); workflow.CreationCompleted += OnCreated; workflow.PropertyChanged += OnSessionChanged;
+        _result.ReturnToPreparationRequested += OnReturn; CurrentPage = preparation; Title = "从物料需求建立采购草稿";
     }
-
-    /// <summary>当前由 ContentControl 呈现的页面 ViewModel。</summary>
-    [ObservableProperty]
-    public partial object CurrentPage { get; private set; }
-
-    /// <summary>当前业务阶段，仅供 Dialog 状态与测试观察。</summary>
-    [ObservableProperty]
-    public partial PurchaseOrderFromMaterialStage Stage { get; private set; }
-
-    /// <summary>本次是否已经产生成功或幂等已应用结果。</summary>
-    public bool HasAppliedResults => _preview.HasAppliedResults;
-    /// <summary>采购写命令是否正在执行。</summary>
-    public bool IsWriting => _preview.IsCreateInProgress;
-    /// <summary>写入中或结果未知时禁止关闭，保留冻结命令的安全重试入口。</summary>
-    public bool CanClose => _preview.CanClose;
-
-    /// <summary>开始独立采购会话并显示采购准备页。</summary>
+    [ObservableProperty] public partial object CurrentPage { get; private set; }
+    [ObservableProperty] public partial PurchaseOrderFromMaterialStage Stage { get; private set; }
+    public bool HasAppliedResults => _session.HasAppliedResults;
+    public bool IsWriting => _session.IsCreateInProgress;
+    public bool CanClose => _session.CanClose;
+    /// <summary>开启新会话，保留当前准备页完整的候选加载边界。</summary>
     public async Task OpenAsync(CancellationToken cancellationToken = default)
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
-        _preview.BeginSession();
+        _session.OpenSession();
         ShowPreparation();
-        await _preparation.OpenAsync(cancellationToken);
+        if (_session.HasUnknownCreateResult) _preparation.RestorePendingSelection(_session.RecoveryRows);
+        else await _preparation.OpenAsync(cancellationToken);
     }
-
-    private void OnPreviewRequested(object? sender, EventArgs e)
+    private void OnCreated(object? sender, EventArgs e) { Stage = PurchaseOrderFromMaterialStage.Result; CurrentPage = _result; }
+    private void OnReturn(object? sender, EventArgs e) => ShowPreparation();
+    private void ShowPreparation() { _preparation.SetInputEnabled(_session.CanEditInputs); Stage = PurchaseOrderFromMaterialStage.Selection; CurrentPage = _preparation; }
+    private void OnSessionChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
     {
-        if (!_preparation.HasValidatedSelection || !_preview.HasValidPreparation) return;
-        _preparation.SetInputEnabled(false);
-        Stage = PurchaseOrderFromMaterialStage.Preview;
-        CurrentPage = _preview;
+        OnPropertyChanged(nameof(HasAppliedResults)); OnPropertyChanged(nameof(IsWriting)); OnPropertyChanged(nameof(CanClose));
+        if (e.PropertyName == nameof(PurchaseDraftWorkflowViewModel.HasUnknownCreateResult) && _session.HasUnknownCreateResult
+            || e.PropertyName == nameof(PurchaseDraftWorkflowViewModel.StatusText) && !_session.CanEditInputs && _session.RecoveryRows.Count == 0)
+            _preparation.RestorePendingSelection(_session.RecoveryRows);
     }
-
-    private void OnReturnToPreparationRequested(object? sender, EventArgs e) => ShowPreparation();
-
-    private void OnCreationCompleted(object? sender, EventArgs e)
-    {
-        var hasFailure = _preview.Results.Any(result => result.Outcome is not
-            NetDemandCommandOutcomeEnum.Succeeded and not NetDemandCommandOutcomeEnum.AlreadyApplied);
-        if (hasFailure)
-        {
-            ShowPreparation();
-            return;
-        }
-        Stage = PurchaseOrderFromMaterialStage.Result;
-        CurrentPage = _result;
-    }
-
-    private void OnReturnToPreviewRequested(object? sender, EventArgs e)
-    {
-        Stage = PurchaseOrderFromMaterialStage.Preview;
-        CurrentPage = _preview;
-    }
-
-    private void ShowPreparation()
-    {
-        _preparation.SetInputEnabled(true);
-        Stage = PurchaseOrderFromMaterialStage.Selection;
-        CurrentPage = _preparation;
-    }
-
-    private void OnPreviewPropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
-    {
-        if (e.PropertyName == nameof(PurchaseDraftWorkflowViewModel.HasAppliedResults))
-            OnPropertyChanged(nameof(HasAppliedResults));
-        if (e.PropertyName == nameof(PurchaseDraftWorkflowViewModel.IsCreateInProgress))
-        {
-            OnPropertyChanged(nameof(IsWriting));
-            OnPropertyChanged(nameof(CanClose));
-        }
-        if (e.PropertyName == nameof(PurchaseDraftWorkflowViewModel.HasUnknownCreateResult))
-            OnPropertyChanged(nameof(CanClose));
-    }
-
-    /// <summary>关闭弹窗时取消页面查询并结束集中会话。</summary>
-    public void Close()
-    {
-        _preparation.Close();
-        _preview.Close();
-    }
-
-    /// <summary>解除页面导航订阅并释放当前采购会话。</summary>
+    /// <summary>关闭期间有未决提交时保留全部输入与原请求。</summary>
+    public void Close() { if (!CanClose) return; _preparation.Close(); _session.Close(); }
+    /// <inheritdoc />
     public void Dispose()
     {
-        if (_disposed) return;
-        _disposed = true;
-        _preparation.PreviewRequested -= OnPreviewRequested;
-        _preview.ReturnToPreparationRequested -= OnReturnToPreparationRequested;
-        _preview.CreationCompleted -= OnCreationCompleted;
-        _preview.PropertyChanged -= OnPreviewPropertyChanged;
-        _result.ReturnToPreviewRequested -= OnReturnToPreviewRequested;
-        Close();
+        if (_disposed || !CanClose) return; _disposed = true;
+        _session.CreationCompleted -= OnCreated; _session.PropertyChanged -= OnSessionChanged; _result.ReturnToPreparationRequested -= OnReturn; Close();
     }
 }

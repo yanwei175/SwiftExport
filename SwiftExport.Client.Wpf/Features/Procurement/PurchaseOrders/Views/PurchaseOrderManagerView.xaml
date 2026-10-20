@@ -48,6 +48,11 @@
         Command="{Binding CancelConfirmationCommand}"
         Margin="0,0,8,4" />
       <Button
+        Content="删除整张草稿"
+        Command="{Binding DeleteDraftCommand}"
+        ToolTip="{Binding SelectedOrder.DeleteDraftBlockReason}"
+        Margin="0,0,8,4" />
+      <Button
         Content="整单作废"
         Command="{Binding VoidOrderCommand}"
         Margin="0,0,8,4" />

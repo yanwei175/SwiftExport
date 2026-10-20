@@ -12,9 +12,6 @@
         <DataTemplate DataType="{x:Type viewModels:PurchaseCandidateSelectionViewModel}">
             <views:PurchasePreparationView />
         </DataTemplate>
-        <DataTemplate DataType="{x:Type viewModels:PurchaseDraftWorkflowViewModel}">
-            <views:PurchaseDraftPreviewView />
-        </DataTemplate>
         <DataTemplate DataType="{x:Type viewModels:PurchaseDraftResultViewModel}">
             <views:PurchaseDraftResultView />
         </DataTemplate>

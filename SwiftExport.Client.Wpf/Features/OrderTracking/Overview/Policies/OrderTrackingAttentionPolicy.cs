@@ -10,7 +10,7 @@ public static class OrderTrackingAttentionPolicy
     [
         (OrderTrackingAttentionCodes.Overdue, "逾期", 1), (OrderTrackingAttentionCodes.MissingRequiredDate, "未指定交期", 0),
         (OrderTrackingAttentionCodes.DeliveryReview, "交付待核实", 1), (OrderTrackingAttentionCodes.NoActiveMaterial, "无活动物料", 2),
-        (OrderTrackingAttentionCodes.PurchaseShortfall, "采购承接不足", 3), (OrderTrackingAttentionCodes.PurchaseExcess, "采购承接超量", 3),
+        (OrderTrackingAttentionCodes.PurchaseShortfall, "已确认采购不足", 3), (OrderTrackingAttentionCodes.PurchaseExcess, "采购占用超量", 3),
         (OrderTrackingAttentionCodes.PurchaseReview, "采购承接待核实", 3), (OrderTrackingAttentionCodes.ReceiptOutstanding, "关联采购整行未收足", 4),
         (OrderTrackingAttentionCodes.ReceiptExcess, "关联采购整行超收", 4), (OrderTrackingAttentionCodes.ReceiptReview, "整行收货待核实", 4),
         (OrderTrackingAttentionCodes.SourceReview, "来源待核实", 0)

@@ -5,8 +5,6 @@ public enum PurchaseOrderFromMaterialStage
 {
     /// <summary>选择待采购物料。</summary>
     Selection,
-    /// <summary>调整并确认采购草稿预览。</summary>
-    Preview,
     /// <summary>查看采购创建结果。</summary>
     Result
 }

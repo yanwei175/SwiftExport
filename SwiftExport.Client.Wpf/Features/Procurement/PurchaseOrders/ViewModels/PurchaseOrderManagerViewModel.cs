@@ -73,6 +73,7 @@ public sealed partial class PurchaseOrderManagerViewModel : ViewModelBaseEx, IAs
         RegisterBusyAwareCommand(OpenTraceCommand);
         RegisterBusyAwareCommand(ConfirmCommand); RegisterBusyAwareCommand(CancelConfirmationCommand);
         RegisterBusyAwareCommand(RetryPendingCommand);
+        RegisterBusyAwareCommand(DeleteDraftCommand);
     }
 
     public ObservableCollection<PurchaseOrderManagementRowModel> Orders { get; } = [];
@@ -130,6 +131,7 @@ public sealed partial class PurchaseOrderManagerViewModel : ViewModelBaseEx, IAs
     [NotifyCanExecuteChangedFor(nameof(RetryReversalCommand))]
     [NotifyCanExecuteChangedFor(nameof(OpenTraceCommand))]
     [NotifyCanExecuteChangedFor(nameof(RetryPendingCommand))]
+    [NotifyCanExecuteChangedFor(nameof(DeleteDraftCommand))]
     public partial PurchaseOrderManagementRowModel? SelectedOrder { get; set; }
     [ObservableProperty] public partial PurchaseOrderManagementLineModel? SelectedLine { get; set; }
     [ObservableProperty][NotifyPropertyChangedFor(nameof(TotalPages))][NotifyPropertyChangedFor(nameof(PageStatus))] public partial int TotalCount { get; set; }

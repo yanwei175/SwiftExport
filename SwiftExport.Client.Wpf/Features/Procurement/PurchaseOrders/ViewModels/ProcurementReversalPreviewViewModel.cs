@@ -10,7 +10,9 @@ public sealed partial class ProcurementReversalPreviewViewModel(ProcurementRever
     /// <summary>明确取消确认保留承接，删行及作废只解除预览列出的本单贡献，阻断仍以服务端为准。</summary>
     public string ImpactDescription => Preview.Operation == SwiftExport.Contracts.SysEnums.ProcurementReversalOperation.CancelConfirmation
         ? "取消确认只恢复采购草稿，保留全部需求承接及贡献，不会释放物料需求容量。"
-        : "仅解除下方列出的本采购行需求贡献，保留历史；收货、交付或其他有效执行仍可能阻断。物料需求回退须另行执行。";
+        : Preview.Operation == SwiftExport.Contracts.SysEnums.ProcurementReversalOperation.DeleteDraft
+            ? "删除整张从未确认的采购草稿，并释放下方全部来源占用；有确认历史或下游历史时仍被阻断，应按资格使用作废。"
+            : "仅解除下方列出的本采购行需求贡献，保留历史；收货、交付或其他有效执行仍可能阻断。物料需求回退须另行执行。";
     [ObservableProperty] public partial string Reason { get; set; } = string.Empty;
     /// <inheritdoc/>
     public bool IsPrimaryButtonEnabled => Preview.CanExecute && Preview.Blockers.Count == 0 && !string.IsNullOrWhiteSpace(Reason) && Reason.Trim().Length <= 500;
