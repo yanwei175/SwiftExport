@@ -68,6 +68,7 @@ public sealed partial class PurchaseOrderManagerViewModel : ViewModelBaseEx, IAs
         RegisterBusyAwareCommand(SearchCommand); RegisterBusyAwareCommand(RefreshCommand);
         RegisterBusyAwareCommand(ClearFiltersCommand); RegisterBusyAwareCommand(BatchConfirmCommand);
         RegisterBusyAwareCommand(OpenDetailCommand); RegisterBusyAwareCommand(CreateIndependentCommand);
+        RegisterBusyAwareCommand(OpenFeedbackCommand);
         RegisterBusyAwareCommand(GetFromNetDemandCommand); RegisterBusyAwareCommand(PageChangeCommand);
         RegisterBusyAwareCommand(ConfirmCommand); RegisterBusyAwareCommand(CancelConfirmationCommand);
         RegisterBusyAwareCommand(RetryPendingCommand);
@@ -112,6 +113,7 @@ public sealed partial class PurchaseOrderManagerViewModel : ViewModelBaseEx, IAs
     [ObservableProperty] public partial DateTime? PlannedDeliveryDateTo { get; set; }
     [ObservableProperty]
     [NotifyCanExecuteChangedFor(nameof(OpenDetailCommand))]
+    [NotifyCanExecuteChangedFor(nameof(OpenFeedbackCommand))]
     [NotifyCanExecuteChangedFor(nameof(ConfirmCommand))]
     [NotifyCanExecuteChangedFor(nameof(CancelConfirmationCommand))]
     [NotifyCanExecuteChangedFor(nameof(VoidOrderCommand))]
@@ -184,6 +186,11 @@ public sealed partial class PurchaseOrderManagerViewModel : ViewModelBaseEx, IAs
     private Task OpenDetailAsync() => _navigation.OpenDocumentAsync(PurchaseOrderDetailViewModel.RouteKey,
         $"purchase-order:new:{SelectedOrder!.PurchaseOrderId:N}",
         new PurchaseOrderDocumentOpenRequest { PurchaseOrderId = SelectedOrder.PurchaseOrderId });
+    /// <summary>按当前采购单及可选真实采购行进入共享反馈文档，不在管理页承载登记状态。</summary>
+    [RelayCommand(CanExecute = nameof(CanOpenFeedback))]
+    private Task OpenFeedbackAsync() => !CanOpenFeedback() ? Task.CompletedTask
+        : PurchaseOrderProgressNavigation.OpenAsync(_navigation, SelectedOrder!.PurchaseOrderId, SelectedLine?.PurchaseOrderLineId);
+    private bool CanOpenFeedback() => !_reversalDisposed && CanOpenDetail() && _currentUser.HasPermission(PermissionKeys.ProcurementProgressView);
     /// <summary>单条确认在一个页面 Busy 内预检和提交，冻结负载后与详情共享未决状态。</summary>
     [RelayCommand(CanExecute = nameof(CanConfirmOrder))]
     private async Task ConfirmAsync()
@@ -606,6 +613,7 @@ public sealed partial class PurchaseOrderManagerViewModel : ViewModelBaseEx, IAs
         DetachOrderEvents(); Orders.Clear(); Lines.Clear(); SelectedOrder = null; SelectedLine = null;
         _appliedQuery = null; _visibleOrders = null; TotalCount = 0;
         OnCommandSessionChanged(sender, e); RefreshSelectionState();
+        OpenFeedbackCommand.NotifyCanExecuteChanged();
     }
 
     /// <summary>把会话未决状态投影到重建行；仅权威查询明确返回已确认时解除门禁。</summary>

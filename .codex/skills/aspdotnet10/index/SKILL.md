@@ -15,6 +15,8 @@ description: SwiftExport 后端任务的技能选择入口；按本次API、服�
 
 ## 子 Skill 路由
 
+- PostgreSQL SQL、索引、执行计划、查询性能、JSONB、分区、全文检索、连接池、扩展或数据库运维任务：使用下节的 `postgres-skills` 插件技能，并同时保留本表命中的项目专项 Skill；仅消费已有 API/DTO 或调整前端布局不触发。
+
 - 分析或治理 Core Entity 字段、逻辑外键、历史快照、DTO 分类与字段来源、数据库模型或 Infrastructure 实现路线：读 `../data-model-governance/SKILL.md`。该 Skill 只负责分析、治理和规划；实现 Repository、SQL、DTO 或 Entity 时继续使用对应实现 Skill。
 - 新增/修改 API、Controller、Application Service：读 `../api-application-service/SKILL.md`。
 - 盘点或整改应用服务可读性、用例调用主线、公共服务复用及跨层修改影响：读 `../application-usecase-readability/SKILL.md`；明确实施时按其专项工作流执行，只解释或设计时不自动修改代码。
@@ -41,6 +43,16 @@ description: SwiftExport 后端任务的技能选择入口；按本次API、服�
 - 修改 `SysEnums/**`、前后端共享枚举、业务状态枚举：读 `../contracts-shared-enums/SKILL.md`。
 - 修改 `Common/**`、共享静态工具、顺序 Guid、保存结果工厂：读 `../contracts-common-helpers/SKILL.md`。
 - 涉及业务流程、单据状态、库存流水、改单：读 `.agents/references/业务架构总纲.md` 和 `.agents/references/数据模型与状态规则.md`。
+
+## PostgreSQL 插件技能
+
+- 从当前会话技能目录按名称发现并读取 `postgres-skills:postgresql-best-practices` 的 `SKILL.md`，再按实际问题选择其 reference；不复制插件正文，不把本机用户名、缓存路径或插件版本写进项目索引。SQL 审查、结构/索引规划和性能分析同样适用，不限于代码实现。
+- 插件负责 PostgreSQL 通用技术建议；项目技能继续负责 Dapper 参数/映射、DbSession 共享、Application 事务所有权、业务规则及定向验收。使用插件不替代这些约束，也不新增提供者切换层。
+- 只有明确涉及 Apache AGE、openCypher、知识图谱或属性图任务时，才发现并读取 `postgres-skills:pg-graph`；普通 BOM 树、需求关联、递归 CTE 和单据追溯不自动触发图数据库设计或扩展安装。
+- 纯源码审查、SQL 设计与离线规划不为激活技能而连接数据库，使用插件通用 PostgreSQL 资料。实际数据库执行先确认已有连接、实例、库名、版本和部署类型；不因安装插件就假定存在 `postgres_mcp_*` 工具，不猜测连接串。插件要求的连接/能力检查无法完成时，说明限制并停止依赖该连接的执行，可继续离线分析；不得把其他工具冒充该能力检查或绕过拒绝。
+- Azure 专项仅在明确的 Azure 任务或已核实 Azure 部署时采用；当前 PostgreSQL + Dapper 基线本身不证明 Azure。未确认的版本、扩展和托管能力不得写成可执行事实。
+- 数据库写入仍受 `AGENTS.md` 的实例、库名、初始化/清理范围约束；插件示例不是执行授权。已有明确授权仅在原范围内复用；DDL、扩展安装、配置更改、数据导入及维护操作不能由只读任务自动触发。`EXPLAIN ANALYZE` 会实际执行语句，不能将写语句的分析当作只读检查。
+- 插件未安装或技能不可读时明确报告，不假称已使用；继续不依赖插件的项目规则核对和离线分析。依赖插件且无法核实的技术结论或执行步骤保留为未完成项。
 
 ## 总原则
 

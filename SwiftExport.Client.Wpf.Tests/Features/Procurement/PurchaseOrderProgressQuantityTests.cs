@@ -40,7 +40,7 @@ public sealed class PurchaseOrderProgressQuantityTests
     {
         var dto = new PurchaseOrderProgressLineDto { Quantity = 10m };
         var model = PurchaseOrderProgressLineModel.FromDto(dto);
-        Assert.AreEqual("尚未跟进", model.LatestReadyQtyText);
+        Assert.AreEqual("尚无反馈", model.LatestReadyQtyText);
         var report = new SupplierProgressReportDto { Sequence = 1 };
         dto.ProgressHistory.Add(report);
         Assert.IsNull(model.LatestReadyQty);

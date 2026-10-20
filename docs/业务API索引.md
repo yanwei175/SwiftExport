@@ -459,9 +459,11 @@
 
 ## PurchaseOrderTraceController
 
+采购跨阶段追溯归入 `Controllers/OrderTracking`，Application 接口与服务归入 `OrderTracking/PurchaseOrders`。本次仅迁移文件和命名空间，保留现有采购追溯路由、DTO、`Procurement.Order.Read` 权限及仓储调用；供应商反馈录入查询和登记仍归采购模块。
+
 | HTTP及路由 | 动作 | 返回契约 | 源码 |
 | --- | --- | --- | --- |
-| GET `api/procurement/purchase-order-trace/{purchaseOrderId:guid}` | GetAsync | `Task<ServiceResult<PurchaseOrderTraceDto>>` | [声明方法](../SwiftExport.WebApi/Controllers/Procurement/PurchaseOrders/Trace/PurchaseOrderTraceController.cs:17) |
+| GET `api/procurement/purchase-order-trace/{purchaseOrderId:guid}` | GetAsync | `Task<ServiceResult<PurchaseOrderTraceDto>>` | [声明方法](../SwiftExport.WebApi/Controllers/OrderTracking/PurchaseOrderTraceController.cs:17) |
 
 ## RbacPermissionsController
 

@@ -2,14 +2,14 @@ using SwiftExport.Contracts.DTOs.Procurement.PurchaseOrderProgress;
 
 namespace SwiftExportClient.Features.Procurement.PurchaseOrders.Models;
 
-/// <summary>只读采购跟进行，包装专用查询快照并区分未知数量、部分备好和全部备好。</summary>
+/// <summary>只读采购反馈行，包装专用查询快照并区分未知数量、部分备好和全部备好。</summary>
 public sealed partial class PurchaseOrderProgressLineModel
 {
     private readonly PurchaseOrderProgressLineDto _dto;
 
     private PurchaseOrderProgressLineModel(PurchaseOrderProgressLineDto dto) => _dto = dto;
 
-    /// <summary>从跟进查询快照建立只读展示，不复制采购编辑状态。</summary>
+    /// <summary>从反馈查询快照建立只读展示，不复制采购编辑状态。</summary>
     public static PurchaseOrderProgressLineModel FromDto(PurchaseOrderProgressLineDto dto) => new(dto);
 
     public Guid Uid => _dto.PurchaseOrderLineId;
@@ -28,8 +28,8 @@ public sealed partial class PurchaseOrderProgressLineModel
     public SupplierProgressReportDto? LatestProgress => ProgressHistory.FirstOrDefault() ?? _dto.LatestProgress;
     public decimal? LatestReadyQty => LatestProgress?.ReadyQty;
     /// <summary>未知数量保持可见，不伪造为零。</summary>
-    public string LatestReadyQtyText => LatestProgress is null ? "尚未跟进" : LatestReadyQty?.ToString("#,##0.####") ?? "尚未反馈";
-    public string LatestExpectedReadyDateText => LatestProgress is null ? "尚未跟进" : LatestProgress.ExpectedReadyDate?.ToString("yyyy-MM-dd") ?? "尚未反馈";
-    public string LatestFollowUpDateText => LatestProgress is null ? "尚未跟进" : LatestProgress.SupplierReportedDate.ToString("yyyy-MM-dd HH:mm");
-    public string LatestFollowUpUserText => LatestProgress is null ? "尚未跟进" : LatestProgress.CreatedBy;
+    public string LatestReadyQtyText => LatestProgress is null ? "尚无反馈" : LatestReadyQty?.ToString("#,##0.####") ?? "尚未反馈";
+    public string LatestExpectedReadyDateText => LatestProgress is null ? "尚无反馈" : LatestProgress.ExpectedReadyDate?.ToString("yyyy-MM-dd") ?? "尚未反馈";
+    public string LatestFollowUpDateText => LatestProgress is null ? "尚无反馈" : LatestProgress.SupplierReportedDate.ToString("yyyy-MM-dd HH:mm");
+    public string LatestFollowUpUserText => LatestProgress is null ? "尚无反馈" : LatestProgress.CreatedBy;
 }

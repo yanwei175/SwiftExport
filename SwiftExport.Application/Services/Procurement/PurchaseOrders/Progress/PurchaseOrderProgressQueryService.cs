@@ -6,7 +6,7 @@ using SwiftExport.Contracts.SysEnums;
 
 namespace SwiftExport.Application.Services.Procurement.PurchaseOrders.Progress;
 
-/// <summary>采购供应商跟进查询；只读取头摘要、采购行和追加历史。</summary>
+/// <summary>供应商反馈录入读取边界；按订单事实选单，按身份读取当前登记上下文及追加历史。</summary>
 public sealed class PurchaseOrderProgressQueryService(
     ProcurementOrderReadSupport reads, IPurchaseOrderProgressQueryRepository queries)
     : IPurchaseOrderProgressQueryService
@@ -42,19 +42,15 @@ public sealed class PurchaseOrderProgressQueryService(
             || (long)(request.PageIndex - 1) * request.PageSize > int.MaxValue
             || request.ConfirmationStatuses is null
             || request.LifecycleStatuses is null
-            || request.ArrangementStatuses is null
             || request.ConfirmationStatuses.Count > 20
             || request.LifecycleStatuses.Count > 20
-            || request.ArrangementStatuses.Count > 20
             || request.ConfirmationStatuses.Any(status => !Enum.IsDefined(status))
             || request.LifecycleStatuses.Any(status => !Enum.IsDefined(status))
-            || request.ArrangementStatuses.Any(status => !Enum.IsDefined(status))
             || HasOversizedText(request.Keyword)
             || HasOversizedText(request.OrderNo)
             || HasOversizedText(request.SupplierKeyword)
             || HasOversizedText(request.Sku)
-            || request.PlannedDeliveryDateFrom > request.PlannedDeliveryDateTo
-            || request.ExpectedReadyDateFrom > request.ExpectedReadyDateTo)
+            || request.PlannedDeliveryDateFrom > request.PlannedDeliveryDateTo)
             throw ProcurementOperationException.Validation("采购跟进筛选参数无效。");
     }
 

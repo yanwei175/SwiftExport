@@ -9,7 +9,8 @@
         <DockPanel LastChildFill="True">
             <StackPanel>
                 <TextBlock Text="供应商反馈录入" FontSize="16" FontWeight="SemiBold"/>
-                <TextBlock Text="独立登记累计已备好数量、预计交期和跟进备注" Foreground="Gray"/>
+                <TextBlock Text="独立登记累计已备好数量、预计交期和反馈备注" Foreground="Gray"/>
+                <TextBlock Text="{Binding SelectionBlockReason}" TextWrapping="Wrap"/>
             </StackPanel>
             <WrapPanel HorizontalAlignment="Right" VerticalAlignment="Center">
                 
@@ -18,12 +19,18 @@
                 
                 <Button Margin="4,0,0,0" Content="刷新" 
                         Command="{Binding RefreshCommand}"/>
+                <Button Margin="4,0,0,0" Content="重试原反馈" Command="{Binding RetryReportCommand}"/>
                 
             </WrapPanel>
         </DockPanel>
 
-        <Grid Grid.Row="2" RowDefinitions="Auto,4,Auto">
-            <Grid ColumnDefinitions="160,8,180,8,160,8,145,8,145,8,145,8,Auto,4,Auto">
+        <Grid x:Name="FeedbackFilters" Grid.Row="2" RowDefinitions="Auto,4,Auto" IsEnabled="{Binding CanChangeSelection}">
+            <Grid.Style>
+                <Style TargetType="Grid"><Style.Triggers>
+                    <DataTrigger Binding="{Binding IsOrderDocument}" Value="True"><Setter Property="Visibility" Value="Collapsed"/></DataTrigger>
+                </Style.Triggers></Style>
+            </Grid.Style>
+            <Grid ColumnDefinitions="160,8,180,8,160,8,145,8,145,8,Auto,4,Auto">
                 
                 <ui:TextBox Text="{Binding OrderNo}" 
                             PlaceholderText="采购单号"/>
@@ -47,9 +54,9 @@
                 
 
                 
-                <Button Grid.Column="12" Content="查询" Command="{Binding SearchCommand}" />
+                <Button Grid.Column="10" Content="查询" Command="{Binding SearchCommand}" />
                 
-                <Button Grid.Column="14" Content="重置筛选" Command="{Binding ResetFiltersCommand}"/>
+                <Button Grid.Column="12" Content="重置筛选" Command="{Binding ResetFiltersCommand}"/>
                 
             </Grid>
 
@@ -80,8 +87,8 @@
                         <DockPanel LastChildFill="True">
                             <Button DockPanel.Dock="Right" Content="关闭" Command="{Binding CloseDrawerCommand}" Padding="12,4"/>
                             <StackPanel>
-                                <TextBlock Text="{Binding SelectedOrder.OrderNo}" FontSize="20" FontWeight="SemiBold"/>
-                                <TextBlock Text="{Binding SelectedOrder.SupplierName}" Foreground="Gray"/>
+                                <TextBlock Text="{Binding CurrentOrder.OrderNo}" FontSize="20" FontWeight="SemiBold"/>
+                                <TextBlock Text="{Binding CurrentOrder.SupplierName}" Foreground="Gray"/>
                             </StackPanel>
                         </DockPanel>
 
@@ -101,7 +108,7 @@
                                     <TextBlock Grid.Column="6" Text="{Binding SelectedLine.LatestReadyQtyText}"/>
                                 </Grid>
                                 <Grid Margin="0,4,0,0" ColumnDefinitions="Auto,8,*,16,Auto,8,*">
-                                    <TextBlock Text="最近跟进" Foreground="Gray"/>
+                                    <TextBlock Text="最近反馈" Foreground="Gray"/>
                                     <TextBlock Grid.Column="2" Text="{Binding SelectedLine.LatestFollowUpDateText}"/>
                                     <TextBlock Grid.Column="4" Text="跟单员" Foreground="Gray"/>
                                     <TextBlock Grid.Column="6" Text="{Binding SelectedLine.LatestFollowUpUserText}"/>
@@ -111,17 +118,17 @@
 
                         <TextBlock Margin="0,12,0,0" Text="{Binding FollowUpPermissionText}" Foreground="DarkOrange" TextWrapping="Wrap"/>
 
-                        <StackPanel Margin="0,8,0,0" IsEnabled="{Binding CanReportSelectedOrder}">
+                        <StackPanel AutomationProperties.AutomationId="FeedbackInputPanel" Margin="0,8,0,0" IsEnabled="{Binding CanEditReport}">
                             <TextBlock Text="登记供应商反馈（可只填一项）" FontWeight="SemiBold"/>
                             <Grid Margin="0,6,0,0" ColumnDefinitions="*,8,*">
 
                                 
-                                <ui:TextBox Text="{Binding ReportReadyQtyInput,UpdateSourceTrigger=PropertyChanged}" PlaceholderText="累计已备好数量（可留空）"/>
-                                <DatePicker Grid.Column="2" SelectedDate="{Binding ReportExpectedReadyDate}" ToolTip="预计交期日期"/>
+                                <ui:TextBox AutomationProperties.AutomationId="ReadyQtyInput" Text="{Binding ReportReadyQtyInput,UpdateSourceTrigger=PropertyChanged}" PlaceholderText="累计已备好数量（可留空）" AutomationProperties.Name="累计已备好数量"/>
+                                <DatePicker Grid.Column="2" SelectedDate="{Binding ReportExpectedReadyDate}" ToolTip="预计交期日期" AutomationProperties.Name="预计交期"/>
                             </Grid>
                             
-                            <TextBlock Margin="0,6,0,0" Text="数量和日期留空表示本次不更新；跟进时间和跟单员由服务器记录" Foreground="Gray"/>
-                            <ui:TextBox Margin="0,6,0,0" Text="{Binding ReportNote}" PlaceholderText="跟进备注"/>
+                            <TextBlock Margin="0,6,0,0" Text="数量和日期留空表示本次不更新；反馈时间和跟单员由服务器记录" Foreground="Gray"/>
+                            <ui:TextBox AutomationProperties.AutomationId="ReportNoteInput" Margin="0,6,0,0" Text="{Binding ReportNote,UpdateSourceTrigger=PropertyChanged}" PlaceholderText="反馈备注" AutomationProperties.Name="反馈备注"/>
                             <Border Margin="0,6,0,0" Padding="8" 
                                     Background="#FFFFF4CE" 
                                     BorderBrush="#FFE5A000" 
@@ -142,20 +149,20 @@
                                            FontWeight="SemiBold"/>
                             </Border>
                             
-                            <ui:TextBox Margin="0,6,0,0" Text="{Binding CorrectionReason}" PlaceholderText="累计数量下降时必填纠错原因"/>
-                            <Button Margin="0,8,0,0" HorizontalAlignment="Left" Content="登记不可覆盖反馈"
+                            <ui:TextBox Margin="0,6,0,0" Text="{Binding CorrectionReason,UpdateSourceTrigger=PropertyChanged}" PlaceholderText="累计数量下降时必填纠错原因" AutomationProperties.Name="累计数量纠错原因"/>
+                            <Button Margin="0,8,0,0" HorizontalAlignment="Left" Content="登记供应商反馈"
                                     Command="{Binding ReportProgressCommand}" />
                         </StackPanel>
 
                         <Separator Margin="0,16,0,12"/>
-                        <TextBlock Text="完整反馈历史（每次跟进后的累计快照）" FontWeight="SemiBold"/>
+                        <TextBlock Text="完整反馈历史（每次反馈后的累计快照）" FontWeight="SemiBold"/>
                         <DataGrid Margin="0,6,0,0" ItemsSource="{Binding SelectedLine.ProgressHistory}"
                                   AutoGenerateColumns="False" IsReadOnly="True" MaxHeight="300">
                             <DataGrid.Columns>
                                 <DataGridTextColumn Header="序号" Binding="{Binding Sequence}" Width="50"/>
                                 <DataGridTextColumn Header="累计已备好" Binding="{Binding ReadyQty,TargetNullValue=尚未反馈,StringFormat={}{0:0.####}}" Width="105"/>
                                 <DataGridTextColumn Header="预计交期" Binding="{Binding ExpectedReadyDate,StringFormat=yyyy-MM-dd}" Width="105"/>
-                                <DataGridTextColumn Header="跟进时间" Binding="{Binding SupplierReportedDate,StringFormat=yyyy-MM-dd HH:mm}" Width="130"/>
+                                <DataGridTextColumn Header="反馈时间" Binding="{Binding SupplierReportedDate,StringFormat=yyyy-MM-dd HH:mm}" Width="130"/>
                                 <DataGridTextColumn Header="跟单员" Binding="{Binding CreatedBy}" Width="90"/>
                                 <DataGridTemplateColumn ClipboardContentBinding="{Binding IsCorrection, Mode=OneWay}" Header="纠错" Width="55">
                                     <DataGridTemplateColumn.CellTemplate>
@@ -174,9 +181,24 @@
             </controls:RightDrawerHost.DrawerContent>
 
             <controls:RightDrawerHost.MainContent>
-                <Grid RowDefinitions="4*,8,6*">
-                    <Grid RowDefinitions="*,Auto">
-                        <DataGrid ItemsSource="{Binding Orders}"
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition><RowDefinition.Style><Style TargetType="RowDefinition">
+                            <Setter Property="Height" Value="4*"/>
+                            <Style.Triggers><DataTrigger Binding="{Binding IsOrderDocument}" Value="True"><Setter Property="Height" Value="0"/></DataTrigger></Style.Triggers>
+                        </Style></RowDefinition.Style></RowDefinition>
+                        <RowDefinition><RowDefinition.Style><Style TargetType="RowDefinition">
+                            <Setter Property="Height" Value="8"/>
+                            <Style.Triggers><DataTrigger Binding="{Binding IsOrderDocument}" Value="True"><Setter Property="Height" Value="0"/></DataTrigger></Style.Triggers>
+                        </Style></RowDefinition.Style></RowDefinition>
+                        <RowDefinition Height="6*"/>
+                    </Grid.RowDefinitions>
+                    <Grid AutomationProperties.AutomationId="OrdersSection" RowDefinitions="*,Auto">
+                        <Grid.Style><Style TargetType="Grid"><Style.Triggers>
+                            <DataTrigger Binding="{Binding IsOrderDocument}" Value="True"><Setter Property="Visibility" Value="Collapsed"/></DataTrigger>
+                        </Style.Triggers></Style></Grid.Style>
+                        <DataGrid AutomationProperties.AutomationId="OrdersGrid" ItemsSource="{Binding Orders}"
+                                  SelectionMode="Single" SelectionUnit="FullRow"
                                   IsEnabled="{Binding CanChangeSelection}"
                                   SelectedItem="{Binding SelectedOrder}"
                                   SelectionChanged="OrdersGrid_OnSelectionChanged"
@@ -219,23 +241,29 @@
                             <TextBlock Text="{Binding ResultSummary}" Style="{StaticResource CaptionTextBlock}" VerticalAlignment="Center"/>
                             <TextBlock Grid.Column="1" Text="{Binding PageStatus}" Style="{StaticResource CaptionTextBlock}" VerticalAlignment="Center"/>
                             <controls:PageNavigator Grid.Column="3" TotalCount="{Binding TotalCount}" PageIndex="{Binding PageIndex}"
+                                                    IsEnabled="{Binding CanChangeSelection}"
                                                     PageSize="{Binding PageSize}" PageChangeCommand="{Binding PageChangeCommand}"/>
                         </Grid>
                     </Grid>
 
                     <GridSplitter Grid.Row="1" Height="8" HorizontalAlignment="Stretch" VerticalAlignment="Center"
-                                  Background="Transparent" ResizeDirection="Rows" ResizeBehavior="PreviousAndNext"/>
+                                  Background="Transparent" ResizeDirection="Rows" ResizeBehavior="PreviousAndNext">
+                        <GridSplitter.Style><Style TargetType="GridSplitter"><Style.Triggers>
+                            <DataTrigger Binding="{Binding IsOrderDocument}" Value="True"><Setter Property="Visibility" Value="Collapsed"/></DataTrigger>
+                        </Style.Triggers></Style></GridSplitter.Style>
+                    </GridSplitter>
 
                     <Grid Grid.Row="2" RowDefinitions="Auto,4,*">
                         <DockPanel LastChildFill="True">
                             <Button DockPanel.Dock="Right" Content="登记/查看反馈" Command="{Binding OpenDrawerCommand}"/>
                             <StackPanel Orientation="Horizontal">
-                                <TextBlock Text="采购行跟进" FontWeight="SemiBold"/>
-                                <TextBlock Margin="12,0,0,0" Text="{Binding SelectedOrder.OrderNo}"/>
+                                <TextBlock Text="采购行反馈" FontWeight="SemiBold"/>
+                                <TextBlock AutomationProperties.AutomationId="CurrentOrderNoText" Margin="12,0,0,0" Text="{Binding CurrentOrder.OrderNo}"/>
                                 <TextBlock Margin="12,0,0,0" Text="{Binding DetailStatusText}" Foreground="Gray"/>
                             </StackPanel>
                         </DockPanel>
-                        <DataGrid Grid.Row="2"
+                        <DataGrid AutomationProperties.AutomationId="LinesGrid" Grid.Row="2"
+                                  SelectionMode="Single" SelectionUnit="FullRow"
                                   ItemsSource="{Binding Lines}"
                                   IsEnabled="{Binding CanChangeSelection}"
                                   SelectedItem="{Binding SelectedLine}"
@@ -289,10 +317,10 @@
                                 <DataGridTextColumn Header="预期货好时间" Binding="{Binding LatestExpectedReadyDateText}" Width="110"
                                                     ElementStyle="{StaticResource SwiftExportDataGridDateTextBlock}"/>
 
-                                <DataGridTextColumn Header="最近跟进" Binding="{Binding LatestFollowUpDateText}" Width="130"
+                                <DataGridTextColumn Header="最近反馈" Binding="{Binding LatestFollowUpDateText}" Width="130"
                                                     ElementStyle="{StaticResource SwiftExportDataGridDateTextBlock}"/>
 
-                                <DataGridTextColumn Header="跟进人" Binding="{Binding LatestFollowUpUserText}" Width="95"
+                                <DataGridTextColumn Header="反馈人" Binding="{Binding LatestFollowUpUserText}" Width="95"
                                                     ElementStyle="{StaticResource SwiftExportDataGridWarpTextBlock}"/>
                                 
                             </DataGrid.Columns>

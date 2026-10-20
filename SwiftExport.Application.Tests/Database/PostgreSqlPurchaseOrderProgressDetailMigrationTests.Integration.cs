@@ -114,7 +114,7 @@ public sealed class PostgreSqlPurchaseOrderProgressDetailMigrationIntegrationTes
     public async Task ChangeBeforeBatch_UsesCurrentTables(bool deleteHead)
     {
         using var f=new Fixture();var h=f.Head();await f.InsertAsync(h);var p=Product(f);await f.InsertAsync(p);var l=f.Line(h);l.ProductId=p.Uid;await f.InsertAsync(l);await f.InsertAsync(Report(l,1,7m));bool changed=false;
-        f.Hook.Before=async(sql,token)=>{if(!sql.Contains("SELECT EXISTS(",StringComparison.Ordinal))return;f.Hook.Before=null;changed=true;
+        f.Hook.Before=async(sql,token)=>{if(!sql.Contains("SELECT h.\"uid\" AS \"PurchaseOrderId\"",StringComparison.Ordinal))return;f.Hook.Before=null;changed=true;
             if(deleteHead)await f.Session.Connection.ExecuteAsync(new CommandDefinition("UPDATE public.purchase_order_head SET is_deleted=true WHERE uid=@Uid",new{Uid=h.Uid},f.Session.Transaction,cancellationToken:token));
             else{await f.Session.Connection.ExecuteAsync(new CommandDefinition("UPDATE public.purchase_order_line SET quantity=17 WHERE uid=@Uid",new{Uid=l.Uid},f.Session.Transaction,cancellationToken:token));await f.Session.Connection.ExecuteAsync(new CommandDefinition("UPDATE public.product SET main_image='更新图像' WHERE uid=@Uid",new{Uid=p.Uid},f.Session.Transaction,cancellationToken:token));
                 var latest=Report(l,2,0m);latest.IsCorrection=true;latest.CorrectionReason="供应商修正";await f.InsertAsync(latest);}};
@@ -261,7 +261,7 @@ public sealed class PostgreSqlPurchaseOrderProgressDetailMigrationIntegrationTes
             protected override async Task<DbDataReader> ExecuteDbDataReaderAsync(CommandBehavior behavior,CancellationToken token)
             {
                 await Starting(token);var reader=await innerCommand.ExecuteReaderAsync(behavior,token);
-                return CommandText.Contains("SELECT EXISTS(",StringComparison.Ordinal)?new BatchReader(owner,reader):reader;
+                return CommandText.Contains("SELECT h.\"uid\" AS \"PurchaseOrderId\"",StringComparison.Ordinal)?new BatchReader(owner,reader):reader;
             }
             protected override void Dispose(bool disposing){if(disposing)innerCommand.Dispose();base.Dispose(disposing);}
         }

@@ -105,6 +105,7 @@ public sealed class NavigationRouteRegistry : INavigationRouteRegistry
         new(PurchaseOrderTraceViewModel.RouteKey, "采购追溯", "Detail", typeof(PurchaseOrderTraceViewModel), NavigationModuleKeys.Procurement, "Procurement.Order.Read"),
 
         new(PurchaseOrderProgressWorkspaceViewModel.RouteKey, "供应商反馈录入", "Workspace", typeof(PurchaseOrderProgressWorkspaceViewModel), NavigationModuleKeys.Procurement, "Procurement.Progress.View"),
+        new(PurchaseOrderProgressWorkspaceViewModel.DocumentRouteKey, "供应商反馈", "Document", typeof(PurchaseOrderProgressWorkspaceViewModel), NavigationModuleKeys.Procurement, "Procurement.Progress.View"),
 
         new(PurchaseOrderDetailViewModel.RouteKey, "采购单详情", "Workspace", typeof(PurchaseOrderDetailViewModel), NavigationModuleKeys.Procurement, "Procurement.Order.Read"),
 

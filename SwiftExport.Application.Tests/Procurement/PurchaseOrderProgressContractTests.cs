@@ -75,6 +75,18 @@ public sealed class PurchaseOrderProgressContractTests
         Assert.IsFalse(repository.Contains("demand_execution_link", StringComparison.Ordinal));
     }
 
+    /// <summary>选单契约只描述订单选择，不继续暴露未使用的反馈看板汇总及筛选。</summary>
+    [TestMethod]
+    public void Selection_contract_excludes_progress_dashboard_fields()
+    {
+        foreach(var field in new[]{"ReportedLineCount","UnknownReadyQtyLineCount","TotalQty","LatestReadyQty","LatestExpectedReadyDate"})
+            Assert.IsNull(typeof(PurchaseOrderProgressListItemDto).GetProperty(field),field);
+        foreach(var field in new[]{"ArrangementStatuses","ExpectedReadyDateFrom","ExpectedReadyDateTo"})
+            Assert.IsNull(typeof(PurchaseOrderProgressSearchRequest).GetProperty(field),field);
+        foreach(var field in new[]{"PurchaseOrderId","Version","OrderNo","SupplierName","ConfirmationStatus","LifecycleStatus","CanReportProgress","ReadOnlyReason","Lines"})
+            Assert.IsNotNull(typeof(PurchaseOrderProgressDetailDto).GetProperty(field),field);
+    }
+
     /// <summary>供应商安排枚举数值已持久化，不得重排。</summary>
     [TestMethod]
     public void Supplier_arrangement_values_are_frozen()

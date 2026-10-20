@@ -63,6 +63,13 @@ public sealed class ApiCallRunner(ILogger<ApiCallRunner> logger) : IApiCallRunne
             logger.LogDebug("Refit API request was canceled by the caller.");
             return ServiceResult<T>.Fail(string.Empty);
         }
+        catch (ApiException) when (cancellationToken.IsCancellationRequested)
+        {
+            // Refit 响应缓冲取消后仍可能尝试反序列化，将取消包装成“流已消费”。
+            // 以调用者 Token 为准，不依赖消息文本或已被覆盖的内部异常；未取消的响应错误仍正常报告。
+            logger.LogDebug("Refit response reading was canceled by the caller.");
+            return ServiceResult<T>.Fail(string.Empty);
+        }
         catch (Exception exception) when (TryMapException<T>(exception, failureMessage, out var result))
         {
             return result;

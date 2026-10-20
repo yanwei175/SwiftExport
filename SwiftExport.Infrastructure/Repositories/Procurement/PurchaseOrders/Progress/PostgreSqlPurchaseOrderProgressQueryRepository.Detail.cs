@@ -11,7 +11,7 @@ namespace SwiftExport.Infrastructure.Repositories.Procurement.PurchaseOrders.Pro
 public sealed partial class PostgreSqlPurchaseOrderProgressQueryRepository : IPurchaseOrderProgressQueryRepository
 {
 
-    /// <summary>一次读取采购头存在性、当前行和完整反馈；不依赖收货历史，空头释放结果读取器。</summary>
+    /// <summary>按采购单身份读取当前头版本和登记资格，再读取当前行及完整反馈；缺头返回null并释放读取器。</summary>
     public async Task<PurchaseOrderProgressDetailDto?> GetDetailAsync(Guid purchaseOrderId, CancellationToken cancellationToken = default)
     {
         cancellationToken.ThrowIfCancellationRequested();
@@ -19,8 +19,8 @@ public sealed partial class PostgreSqlPurchaseOrderProgressQueryRepository : IPu
         parameters.Add("PurchaseOrderId", purchaseOrderId);
         using var grid = await context.Session.Connection.QueryMultipleAsync(new CommandDefinition(
             DetailSql(), new DetailParameters(parameters), context.Session.Transaction, cancellationToken: cancellationToken));
-        var exists = await grid.ReadSingleAsync<bool>();
-        if (!exists) return null;
+        var detail = await grid.ReadSingleOrDefaultAsync<PurchaseOrderProgressDetailDto>();
+        if (detail is null) return null;
         var lines = (await grid.ReadAsync<PurchaseOrderProgressLineDto>()).ToList();
         var reports = (await grid.ReadAsync<SupplierProgressReportDto>()).ToList();
         foreach (var line in lines)
@@ -30,13 +30,15 @@ public sealed partial class PostgreSqlPurchaseOrderProgressQueryRepository : IPu
                 .OrderByDescending(report => report.Sequence).ThenByDescending(report => new System.Data.SqlTypes.SqlGuid(report.Uid)).ToList();
             line.LatestProgress = line.ProgressHistory.FirstOrDefault();
         }
-        return new() { PurchaseOrderId = purchaseOrderId, Lines = lines };
+        detail.Lines = lines;
+        return detail;
     }
 
     /// <summary>三个语句独立读取当阶段当前事实；报告只复核有效行，不冻结第一阶段行身份或新增头有效性复验。</summary>
     private static string DetailSql() => $"""
-        SELECT EXISTS(SELECT 1 FROM "public"."purchase_order_head" h
-            WHERE h."uid"=@PurchaseOrderId AND COALESCE(h."is_deleted",FALSE)=FALSE);
+        SELECT h."uid" AS "PurchaseOrderId",h."version" AS "Version",h."order_no" AS "OrderNo",h."supplier_name" AS "SupplierName",
+            h."confirmation_status" AS "ConfirmationStatus",h."lifecycle_status" AS "LifecycleStatus",{EligibilityColumns}
+        FROM "public"."purchase_order_head" h WHERE h."uid"=@PurchaseOrderId AND COALESCE(h."is_deleted",FALSE)=FALSE;
 
         SELECT l."uid" AS "PurchaseOrderLineId",l."version" AS "Version",l."line_number" AS "LineNumber",
             COALESCE(product."main_image",'') AS "MainImage",

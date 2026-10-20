@@ -1,12 +1,12 @@
 using SwiftExport.Application.Contexts;
 using SwiftExport.Core.Interfaces.Data;
-using SwiftExport.Application.Interfaces.Procurement;
+using SwiftExport.Application.Interfaces.OrderTracking.PurchaseOrders;
 using SwiftExport.Application.Services.Procurement.PurchaseOrders.Support;
 using SwiftExport.Contracts.DTOs.Procurement.PurchaseOrders.Trace;
 using SwiftExport.Contracts.Wrappers;
 using SwiftExport.Core.Interfaces.Procurement;
 
-namespace SwiftExport.Application.Services.Procurement.PurchaseOrders.Trace;
+namespace SwiftExport.Application.Services.OrderTracking.PurchaseOrders;
 
 /// <summary>采购只读追溯服务；沿用订单读取权限和统一错误边界。</summary>
 public sealed class PurchaseOrderTraceService(ServiceBaseContext context, ProcurementOrderReadSupport reads,

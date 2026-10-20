@@ -242,7 +242,7 @@ public static class DependencyInjection
         services.AddScoped<SwiftExport.Application.Interfaces.Procurement.IProcurementDemandAssociationService, SwiftExport.Application.Services.Procurement.PurchaseOrders.Association.ProcurementDemandAssociationService>();
         services.AddScoped<IProcurementOrderQueryService, SwiftExport.Application.Services.Procurement.PurchaseOrders.Query.ProcurementOrderQueryService>();
         services.AddScoped<IPurchaseOrderManagerQueryService, SwiftExport.Application.Services.Procurement.PurchaseOrders.Query.PurchaseOrderManagerQueryService>();
-        services.AddScoped<IPurchaseOrderTraceService, SwiftExport.Application.Services.Procurement.PurchaseOrders.Trace.PurchaseOrderTraceService>();
+        services.AddScoped<SwiftExport.Application.Interfaces.OrderTracking.PurchaseOrders.IPurchaseOrderTraceService, SwiftExport.Application.Services.OrderTracking.PurchaseOrders.PurchaseOrderTraceService>();
         services.AddScoped<IPurchaseOrderProgressQueryService, SwiftExport.Application.Services.Procurement.PurchaseOrders.Progress.PurchaseOrderProgressQueryService>();
         services.AddScoped<IPurchaseOrderProgressReportService, SwiftExport.Application.Services.Procurement.PurchaseOrders.Progress.PurchaseOrderProgressReportService>();
         // 旧递归BOM读取器经消费者审计无业务调用，退出注册；当前单层物料建立链保持原依赖。

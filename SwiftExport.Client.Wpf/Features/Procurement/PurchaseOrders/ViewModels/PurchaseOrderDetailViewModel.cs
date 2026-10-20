@@ -71,6 +71,7 @@ public sealed partial class PurchaseOrderDetailViewModel : ViewModelBaseEx, IDoc
         RegisterBusyAwareCommand(ReorderLineCommand);
         RegisterBusyAwareCommand(RetryPendingCommand);
         RegisterBusyAwareCommand(DeleteDraftCommand);
+        RegisterBusyAwareCommand(OpenFeedbackCommand);
     }
 
     public PurchaseOrderHeaderEditorModel Header { get; } = new();
@@ -138,6 +139,13 @@ public sealed partial class PurchaseOrderDetailViewModel : ViewModelBaseEx, IDoc
         => !IsBusy && !HasPendingWrite && _reversalSession.Find(ReversalUser, PurchaseOrderId) is null
             && (!HasUnsavedChanges || await _dialogs.ConfirmAsync("关闭采购详情", "存在未保存修改，确定放弃吗？", "放弃并关闭", "继续编辑", cancellationToken));
 
+    /// <summary>已保存采购单按稳定身份进入反馈文档，未提交商务修改不能成为登记依据。</summary>
+    [RelayCommand(CanExecute = nameof(CanOpenFeedback))]
+    private Task OpenFeedbackAsync() => !CanOpenFeedback() ? Task.CompletedTask
+        : PurchaseOrderProgressNavigation.OpenAsync(_navigation, PurchaseOrderId, Lines.SelectedItem?.Uid);
+    private bool CanOpenFeedback() => !_reversalDisposed && !IsCreateMode && !IsDeleted && HasReadPermission && IsNotBusy
+        && !HasUnsavedChanges && PurchaseOrderId != Guid.Empty && _currentUser.HasPermission(PermissionKeys.ProcurementProgressView);
+
     [RelayCommand]
     private void AddLine()
     {
@@ -191,23 +199,25 @@ public sealed partial class PurchaseOrderDetailViewModel : ViewModelBaseEx, IDoc
     private Task SearchDeliverySuppliersAsync(string? keyword) => SearchCandidatesAsync(keyword, DeliverySupplierCandidates,
         (request, ct) => _masterData.SearchSuppliersAsync(request, ct), () => _deliverySupplierSearchCts, value => _deliverySupplierSearchCts = value, value => IsDeliverySupplierSearchBusy = value);
 
+    /// <summary>通过统一请求边界执行可替代产品搜索；取消或传输失败不得逃逸到异步控件事件。</summary>
     [RelayCommand(AllowConcurrentExecutions = true)]
     private async Task SearchProductsAsync(string? keyword)
     {
         var current = ReplaceCancellation(ref _productSearchCts);
+        var token = current.Token;
         ProductCandidates.Clear();
         SelectedProductCandidate = null;
         IsProductSearchBusy = true;
         try
         {
-            var result = await _masterData.SearchProductsAsync(new ProcurementProductSearchRequest
+            var result = await _runner.RunAsync(() => _masterData.SearchProductsAsync(new ProcurementProductSearchRequest
             {
                 Keyword = keyword?.Trim(),
                 PageIndex = 1,
                 PageSize = 50,
                 CustomerId = SelectedCustomer?.Uid,
                 SupplierId = SelectedSupplier?.Uid
-            }, current.Token);
+            }, token), token, "查询采购产品失败");
             if (!_reversalDisposed && !current.IsCancellationRequested && ReferenceEquals(_productSearchCts, current))
                 ReplaceItems(ProductCandidates, result.Success ? result.Data?.Items : null);
         }
@@ -260,9 +270,12 @@ public sealed partial class PurchaseOrderDetailViewModel : ViewModelBaseEx, IDoc
     {
         var previous = getCurrent(); previous?.Cancel(); previous?.Dispose();
         var current = new CancellationTokenSource(); setCurrent(current); setBusy(true);
+        var token = current.Token;
         try
         {
-            var result = await query(new PagedRequestBase { Keyword = keyword?.Trim(), PageIndex = 1, PageSize = 50 }, current.Token);
+            var result = await _runner.RunAsync(
+                () => query(new PagedRequestBase { Keyword = keyword?.Trim(), PageIndex = 1, PageSize = 50 }, token),
+                token, "查询采购候选失败");
             if (!_reversalDisposed && !current.IsCancellationRequested && ReferenceEquals(getCurrent(), current)) ReplaceItems(target, result.Success ? result.Data?.Items : null);
         }
         catch (OperationCanceledException) when (current.IsCancellationRequested) { }
@@ -455,6 +468,7 @@ public sealed partial class PurchaseOrderDetailViewModel : ViewModelBaseEx, IDoc
         OnPropertyChanged(nameof(HasPendingWrite)); RetryPendingCommand.NotifyCanExecuteChanged();
         VoidOrderCommand.NotifyCanExecuteChanged(); DeleteDraftLinesCommand.NotifyCanExecuteChanged(); RetryReversalCommand.NotifyCanExecuteChanged();
         DeleteDraftCommand.NotifyCanExecuteChanged();
+        OpenFeedbackCommand.NotifyCanExecuteChanged();
     }
     public void Dispose()
     {

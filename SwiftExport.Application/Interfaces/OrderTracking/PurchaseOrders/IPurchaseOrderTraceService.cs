@@ -1,7 +1,7 @@
 using SwiftExport.Contracts.DTOs.Procurement.PurchaseOrders.Trace;
 using SwiftExport.Contracts.Wrappers;
 
-namespace SwiftExport.Application.Interfaces.Procurement;
+namespace SwiftExport.Application.Interfaces.OrderTracking.PurchaseOrders;
 
 /// <summary>校验采购读取权限后提供只读追溯用例。</summary>
 public interface IPurchaseOrderTraceService

@@ -431,10 +431,33 @@ public sealed class OrderTrackingSlicesReadOnlyTests
             data["supplier_progress_report"].Add(R(("uid",latestA),("purchase_order_line_id",poLine),("sequence",7),("ready_qty",9m),("is_deleted",false)));
             data["supplier_progress_report"].Add(R(("uid",latestB),("purchase_order_line_id",poLine),("sequence",7),("ready_qty",3m),("is_deleted",false)));
             var start=fixture.Connection.Commands.Count;
-            var feedbackPage=await feedback.SearchAsync(new(){PageSize=1,ExpectedReadyDateFrom=null});Assert.AreEqual(1,feedbackPage.TotalCount);Assert.AreEqual(3m,feedbackPage.Items.Single().LatestReadyQty);
+            var feedbackPage=await feedback.SearchAsync(new(){PageSize=1});Assert.AreEqual(1,feedbackPage.TotalCount);Assert.AreEqual(3,feedbackPage.Items.Single().LineCount);
+            Assert.IsFalse(fixture.Connection.Commands.Last().Sql.Contains("supplier_progress_report",StringComparison.Ordinal));
             Assert.AreEqual(1,(await feedback.SearchAsync(new(){PageIndex=99,PageSize=1})).TotalCount);Assert.HasCount(0,(await feedback.SearchAsync(new(){PageIndex=99,PageSize=1})).Items);
             var feedbackDetail=(await feedback.GetDetailAsync(po))!;Assert.HasCount(3,feedbackDetail.Lines);
             Assert.AreEqual(latestB,feedbackDetail.Lines.Single(row=>row.PurchaseOrderLineId==poLine).LatestProgress.Uid);
+            Assert.AreEqual(1,feedbackDetail.Version);Assert.AreEqual("PO-1",feedbackDetail.OrderNo);Assert.IsTrue(feedbackDetail.CanReportProgress);
+            var currentHead=data["purchase_order_head"].Single();currentHead["version"]=12;currentHead["supplier_name"]="最新供应商";currentHead["confirmation_status"]=0;
+            var changedHeader=(await feedback.GetDetailAsync(po))!;Assert.AreEqual(12,changedHeader.Version);Assert.AreEqual("最新供应商",changedHeader.SupplierName);
+            Assert.IsFalse(changedHeader.CanReportProgress);StringAssert.Contains(changedHeader.ReadOnlyReason,"已确认");
+            currentHead["confirmation_status"]=1;currentHead["lifecycle_status"]=8;
+            var closedHeader=(await feedback.GetDetailAsync(po))!;Assert.IsFalse(closedHeader.CanReportProgress);StringAssert.Contains(closedHeader.ReadOnlyReason,"活动");
+            currentHead["lifecycle_status"]=0;Assert.IsTrue((await feedback.GetDetailAsync(po))!.CanReportProgress);
+
+            // 真实SQL只按订单事实筛选和分页；未报、关闭或零行订单仍按条件可选。
+            var selectionId=Guid.NewGuid();var selectionHead=new Dictionary<string,object?>(currentHead){["uid"]=selectionId,["order_no"]="ZZ-PO",["supplier_name"]="其他供应商",["confirmation_status"]=0,["lifecycle_status"]=8};
+            data["purchase_order_head"].Add(selectionHead);
+            var firstChoice=await feedback.SearchAsync(new(){PageSize=1});Assert.AreEqual(2,firstChoice.TotalCount);Assert.AreEqual(selectionId,firstChoice.Items.Single().PurchaseOrderId);
+            Assert.AreEqual(0,firstChoice.Items.Single().LineCount);Assert.IsFalse(firstChoice.Items.Single().CanReportProgress);
+            Assert.AreEqual(po,(await feedback.SearchAsync(new(){PageIndex=2,PageSize=1})).Items.Single().PurchaseOrderId);
+            Assert.AreEqual(po,(await feedback.SearchAsync(new(){SupplierKeyword="最新供应商"})).Items.Single().PurchaseOrderId);
+            Assert.AreEqual(selectionId,(await feedback.SearchAsync(new(){ConfirmationStatuses=[SwiftExport.Contracts.SysEnums.ConfirmationStatusEnum.待确认]})).Items.Single().PurchaseOrderId);
+            Assert.AreEqual(selectionId,(await feedback.SearchAsync(new(){LifecycleStatuses=[SwiftExport.Contracts.SysEnums.PurchaseOrderLifecycleStatusEnum.Closed]})).Items.Single().PurchaseOrderId);
+            purchase["sku"]="literal%_?";Assert.AreEqual(po,(await feedback.SearchAsync(new(){Sku="%_?"})).Items.Single().PurchaseOrderId);
+            purchase["planned_delivery_date"]="2026-10-20T13:14:15";
+            Assert.AreEqual(po,(await feedback.SearchAsync(new(){PlannedDeliveryDateFrom=new(2026,10,20,13,14,15),PlannedDeliveryDateTo=new(2026,10,20)})).Items.Single().PurchaseOrderId);
+            Assert.IsTrue(fixture.Connection.Commands.Last().Sql.Contains("LIMIT @PageSize OFFSET @Offset",StringComparison.Ordinal));
+            data["purchase_order_head"].Remove(selectionHead);
             Assert.IsTrue(fixture.Connection.Commands.Skip(start).All(cmd=>!cmd.Sql.Contains("inbound_document",StringComparison.Ordinal)&&!cmd.Sql.Contains("inventory_ledger",StringComparison.Ordinal)));
 
             // 正常采购草稿无待收；草稿有正式证据后须核实，不能借排除草稿隐藏异常。

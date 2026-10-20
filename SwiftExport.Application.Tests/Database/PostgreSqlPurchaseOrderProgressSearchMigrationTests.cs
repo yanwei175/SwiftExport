@@ -29,7 +29,7 @@ public sealed class PostgreSqlPurchaseOrderProgressSearchMigrationTests
         var d=await f.Repository.SearchAsync(new(){PageIndex=page,PageSize=size},c.Token);
         Assert.AreEqual(count,d.TotalCount);Assert.HasCount(rows,d.Items);Assert.AreEqual(page,d.PageIndex);Assert.AreEqual(size,d.PageSize);
         Assert.HasCount(1,f.Connection.Commands);
-        var sql=f.Connection.Commands[0].Sql;StringAssert.Contains(sql,"WITH LineFacts AS MATERIALIZED");
+        var sql=f.Connection.Commands[0].Sql;StringAssert.Contains(sql,"WITH filtered AS (");
         StringAssert.Contains(sql,"LIMIT @PageSize OFFSET @Offset");
         Assert.IsFalse(sql.Contains("inbound_document",StringComparison.Ordinal));
         Assert.AreEqual((long)(page-1)*size,f.Connection.Commands[0].Values["Offset"]);
@@ -55,12 +55,11 @@ public sealed class PostgreSqlPurchaseOrderProgressSearchMigrationTests
     public async Task Statuses_BindLocalIntArrays(bool limit)
     {
         using var f=new Fixture(false);Queue(f,0);var r=new PurchaseOrderProgressSearchRequest();
-        if(limit){r.ConfirmationStatuses=[ConfirmationStatusEnum.已确认,ConfirmationStatusEnum.已确认];r.LifecycleStatuses=[PurchaseOrderLifecycleStatusEnum.Active,PurchaseOrderLifecycleStatusEnum.Closed];r.ArrangementStatuses=[(SupplierArrangementStatusEnum)0,(SupplierArrangementStatusEnum)0,(SupplierArrangementStatusEnum)1];}
+        if(limit){r.ConfirmationStatuses=[ConfirmationStatusEnum.已确认,ConfirmationStatusEnum.已确认];r.LifecycleStatuses=[PurchaseOrderLifecycleStatusEnum.Active,PurchaseOrderLifecycleStatusEnum.Closed];}
         await f.Repository.SearchAsync(r,default);var cmd=f.Connection.Commands[0];
-        foreach(var name in new[]{"Confirmation","Lifecycle","Arrangement"}){Assert.AreEqual(NpgsqlDbType.Array|NpgsqlDbType.Integer,cmd.Types[name+"Statuses"]);Assert.AreEqual(limit,cmd.Values["Limit"+name+"Statuses"]);Assert.AreEqual(NpgsqlDbType.Boolean,cmd.Types["Limit"+name+"Statuses"]);}
+        foreach(var name in new[]{"Confirmation","Lifecycle"}){Assert.AreEqual(NpgsqlDbType.Array|NpgsqlDbType.Integer,cmd.Types[name+"Statuses"]);Assert.AreEqual(limit,cmd.Values["Limit"+name+"Statuses"]);Assert.AreEqual(NpgsqlDbType.Boolean,cmd.Types["Limit"+name+"Statuses"]);}
         CollectionAssert.AreEqual(limit?new[]{1}:new[]{-1},(int[])cmd.Values["ConfirmationStatuses"]!);
         CollectionAssert.AreEqual(limit?new[]{0,8}:new[]{-1},(int[])cmd.Values["LifecycleStatuses"]!);
-        CollectionAssert.AreEqual(limit?new[]{0,1}:new[]{-1},(int[])cmd.Values["ArrangementStatuses"]!);
     }
 
     /// <summary>时间保持输入时分秒与墙上Kind，上界加一天在SQL完成，不截Date或改成小于等于。</summary>
@@ -69,10 +68,10 @@ public sealed class PostgreSqlPurchaseOrderProgressSearchMigrationTests
     public async Task Dates_BindNullableWithoutTruncation(bool value)
     {
         using var f=new Fixture(false);Queue(f,0);var date=new DateTime(2026,10,5,19,21,32,DateTimeKind.Utc);
-        await f.Repository.SearchAsync(new(){PlannedDeliveryDateFrom=value?date:null,PlannedDeliveryDateTo=value?date:null,ExpectedReadyDateFrom=value?date:null,ExpectedReadyDateTo=value?date:null},default);
-        var cmd=f.Connection.Commands[0];foreach(var name in new[]{"PlannedDeliveryDateFrom","PlannedDeliveryDateTo","ExpectedReadyDateFrom","ExpectedReadyDateTo"})
+        await f.Repository.SearchAsync(new(){PlannedDeliveryDateFrom=value?date:null,PlannedDeliveryDateTo=value?date:null},default);
+        var cmd=f.Connection.Commands[0];foreach(var name in new[]{"PlannedDeliveryDateFrom","PlannedDeliveryDateTo"})
         {Assert.AreEqual(NpgsqlDbType.Timestamp,cmd.Types[name]);Assert.AreEqual(value?(object)DateTime.SpecifyKind(date,DateTimeKind.Unspecified):DBNull.Value,cmd.Values[name]);}
-        StringAssert.Contains(cmd.Sql,"<@PlannedDeliveryDateTo+INTERVAL '1 day'");StringAssert.Contains(cmd.Sql,"<@ExpectedReadyDateTo+INTERVAL '1 day'");
+        StringAssert.Contains(cmd.Sql,"<@PlannedDeliveryDateTo+INTERVAL '1 day'");
         Assert.IsFalse(cmd.Sql.Contains("date_trunc",StringComparison.Ordinal));
     }
 
@@ -86,18 +85,17 @@ public sealed class PostgreSqlPurchaseOrderProgressSearchMigrationTests
         StringAssert.Contains(cmd.Sql,"COLLATE public.erp_dictionary_ci LIKE @Keyword ESCAPE '~'");
     }
 
-    /// <summary>所有DTO别名及源汇总语义保留，不新增收货/Link/孤儿/混单位遮罩。</summary>
+    /// <summary>选单仅返回订单身份、当前资格与有效行数；不读取供应商反馈或收货。</summary>
     [TestMethod]
-    public async Task Projection_PreserveCommercialFactsAndNull()
+    public async Task Projection_ReadsOrderSelectionOnly()
     {
         using var f=new Fixture(false);Queue(f,1);var row=(await f.Repository.SearchAsync(new(),default)).Items.Single();var sql=f.Connection.Commands[0].Sql;
         foreach(var property in typeof(PurchaseOrderProgressListItemDto).GetProperties())StringAssert.Contains(sql,"AS \""+property.Name+"\"");
-        Assert.IsNull(row.OrderDate);Assert.IsNull(row.SupplierName);Assert.IsNull(row.LatestExpectedReadyDate);Assert.AreEqual(7m,row.LatestReadyQty);Assert.AreEqual(19m,row.TotalQty);
-        Assert.AreEqual(2,row.UnknownReadyQtyLineCount);Assert.IsTrue(row.CanReportProgress);
-        StringAssert.Contains(sql,"l.\"quantity\" AS quantity");Assert.IsFalse(sql.Contains("l.\"qty\"",StringComparison.Ordinal));
-        StringAssert.Contains(sql,"SUM(f.ready_qty)");StringAssert.Contains(sql,"f.ready_qty IS NULL");StringAssert.Contains(sql,"COUNT(f.uid)::integer");
-        StringAssert.Contains(sql,"COALESCE(r.\"is_deleted\",FALSE)=FALSE");StringAssert.Contains(sql,"ORDER BY r.\"sequence\" DESC NULLS LAST");
-        foreach(var forbidden in new[]{"inventory_ledger","inbound_document","demand_execution_link","unit_snapshot","orphan","Greatest","LEAST("})Assert.IsFalse(sql.Contains(forbidden,StringComparison.OrdinalIgnoreCase));
+        Assert.IsNull(row.OrderDate);Assert.IsNull(row.SupplierName);Assert.AreEqual(3,row.LineCount);Assert.IsTrue(row.CanReportProgress);
+        StringAssert.Contains(sql,"count(*)::int");
+        foreach(var forbidden in new[]{"supplier_progress_report","LATERAL","inventory_ledger","inbound_document","demand_execution_link","ready_qty","expected_ready_date","SUM("})
+            Assert.IsFalse(sql.Contains(forbidden,StringComparison.OrdinalIgnoreCase),forbidden);
+
     }
 
     /// <summary>旧收货门禁即使返回坏历史也不被调用；仍返回完整反馈事实。</summary>
@@ -133,8 +131,7 @@ public sealed class PostgreSqlPurchaseOrderProgressSearchMigrationTests
     private static void Queue(Fixture f,int count,bool invalid=false,int page=1,int size=20)
     {
         var items=Enumerable.Range(0,count).Select(i=>new PurchaseOrderProgressListItemDto{
-            PurchaseOrderId=Guid.NewGuid(),OrderNo="SQL-"+i,TotalQty=19m,LatestReadyQty=7m,
-            UnknownReadyQtyLineCount=2,CanReportProgress=true}).Skip((page-1)*size).Take(size).ToList();
+            PurchaseOrderId=Guid.NewGuid(),OrderNo="SQL-"+i,LineCount=3,CanReportProgress=true}).Skip((page-1)*size).Take(size).ToList();
         var table=new DataTable();table.Columns.Add("TotalCount",typeof(int));table.Columns.Add("ItemsJson",typeof(string));
         table.Rows.Add(count,JsonSerializer.Serialize(items));f.Connection.Results.Enqueue(table);
     }

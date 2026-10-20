@@ -54,11 +54,12 @@ public sealed class PostgreSqlProcurementMasterDataQueryRepository(RepositoryBas
             COALESCE(p.features_zh,'') AS "FeaturesZh",COALESCE(p.material_type,'') AS "MaterialType",
             COALESCE(p.supply_type,'') AS "SupplyType",COALESCE(p.unit,'') AS "Unit",{unitPrice} AS "UnitPrice",{taxPrice} AS "TaxPrice"
             """;
+        // 关系表 is_deleted 为 NOT NULL；直接比较才能匹配现有部分索引，避免对每个产品重复扫描关系表。
         var supplierJoin = hasSupplier ? """
             LEFT JOIN LATERAL (
                 SELECT relation.supplier_sku,relation.unit_price,relation.tax_price
                 FROM public.supplier_product relation
-                WHERE relation.supplier_id=CAST(@SupplierId AS uuid) AND relation.sku_id=p.uid AND COALESCE(relation.is_deleted,FALSE)=FALSE
+                WHERE relation.supplier_id=CAST(@SupplierId AS uuid) AND relation.sku_id=p.uid AND relation.is_deleted=FALSE
                 ORDER BY relation.uid LIMIT 1
             ) sp ON TRUE
             """ : string.Empty;
@@ -68,7 +69,7 @@ public sealed class PostgreSqlProcurementMasterDataQueryRepository(RepositoryBas
             LEFT JOIN LATERAL (
                 SELECT relation.customer_sku FROM public.customer_product relation
                 WHERE CAST(@CustomerId AS uuid) IS NOT NULL AND relation.customer_id=CAST(@CustomerId AS uuid) AND relation.sku_id=p.uid
-                  AND relation.is_active=TRUE AND COALESCE(relation.is_deleted,FALSE)=FALSE
+                  AND relation.is_active=TRUE AND relation.is_deleted=FALSE
                 ORDER BY relation.uid LIMIT 1
             ) cp ON TRUE
             {supplierJoin}

@@ -17,7 +17,7 @@ using SwiftExport.Infrastructure.Services.Auth;
 
 namespace SwiftExport.Application.Tests.Database;
 
-/// <summary>实际Dapper多结果入口验证exists早返及释放、顺序缓冲、DTO和写入端一致的SqlGuid组装，不证明PG商业SQL执行。</summary>
+/// <summary>实际Dapper多结果入口验证缺头早返及释放、顺序缓冲、DTO和写入端一致的SqlGuid组装，不证明PG商业SQL执行。</summary>
 [TestClass]
 public sealed class PostgreSqlPurchaseOrderProgressDetailMigrationTests
 {
@@ -28,7 +28,7 @@ public sealed class PostgreSqlPurchaseOrderProgressDetailMigrationTests
     {
         using var f=new Fixture(transaction);using var c=new CancellationTokenSource();Queue(f,true);
         IPurchaseOrderProgressQueryRepository repository=f.Repository;var d=await repository.GetDetailAsync(f.Uid,c.Token);
-        Assert.IsNotNull(d);Assert.AreEqual(f.Uid,d.PurchaseOrderId);Assert.HasCount(1,d.Lines);Assert.HasCount(2,d.Lines.Single().ProgressHistory);
+        Assert.IsNotNull(d);Assert.AreEqual(7,d.Version);Assert.AreEqual("PO-CURRENT",d.OrderNo);Assert.AreEqual("当前供应商",d.SupplierName);Assert.IsTrue(d.CanReportProgress);Assert.AreEqual(f.Uid,d.PurchaseOrderId);Assert.HasCount(1,d.Lines);Assert.HasCount(2,d.Lines.Single().ProgressHistory);
         Assert.HasCount(1,f.Connection.Commands);Assert.HasCount(3,f.Connection.ReadCounts);
         Assert.IsTrue(f.Connection.ReadCounts.All(x=>x>0));Assert.AreEqual(3,f.Connection.NextResults);Assert.AreEqual(1,f.Connection.Disposals);
         foreach(var cmd in f.Connection.Commands)Assert.AreSame(f.Session.Transaction,cmd.Transaction);
@@ -38,7 +38,7 @@ public sealed class PostgreSqlPurchaseOrderProgressDetailMigrationTests
         Assert.IsFalse(command.Sql.Contains("inbound_document",StringComparison.Ordinal));
     }
 
-    /// <summary>exists=false仍发生源ReadSingle的第一次NextResult，但不读取行或报告，并释放reader。</summary>
+    /// <summary>缺头结果为空仍发生第一次NextResult，但不读取行或报告，并释放reader。</summary>
     [TestMethod]
     [DataRow(false)] [DataRow(true)]
     public async Task MissingHeader_ReturnsNullAndDisposes(bool transaction)
@@ -66,7 +66,7 @@ public sealed class PostgreSqlPurchaseOrderProgressDetailMigrationTests
     public async Task EmptyLines_StillBuffersReportResult()
     {
         using var f=new Fixture(false);Queue(f,true);f.Connection.Results[1].Rows.Clear();
-        var d=await f.Repository.GetDetailAsync(Guid.Empty);Assert.IsNotNull(d);Assert.AreEqual(Guid.Empty,d.PurchaseOrderId);Assert.HasCount(0,d.Lines);
+        var d=await f.Repository.GetDetailAsync(Guid.Empty);Assert.IsNotNull(d);Assert.AreEqual(f.Uid,d.PurchaseOrderId);Assert.HasCount(0,d.Lines);
         Assert.IsTrue(f.Connection.ReadCounts[2]>0);Assert.AreEqual(Guid.Empty,f.Connection.Commands[0].Values["PurchaseOrderId"]);
     }
 
@@ -75,6 +75,7 @@ public sealed class PostgreSqlPurchaseOrderProgressDetailMigrationTests
     public async Task ProjectionAndSqlBoundaries()
     {
         using var f=new Fixture(false);Queue(f,true);var d=await f.Repository.GetDetailAsync(f.Uid);var sql=f.Connection.Commands[0].Sql;
+        foreach(var property in typeof(PurchaseOrderProgressDetailDto).GetProperties().Where(x=>x.Name!="Lines"))StringAssert.Contains(sql,"AS \""+property.Name+"\"");
         foreach(var property in typeof(PurchaseOrderProgressLineDto).GetProperties().Where(x=>x.Name is not ("LatestProgress" or "ProgressHistory")))StringAssert.Contains(sql,"AS \""+property.Name+"\"");
         foreach(var property in typeof(SupplierProgressReportDto).GetProperties())StringAssert.Contains(sql,"AS \""+property.Name+"\"");
         StringAssert.Contains(sql,"l.\"quantity\" AS \"Quantity\"");
@@ -85,6 +86,18 @@ public sealed class PostgreSqlPurchaseOrderProgressDetailMigrationTests
         Assert.IsFalse(reports.Contains("@LineIds",StringComparison.Ordinal));Assert.IsFalse(sql.Contains("demand_execution_link",StringComparison.Ordinal));Assert.IsFalse(sql.Contains("unit_snapshot",StringComparison.Ordinal));
         Assert.AreEqual(10m,d!.Lines.Single().Quantity);Assert.AreEqual("",d.Lines.Single().MainImage);
         Assert.IsNull(d.Lines.Single().SupplierSku);Assert.IsNull(d.Lines.Single().PlannedDeliveryDate);Assert.IsNull(d.Lines.Single().LatestProgress.ReadyQty);
+    }
+
+    /// <summary>直达详情采用本次查询的头版本和资格，不能从入口旧选单结果补值。</summary>
+    [TestMethod]
+    public async Task CurrentHeader_IsReturnedWithReadOnlyQualification()
+    {
+        using var f=new Fixture(false);Queue(f,true);var row=f.Connection.Results[0].Rows[0];
+        row["Version"]=18;row["OrderNo"]="PO-RENAMED";row["SupplierName"]="新供应商";row["LifecycleStatus"]=8;row["CanReportProgress"]=false;row["ReadOnlyReason"]="订单已关闭";
+        var detail=(await f.Repository.GetDetailAsync(f.Uid))!;
+        Assert.AreEqual(18,detail.Version);Assert.AreEqual("PO-RENAMED",detail.OrderNo);Assert.AreEqual("新供应商",detail.SupplierName);
+        Assert.AreEqual(8,(int)detail.LifecycleStatus);Assert.IsFalse(detail.CanReportProgress);Assert.AreEqual("订单已关闭",detail.ReadOnlyReason);
+        Assert.HasCount(1,f.Connection.Commands);Assert.HasCount(1,detail.Lines);
     }
 
     /// <summary>同序号协议边界按写入端SqlGuid优先级选择整条快照；不采用不同的.NET Guid顺序。</summary>
@@ -147,7 +160,9 @@ public sealed class PostgreSqlPurchaseOrderProgressDetailMigrationTests
     /// <summary>数据表只提供反馈上下文与历史结果形状，商业SQL不在内存执行。</summary>
     private static void Queue(Fixture f,bool exists)
     {
-        var e=new DataTable();e.Columns.Add("Exists",typeof(bool));e.Rows.Add(exists);
+        var e=new DataTable();e.Columns.Add("PurchaseOrderId",typeof(Guid));e.Columns.Add("Version",typeof(int));e.Columns.Add("OrderNo",typeof(string));
+        e.Columns.Add("SupplierName",typeof(string));e.Columns.Add("ConfirmationStatus",typeof(int));e.Columns.Add("LifecycleStatus",typeof(int));e.Columns.Add("CanReportProgress",typeof(bool));e.Columns.Add("ReadOnlyReason",typeof(string));
+        if(exists)e.Rows.Add(f.Uid,7,"PO-CURRENT","当前供应商",1,0,true,"");
         var l=new DataTable();l.Columns.Add("PurchaseOrderLineId",typeof(Guid));l.Columns.Add("Version",typeof(int));l.Columns.Add("LineNumber",typeof(int));l.Columns.Add("MainImage",typeof(string));
         l.Columns.Add("Quantity",typeof(decimal));l.Columns.Add("SupplierSku",typeof(string));l.Columns.Add("PlannedDeliveryDate",typeof(DateTime));
         l.Rows.Add(f.LineId,3,1,"",10m,DBNull.Value,DBNull.Value);

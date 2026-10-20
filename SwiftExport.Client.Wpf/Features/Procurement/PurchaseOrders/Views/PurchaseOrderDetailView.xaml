@@ -41,6 +41,7 @@
                 <Button Content="重试原提交" Command="{Binding RetryPendingCommand}" Margin="0,0,4,0"/>
                 <Button Content="刷新" Command="{Binding RefreshCommand}" Margin="0,0,4,0"/>
                 <Button Content="关联物料需求" Command="{Binding OpenDemandAssociationCommand}" Margin="0,0,4,0"/>
+                <Button Content="登记/查看反馈" Command="{Binding OpenFeedbackCommand}" Margin="0,0,4,0"/>
                 <Button Content="关闭" Command="{Binding CloseDocumentCommand}"/>
             </StackPanel>
             <StackPanel>

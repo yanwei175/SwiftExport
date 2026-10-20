@@ -35,53 +35,52 @@ public sealed class PostgreSqlPurchaseOrderProgressSearchMigrationIntegrationTes
         using var f=new Fixture();var h=f.Head();h.IsDeleted=mode=="deleted-head";if(mode!="empty")await f.InsertAsync(h);
         f.Hook.Commands.Clear();var d=await f.Repository.SearchAsync(new(){OrderNo=f.Prefix,PageIndex=mode=="beyond"?99:1,PageSize=1});
         Assert.AreEqual(mode is "empty" or "deleted-head"?0:1,d.TotalCount);Assert.HasCount(mode=="no-lines"?1:0,d.Items);
-        Assert.HasCount(1,f.Hook.Commands);if(d.Items.Count>0){var row=d.Items.Single();Assert.AreEqual(0,row.LineCount);Assert.AreEqual(0,row.UnknownReadyQtyLineCount);Assert.AreEqual(0m,row.TotalQty);Assert.AreEqual(0m,row.LatestReadyQty);}
+        Assert.HasCount(1,f.Hook.Commands);if(d.Items.Count>0){var row=d.Items.Single();Assert.AreEqual(0,row.LineCount);}
         await f.Usable();
     }
 
-    /// <summary>未报与报告NULL均未知，零不未知，部分和超量保持原累计事实而不遮罩。</summary>
+    /// <summary>反馈有无、未知、零或超量不改变订单选单身份及行数，选单不读取报告。</summary>
     [TestMethod]
     [DataRow("unreported")] [DataRow("null")] [DataRow("zero")] [DataRow("partial")] [DataRow("over")]
-    public async Task Quantities_KeepWholeLineFacts(string mode)
+    public async Task FeedbackQuantities_DoNotAffectOrderSelection(string mode)
     {
         using var f=new Fixture();var h=f.Head();await f.InsertAsync(h);var l=f.Line(h);await f.InsertAsync(l);
         decimal? ready=mode switch{"zero"=>0m,"partial"=>3m,"over"=>17m,_=>null};
         if(mode!="unreported")await f.InsertAsync(Report(l,1,ready));
-        var row=(await Search(f)).Items.Single();Assert.AreEqual(1,row.LineCount);Assert.AreEqual(mode=="unreported"?0:1,row.ReportedLineCount);
-        Assert.AreEqual(ready.HasValue?0:1,row.UnknownReadyQtyLineCount);Assert.AreEqual(10m,row.TotalQty);Assert.AreEqual(ready??0m,row.LatestReadyQty);Assert.AreEqual(h.BoNo,row.BoNo);
+        f.Hook.Commands.Clear();var row=(await Search(f)).Items.Single();Assert.AreEqual(1,row.LineCount);Assert.AreEqual(h.Uid,row.PurchaseOrderId);Assert.AreEqual(h.BoNo,row.BoNo);
+        Assert.IsFalse(f.Hook.Commands.Single().Contains("supplier_progress_report",StringComparison.Ordinal));
     }
 
-    /// <summary>反馈按Sequence选整行，较新NULL或更小值替代旧值，软删新反馈排除而不挑非空字段拼接。</summary>
+    /// <summary>选单行数只取有效采购行；新旧反馈及反馈软删不参与选单。</summary>
     [TestMethod]
     [DataRow("smaller")] [DataRow("null")] [DataRow("deleted-report")] [DataRow("deleted-line")]
-    public async Task LatestAndSoftDeletion(string mode)
+    public async Task LineCount_IgnoresFeedbackHistory(string mode)
     {
         using var f=new Fixture();var h=f.Head();await f.InsertAsync(h);var l=f.Line(h);l.IsDeleted=mode=="deleted-line";await f.InsertAsync(l);
         var old=Report(l,1,8m);old.ExpectedReadyDate=new DateTime(2026,10,7);await f.InsertAsync(old);
         var next=Report(l,2,mode=="null"?null:2m);next.ExpectedReadyDate=null;next.IsCorrection=true;next.CorrectionReason="供应商修正";next.IsDeleted=mode=="deleted-report";await f.InsertAsync(next);
         var row=(await Search(f)).Items.Single();
-        Assert.AreEqual(mode=="deleted-line"?0:1,row.LineCount);Assert.AreEqual(mode=="deleted-line"||mode=="null"?0m:mode=="deleted-report"?8m:2m,row.LatestReadyQty);
-        Assert.AreEqual(mode=="null"?1:0,row.UnknownReadyQtyLineCount);Assert.AreEqual(mode=="deleted-report"?old.ExpectedReadyDate:null,row.LatestExpectedReadyDate);
+        Assert.AreEqual(mode=="deleted-line"?0:1,row.LineCount);Assert.AreEqual(h.Uid,row.PurchaseOrderId);
     }
 
-    /// <summary>跨单位行仍SUM，不新增多单位或Manager异常遮罩；孤立行不会阻断其他头。</summary>
+    /// <summary>跨单位不影响选单行数；不汇总跨单位数量，孤立行不归属有效订单。</summary>
     [TestMethod]
-    public async Task MixedUnitsAndOrphan_KeepSourceTotals()
+    public async Task MixedUnitsAndOrphan_KeepOrderLineCount()
     {
         using var f=new Fixture();var h=f.Head();await f.InsertAsync(h);var a=f.Line(h);a.Quantity=4;a.UnitSnapshot="PCS";await f.InsertAsync(a);var b=f.Line(h,2);b.Quantity=6;b.UnitSnapshot="KG";await f.InsertAsync(b);
         await f.InsertAsync(Report(a,1,3));await f.InsertAsync(Report(b,1,7));var orphan=f.Line(f.Head());await f.InsertAsync(orphan);
-        var row=(await Search(f)).Items.Single();Assert.AreEqual(10m,row.TotalQty);Assert.AreEqual(10m,row.LatestReadyQty);Assert.AreEqual(2,row.LineCount);Assert.AreEqual(0,row.UnknownReadyQtyLineCount);
+        var row=(await Search(f)).Items.Single();Assert.AreEqual(2,row.LineCount);Assert.AreEqual(h.Uid,row.PurchaseOrderId);
     }
 
-    /// <summary>状态数组独立限制，未报行Arrangement按0；空状态不筛选无行头。</summary>
+    /// <summary>确认和生命周期状态数组独立限制；筛选不依赖反馈安排状态。</summary>
     [TestMethod]
-    public async Task StateSets_UseLatestAndUnknown()
+    public async Task StateSets_UseOrderStatusesOnly()
     {
         using var f=new Fixture();var a=f.Head();var b=f.Head();b.ConfirmationStatus=ConfirmationStatusEnum.已确认;b.LifecycleStatus=PurchaseOrderLifecycleStatusEnum.Closed;
         await f.InsertAsync(a);await f.InsertAsync(b);var la=f.Line(a);var lb=f.Line(b);await f.InsertAsync(la);await f.InsertAsync(lb);var report=Report(lb,1,1);report.ArrangementStatus=SupplierArrangementStatusEnum.Arranged;await f.InsertAsync(report);
         var r=new PurchaseOrderProgressSearchRequest{OrderNo=f.Prefix,PageIndex=1,PageSize=20,ConfirmationStatuses=[ConfirmationStatusEnum.待确认,ConfirmationStatusEnum.已确认,ConfirmationStatusEnum.已确认],LifecycleStatuses=[PurchaseOrderLifecycleStatusEnum.Active,PurchaseOrderLifecycleStatusEnum.Closed]};
-        Assert.AreEqual(2,(await f.Repository.SearchAsync(r)).TotalCount);r.ArrangementStatuses=[SupplierArrangementStatusEnum.Unknown];Assert.AreEqual(a.Uid,(await f.Repository.SearchAsync(r)).Items.Single().PurchaseOrderId);
-        r.ArrangementStatuses=[SupplierArrangementStatusEnum.Arranged];Assert.AreEqual(b.Uid,(await f.Repository.SearchAsync(r)).Items.Single().PurchaseOrderId);
+        Assert.AreEqual(2,(await f.Repository.SearchAsync(r)).TotalCount);
+        r.LifecycleStatuses=[PurchaseOrderLifecycleStatusEnum.Closed];Assert.AreEqual(b.Uid,(await f.Repository.SearchAsync(r)).Items.Single().PurchaseOrderId);
         r.ConfirmationStatuses=[ConfirmationStatusEnum.待确认];Assert.AreEqual(0,(await f.Repository.SearchAsync(r)).TotalCount);
     }
 
@@ -95,29 +94,26 @@ public sealed class PostgreSqlPurchaseOrderProgressSearchMigrationIntegrationTes
         Assert.AreEqual(lifecycle!=0?"仅活动采购单允许登记供应商反馈。":confirmation!=1?"仅已确认采购单允许登记供应商反馈。":"",row.ReadOnlyReason);
     }
 
-    /// <summary>日期界限保留时分秒；下界含等号，上界原输入次日排他，两种日期维度一致。</summary>
+    /// <summary>计划交期保留时分秒；下界含等号，上界原输入次日排他。</summary>
     [TestMethod]
-    [DataRow(true,false,-1,false)] [DataRow(true,false,0,true)] [DataRow(true,true,86399,true)] [DataRow(true,true,86400,false)]
-    [DataRow(false,false,-1,false)] [DataRow(false,false,0,true)] [DataRow(false,true,86399,true)] [DataRow(false,true,86400,false)]
-    public async Task Dates_WallTimeAndExclusiveNextDay(bool planned,bool upper,int seconds,bool match)
+    [DataRow(false,-1,false)] [DataRow(false,0,true)] [DataRow(true,86399,true)] [DataRow(true,86400,false)]
+    public async Task Dates_WallTimeAndExclusiveNextDay(bool upper,int seconds,bool match)
     {
         using var f=new Fixture();var bound=new DateTime(2026,10,5,13,14,15,DateTimeKind.Unspecified);var h=f.Head();await f.InsertAsync(h);var l=f.Line(h);
-        if(planned)l.PlannedDeliveryDate=bound.AddSeconds(seconds);await f.InsertAsync(l);
-        if(!planned){var report=Report(l,1,null);report.ExpectedReadyDate=bound.AddSeconds(seconds);await f.InsertAsync(report);}
+        l.PlannedDeliveryDate=bound.AddSeconds(seconds);await f.InsertAsync(l);
         var r=new PurchaseOrderProgressSearchRequest{OrderNo=f.Prefix,PageIndex=1,PageSize=20};
-        if(planned){if(upper)r.PlannedDeliveryDateTo=bound;else r.PlannedDeliveryDateFrom=bound;}else{if(upper)r.ExpectedReadyDateTo=bound;else r.ExpectedReadyDateFrom=bound;}
-        var d=await f.Repository.SearchAsync(r);Assert.AreEqual(match?1:0,d.TotalCount);
-        if(match&&!planned)Assert.AreEqual(DateTimeKind.Unspecified,d.Items.Single().LatestExpectedReadyDate!.Value.Kind);
+        if(upper)r.PlannedDeliveryDateTo=bound;else r.PlannedDeliveryDateFrom=bound;
+        Assert.AreEqual(match?1:0,(await f.Repository.SearchAsync(r)).TotalCount);
     }
 
-    /// <summary>预计日期筛选依据各行最新报告的MAX，不能选旧报告或任选命中行。</summary>
+    /// <summary>反馈预计日期不再影响选单；保留订单身份及有效行数。</summary>
     [TestMethod]
-    public async Task ExpectedDate_UsesMaximumLatestSnapshot()
+    public async Task ExpectedFeedbackDates_DoNotAffectSelection()
     {
         using var f=new Fixture();var h=f.Head();await f.InsertAsync(h);var a=f.Line(h);var b=f.Line(h,2);await f.InsertAsync(a);await f.InsertAsync(b);
         var ra=Report(a,1,null);ra.ExpectedReadyDate=new DateTime(2026,10,5);var rb=Report(b,1,null);rb.ExpectedReadyDate=new DateTime(2026,10,8);await f.InsertAsync(ra);await f.InsertAsync(rb);
-        var r=new PurchaseOrderProgressSearchRequest{OrderNo=f.Prefix,ExpectedReadyDateTo=new DateTime(2026,10,5),PageIndex=1,PageSize=20};
-        Assert.AreEqual(0,(await f.Repository.SearchAsync(r)).TotalCount);r.ExpectedReadyDateTo=null;Assert.AreEqual(rb.ExpectedReadyDate,(await f.Repository.SearchAsync(r)).Items.Single().LatestExpectedReadyDate);
+        f.Hook.Commands.Clear();var row=(await Search(f)).Items.Single();Assert.AreEqual(2,row.LineCount);Assert.AreEqual(h.Uid,row.PurchaseOrderId);
+        Assert.IsFalse(f.Hook.Commands.Single().Contains("supplier_progress_report",StringComparison.Ordinal));
     }
 
     /// <summary>四筛选路径使用字面特殊字符；固定隔离前缀不含本例字符以避免随机自命中。</summary>
@@ -145,15 +141,15 @@ public sealed class PostgreSqlPurchaseOrderProgressSearchMigrationIntegrationTes
         Assert.AreEqual(h.Uid,(await f.Repository.SearchAsync(new(){OrderNo=f.Prefix,Keyword=term,PageIndex=1,PageSize=20})).Items.Single().PurchaseOrderId);
     }
 
-    /// <summary>SQL完成冻结后改变头及追加反馈，返回仍保留旧头/量/count，不再次读商业事实。</summary>
+    /// <summary>SQL完成冻结后改变头及追加反馈，返回仍保留旧头/count，不再次读商业事实。</summary>
     [TestMethod]
-    public async Task FrozenAfterRead_DoesNotRefreshHeadOrFeedback()
+    public async Task FrozenAfterRead_DoesNotRefreshOrderSelection()
     {
         using var f=new Fixture();var h=f.Head();await f.InsertAsync(h);var l=f.Line(h);await f.InsertAsync(l);await f.InsertAsync(Report(l,1,7));
         var oldName=h.SupplierName;bool changed=false;f.Hook.Commands.Clear();
         f.Hook.AfterFacts=async token=>{f.Hook.AfterFacts=null;changed=true;await f.Session.Connection.ExecuteAsync(new CommandDefinition("UPDATE public.purchase_order_head SET order_no=@Outside,supplier_name='新供应商名',is_deleted=true WHERE uid=@Uid",new{Uid=h.Uid,Outside="OUT"+Guid.NewGuid().ToString("N")},f.Session.Transaction,cancellationToken:token));var correction=Report(l,2,0);correction.IsCorrection=true;correction.CorrectionReason="供应商修正";await f.InsertAsync(correction);};
-        var d=await Search(f);Assert.IsTrue(changed);Assert.AreEqual(1,d.TotalCount);Assert.AreEqual(h.OrderNo,d.Items.Single().OrderNo);Assert.AreEqual(oldName,d.Items.Single().SupplierName);Assert.AreEqual(7m,d.Items.Single().LatestReadyQty);
-        Assert.AreEqual(1,f.Hook.Commands.Count(x=>x.Contains("WITH LineFacts AS",StringComparison.Ordinal)));await f.Usable();
+        var d=await Search(f);Assert.IsTrue(changed);Assert.AreEqual(1,d.TotalCount);Assert.AreEqual(h.OrderNo,d.Items.Single().OrderNo);Assert.AreEqual(oldName,d.Items.Single().SupplierName);Assert.AreEqual(1,d.Items.Single().LineCount);
+        Assert.AreEqual(1,f.Hook.Commands.Count(x=>x.Contains("WITH filtered AS",StringComparison.Ordinal)));await f.Usable();
         // 同事务真实SQL冻结后自写，只证明不回查；物理跨连接并发另由主控授权。
     }
 
@@ -279,7 +275,7 @@ public sealed class PostgreSqlPurchaseOrderProgressSearchMigrationIntegrationTes
             protected override async Task<DbDataReader> ExecuteDbDataReaderAsync(CommandBehavior behavior,CancellationToken token)
             {
                 await Starting(token);var reader=await innerCommand.ExecuteReaderAsync(behavior,token);
-                if(owner.AfterFacts is {} after && CommandText.Contains("WITH LineFacts AS",StringComparison.Ordinal))
+                if(owner.AfterFacts is {} after && CommandText.Contains("WITH filtered AS",StringComparison.Ordinal))
                 {
                     // 真实PG完整结果先缓冲并关闭reader，再修改同事务夹具；不伪造商业返回或注入生产延迟。
                     var table=new DataTable();using(reader)table.Load(reader);await after(token);return table.CreateDataReader();

@@ -1,10 +1,10 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using SwiftExport.Application.Interfaces.Procurement;
+using SwiftExport.Application.Interfaces.OrderTracking.PurchaseOrders;
 using SwiftExport.Contracts.DTOs.Procurement.PurchaseOrders.Trace;
 using SwiftExport.Contracts.Wrappers;
 
-namespace SwiftExport.WebApi.Controllers.Procurement.PurchaseOrders.Trace;
+namespace SwiftExport.WebApi.Controllers.OrderTracking;
 
 /// <summary>采购追溯只读 HTTP 边界；细粒度订单权限由 Application 校验。</summary>
 [ApiController]

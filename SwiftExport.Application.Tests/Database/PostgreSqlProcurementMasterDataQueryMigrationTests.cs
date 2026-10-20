@@ -76,6 +76,12 @@ public sealed partial class PostgreSqlRepositoryTests
         StringAssert.Contains(sql, "FROM public.product p");
         StringAssert.Contains(sql, "relation.is_active=TRUE");
         StringAssert.Contains(sql, "ORDER BY relation.uid LIMIT 1");
+        // 两个关系表的软删除列均为 NOT NULL；保持与部分索引一致，防止逐产品查询退化成重复全表扫描。
+        foreach (var command in f.Connection.Commands)
+        {
+            StringAssert.Contains(command.Sql, "relation.is_deleted=FALSE");
+            Assert.IsFalse(command.Sql.Contains("COALESCE(relation.is_deleted", StringComparison.Ordinal));
+        }
         StringAssert.Contains(sql, "p.supply_type COLLATE public.erp_dictionary_ci = @PurchaseSupply");
         Assert.AreEqual("采购", f.Connection.Values["PurchaseSupply"]);
         Assert.AreEqual(customer, f.Connection.Values["CustomerId"]);
