@@ -13,6 +13,14 @@ namespace SwiftExport.WebApi.Controllers.Procurement.PurchaseOrders.Reversal;
 [Route("api/procurement/orders")]
 public sealed class ProcurementOrderReversalController(IProcurementOrderReversalService reversals) : ControllerBase
 {
+    /// <summary>读取整单草稿删除资格和将释放的全部占用，不写入或预留资源。</summary>
+    [HttpPost("{uid}/delete-draft-preview")]
+    public Task<ServiceResult<ProcurementReversalPreviewDto>> PreviewDeleteDraftAsync(Guid uid,[FromBody]ProcurementReversalPreviewRequest request,CancellationToken cancellationToken=default)
+        => reversals.PreviewAsync(uid,SwiftExport.Contracts.SysEnums.ProcurementReversalOperation.DeleteDraft,request,cancellationToken);
+    /// <summary>整单删除从未确认且无下游历史的待确认活动草稿。</summary>
+    [HttpPost("{uid}/delete-draft")]
+    public Task<ServiceResult<ProcurementOrderCommandResult>> DeleteDraftAsync(Guid uid, [FromBody] DeleteProcurementDraftCommand request, CancellationToken cancellationToken = default)
+        => reversals.DeleteDraftAsync(uid, request, cancellationToken);
     /// <summary>预览取消确认资格，保留物料需求引用。</summary>
     [HttpPost("{uid}/cancel-confirmation-preview")]
     public Task<ServiceResult<ProcurementReversalPreviewDto>> PreviewCancelConfirmationAsync(Guid uid, [FromBody] ProcurementReversalPreviewRequest request, CancellationToken cancellationToken = default)

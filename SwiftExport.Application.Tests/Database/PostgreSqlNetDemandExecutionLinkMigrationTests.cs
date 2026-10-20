@@ -132,17 +132,21 @@ public sealed class PostgreSqlNetDemandExecutionLinkMigrationTests
         StringAssert.Contains(active, "\"allocated_qty\"-l.\"released_qty\" AS \"AllocatedQty\"");
         StringAssert.Contains(active, "COLLATE public.erp_dictionary_ci");
         StringAssert.Contains(active, "\"created_date\" NULLS FIRST");
-        Assert.IsFalse(active.Contains("link_status", StringComparison.Ordinal));
+        StringAssert.Contains(active,"link.link_status=0");
+        StringAssert.Contains(active,"AS \"ReviewReason\"");
+        StringAssert.Contains(active,"LEFT JOIN public.purchase_order_head");
         var whereBlockers = blockers.Split("WHERE")[1].Split("ORDER BY")[0];
         Assert.IsFalse(whereBlockers.Contains("target_type", StringComparison.Ordinal));
-        Assert.IsFalse(whereBlockers.Contains("link_status", StringComparison.Ordinal));
+        StringAssert.Contains(whereBlockers,"l.link_status=0");
         StringAssert.Contains(blockers, "concat('净需求已关联 '");
         var whereItems = items.Split("WHERE")[1].Split("ORDER BY")[0];
         Assert.IsFalse(whereItems.Contains("link_status", StringComparison.Ordinal));
         Assert.IsFalse(whereItems.Contains("allocated_qty", StringComparison.Ordinal));
         Assert.IsFalse(whereItems.Contains("target_type", StringComparison.Ordinal));
         foreach (var sql in new[] { active, blockers, items })
-        { StringAssert.Contains(sql, "FOR UPDATE OF l"); Assert.IsFalse(sql.Contains("JOIN", StringComparison.Ordinal)); }
+        { StringAssert.Contains(sql, "FOR UPDATE OF l"); }
+        Assert.IsFalse(items.Contains("JOIN",StringComparison.Ordinal));
+        Assert.IsFalse(blockers.Contains("JOIN",StringComparison.Ordinal));
         var metadata = EntityMetadataCache.GetMetadata(typeof(DemandExecutionLink));
         foreach (var column in metadata.Columns)
         { StringAssert.Contains(items, "AS " + PostgreSqlNames.Quote(column.PropertyName)); StringAssert.Contains((string)typeof(PostgreSqlNetDemandExecutionLinkRepository).GetField("ExecutionLinkInsertSql", BindingFlags.Static | BindingFlags.NonPublic)!.GetValue(null)!, "@" + column.ParameterName); }

@@ -228,7 +228,6 @@ public static class DependencyInjection
         services.AddScoped<PurchaseDraftPreviewBuilder>();
         services.AddScoped<PurchaseDraftWriteModelBuilder>();
         services.AddScoped<SwiftExport.Application.Services.Procurement.PurchaseOrders.Draft.FromDemand.PurchaseDraftPreviewService>();
-        services.AddScoped<IPurchaseDraftPreviewService>(sp => sp.GetRequiredService<SwiftExport.Application.Services.Procurement.PurchaseOrders.Draft.FromDemand.PurchaseDraftPreviewService>());
         services.AddScoped<IPurchaseDraftCreationService, SwiftExport.Application.Services.Procurement.PurchaseOrders.Draft.FromDemand.PurchaseDraftCreationService>();
         services.AddScoped<IPurchaseDraftCandidateService, SwiftExport.Application.Services.Procurement.PurchaseOrders.Sources.PurchaseDraftCandidateService>();
         // 独立采购草稿和确认使用独立服务；查询与预览通过只读边界执行。

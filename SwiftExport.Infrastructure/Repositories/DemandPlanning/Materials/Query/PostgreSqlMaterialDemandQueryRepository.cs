@@ -1,3 +1,4 @@
+using SwiftExport.Infrastructure.Repositories.Procurement.PurchaseOrders.Query;
 using Dapper;
 using SwiftExport.Core.Interfaces.DemandPlanning.Materials.Query;
 using SwiftExport.Contracts.DTOs.DemandPlanning.NetDemand;
@@ -95,16 +96,21 @@ public sealed partial class PostgreSqlMaterialDemandQueryRepository(RepositoryBa
                     nd.net_qty AS "NetQty",
                     nd.required_date AS "DemandRequiredDate",
                     CASE WHEN nd.lifecycle_status=0 AND assessment.review_reason=''
-                         THEN COALESCE(purchaseFacts.associated_purchase_qty,0) ELSE NULL::numeric END AS "AssociatedPurchaseQty",
+                         THEN purchaseFacts.associated_qty ELSE NULL::numeric END AS "AssociatedPurchaseQty",
+                    CASE WHEN nd.lifecycle_status=0 AND assessment.review_reason='' THEN purchaseFacts.purchased_qty END AS "PurchasedQty",
+                    CASE WHEN nd.lifecycle_status=0 AND assessment.review_reason='' THEN purchaseFacts.draft_qty END AS "DraftOccupiedQty",
+                    CASE WHEN nd.lifecycle_status=0 AND assessment.review_reason='' THEN nd.net_qty-purchaseFacts.associated_qty END AS "CreatableQty",
+                    CASE WHEN nd.lifecycle_status=0 AND assessment.review_reason='' THEN nd.net_qty-purchaseFacts.purchased_qty END AS "UnpurchasedQty",
+                    CASE WHEN @IncludePurchaseDetails THEN purchaseFacts.draft_orders_json::jsonb ELSE '[]'::jsonb END AS "DraftOrders",
                     purchaseNumbers.purchase_order_nos AS "PurchaseOrderNos",
                     purchaseNumbers.actual_purchase_suppliers AS "ActualPurchaseSuppliers",
                     CASE WHEN nd.lifecycle_status<>0 THEN '历史'
                          WHEN assessment.review_reason<>'' THEN '需核实'
-                         WHEN COALESCE(purchaseFacts.associated_purchase_qty,0)=0 THEN '未承接'
-                         WHEN purchaseFacts.associated_purchase_qty<nd.net_qty THEN '部分承接'
+                         WHEN purchaseFacts.purchased_qty=0 THEN '未承接'
+                         WHEN purchaseFacts.purchased_qty<nd.net_qty THEN '部分承接'
                          ELSE '已承接' END AS "ProcurementStatus",
                     CASE WHEN nd.lifecycle_status<>0 OR assessment.review_reason<>''
-                               OR nd.required_date IS NULL OR COALESCE(purchaseFacts.associated_purchase_qty,0)>=nd.net_qty
+                               OR nd.required_date IS NULL OR purchaseFacts.purchased_qty>=nd.net_qty
                          THEN ''
                          WHEN nd.required_date::date<@BusinessDate THEN '未承接已逾期'
                          WHEN nd.required_date::date<=(CAST(@BusinessDate AS date) + 7) THEN '未承接临近交期'
@@ -130,42 +136,8 @@ public sealed partial class PostgreSqlMaterialDemandQueryRepository(RepositoryBa
                 LEFT JOIN "public"."supplier" deliverySupplier
                   ON deliverySupplier.uid=deliveryTarget.suggested_purchase_supplier_id AND COALESCE(deliverySupplier.is_deleted,FALSE)=FALSE
                 LEFT JOIN LATERAL (SELECT NULLIF(btrim(nd.unit_snapshot, ' '),'') AS unit) unitFacts ON TRUE
-                -- 保留源工作台：先汇总关联量，再独立判断目标可信度，避免把失效目标漏成未承接。
-                LEFT JOIN LATERAL (
-                    SELECT SUM(link.allocated_qty-link.released_qty) AS associated_purchase_qty
-                    FROM "public"."demand_execution_link" link
-                    LEFT JOIN "public"."purchase_order_head" purchaseHead
-                      ON purchaseHead.uid=link.target_head_id
-                     AND purchaseHead.lifecycle_status=0 AND COALESCE(purchaseHead.is_deleted,FALSE)=FALSE
-                    LEFT JOIN "public"."purchase_order_line" purchaseLine
-                      ON purchaseLine.uid=link.target_line_id
-                     AND purchaseLine.purchase_order_id=purchaseHead.uid AND COALESCE(purchaseLine.is_deleted,FALSE)=FALSE
-                    WHERE link.net_demand_id=nd.uid
-                      AND rtrim(link.target_type, ' ') COLLATE public.erp_dictionary_ci=rtrim(@PurchaseTargetType, ' ') COLLATE public.erp_dictionary_ci AND link.link_status=0 AND link.is_deleted=FALSE
-                      AND link.allocated_qty>link.released_qty
-                ) purchaseFacts ON TRUE
-                LEFT JOIN LATERAL (
-                    SELECT COUNT(*) AS invalid_count
-                    FROM "public"."demand_execution_link" suspectLink
-                    LEFT JOIN "public"."purchase_order_head" suspectHead ON suspectHead.uid=suspectLink.target_head_id
-                        AND suspectHead.lifecycle_status=0 AND suspectHead.is_deleted=FALSE
-                    LEFT JOIN "public"."purchase_order_line" suspectLine ON suspectLine.uid=suspectLink.target_line_id
-                        AND suspectLine.purchase_order_id=suspectLink.target_head_id AND suspectLine.is_deleted=FALSE
-                    WHERE suspectLink.net_demand_id=nd.uid AND suspectLink.is_deleted=FALSE
-                      AND suspectLink.allocated_qty>suspectLink.released_qty
-                      AND (suspectLink.link_status<>0 OR rtrim(suspectLink.target_type,' ') COLLATE public.erp_dictionary_ci<>'PO'
-                           OR suspectHead.uid IS NULL OR suspectLine.uid IS NULL OR suspectHead.customer_id IS NULL
-                           OR suspectHead.customer_id<>gd.customer_id OR unitFacts.unit IS NULL
-                           OR suspectLine.product_id IS DISTINCT FROM nd.product_id
-                           OR suspectLine.quantity<=0 OR suspectLine.unlinked_qty IS NULL
-                           OR suspectLine.unlinked_qty<0 OR suspectLine.unlinked_qty>suspectLine.quantity
-                           OR suspectLine.unlinked_qty+(SELECT COALESCE(SUM(shared.allocated_qty-shared.released_qty),0)
-                               FROM public.demand_execution_link shared WHERE shared.target_line_id=suspectLink.target_line_id
-                                 AND rtrim(shared.target_type,' ') COLLATE public.erp_dictionary_ci='PO'
-                                 AND shared.is_deleted=FALSE AND shared.allocated_qty>shared.released_qty)<>suspectLine.quantity
-                           OR NULLIF(btrim(suspectLine.unit_snapshot, ' '),'') IS NULL
-                           OR btrim(suspectLine.unit_snapshot, ' ') COLLATE public.erp_dictionary_ci<>unitFacts.unit COLLATE public.erp_dictionary_ci)
-                ) purchaseIssues ON TRUE
+                -- 总占用约束容量，只有已确认采购计入进度；异常关系不得漏算为空余容量。
+                LEFT JOIN LATERAL ({PurchaseDemandCommitmentSql.Aggregate("nd.uid")}) purchaseFacts ON TRUE
                 LEFT JOIN LATERAL (
                     SELECT string_agg(numbers.order_no,',') AS purchase_order_nos,
                            string_agg(numbers.supplier_name,',') AS actual_purchase_suppliers
@@ -193,8 +165,8 @@ public sealed partial class PostgreSqlMaterialDemandQueryRepository(RepositoryBa
                       THEN '来源身份、状态或实物指纹需核实'
                     WHEN unitFacts.unit IS NULL THEN '物料单位需核实'
                     WHEN nd.net_qty<=0 THEN '物料需求数量需核实'
-                    WHEN purchaseIssues.invalid_count>0 THEN '采购目标、产品、客户、单位或共享数量需核实'
-                    WHEN COALESCE(purchaseFacts.associated_purchase_qty,0)>nd.net_qty THEN '采购承接超量需核实'
+                    WHEN purchaseFacts.review_reason<>'' THEN purchaseFacts.review_reason
+                    WHEN purchaseFacts.associated_qty>nd.net_qty THEN '采购承接超量需核实'
                     ELSE '' END AS review_reason) assessment ON TRUE
                 WHERE {string.Join(" AND ", where)}
             ), filtered AS (SELECT {WorkspaceColumns} FROM workspace WHERE {quickWhere}), page AS (
@@ -329,7 +301,7 @@ public sealed partial class PostgreSqlMaterialDemandQueryRepository(RepositoryBa
 
     // 工作集列固定为现有 DTO 投影；三个推荐商品关系字段原查询未读取，明确 null 而不增加新连接。
     private const string WorkspaceColumns = """
-        "Uid", "Version", "LifecycleStatus", "GrossDemandId", "DecompositionRevision", "LineNumber", "CustomerId", "CustomerCode", "CustomerName", "SourceType", "SourceUid", "SourceNo", "SourceLineNumber", "SourceLineId", "RootNetDemandId", "RootSku", "IsCustomerSupplied", "DeliveryTargetNetDemandId", "ProductId", "IsNonStandard", "Sku", "LinkSku", "CustomerSku", "Description", "Color", "Specification", "ImagePath", "MaterialType", "Unit", "SupplyType", "SuggestedPurchaseSupplierId", "SuggestedPurchaseSupplierCode", "SuggestedPurchaseSupplierName", "SuggestedDeliverySupplierId", "SuggestedDeliverySupplierCode", "SuggestedDeliverySupplierName", "SuggestedDeliverySupplierHint", "GrossQty", "NetQty", "DemandRequiredDate", "AssociatedPurchaseQty", "PurchaseOrderNos", "ActualPurchaseSuppliers", "ProcurementStatus", "DueHint", "ReviewReason", "SuggestedSupplierSku", "SuggestedUnitPrice", "SuggestedTaxPrice"
+        "Uid", "Version", "LifecycleStatus", "GrossDemandId", "DecompositionRevision", "LineNumber", "CustomerId", "CustomerCode", "CustomerName", "SourceType", "SourceUid", "SourceNo", "SourceLineNumber", "SourceLineId", "RootNetDemandId", "RootSku", "IsCustomerSupplied", "DeliveryTargetNetDemandId", "ProductId", "IsNonStandard", "Sku", "LinkSku", "CustomerSku", "Description", "Color", "Specification", "ImagePath", "MaterialType", "Unit", "SupplyType", "SuggestedPurchaseSupplierId", "SuggestedPurchaseSupplierCode", "SuggestedPurchaseSupplierName", "SuggestedDeliverySupplierId", "SuggestedDeliverySupplierCode", "SuggestedDeliverySupplierName", "SuggestedDeliverySupplierHint", "GrossQty", "NetQty", "DemandRequiredDate", "AssociatedPurchaseQty", "PurchasedQty", "DraftOccupiedQty", "CreatableQty", "UnpurchasedQty", "DraftOrders", "PurchaseOrderNos", "ActualPurchaseSuppliers", "ProcurementStatus", "DueHint", "ReviewReason", "SuggestedSupplierSku", "SuggestedUnitPrice", "SuggestedTaxPrice"
         """;
 
     /// <summary>接收同一工作集的总量与局部 JSON 页面，空页不丢总数，公共契约仍使用原分页 DTO。</summary>

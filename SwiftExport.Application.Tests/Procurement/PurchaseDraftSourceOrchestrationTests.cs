@@ -26,12 +26,23 @@ namespace SwiftExport.Application.Tests.Procurement;
 [TestClass]
 public sealed class PurchaseDraftSourceOrchestrationTests
 {
+    /// <summary>历史回执格式未知即使读取事务已回滚，仍保持结果未知协议，不允许按新请求重建。</summary>
+    [TestMethod]
+    public async Task UnknownReceiptFormatStaysUnknownAfterReadRollback()
+    {
+        var fixture=new Fixture();var command=fixture.Command();command.Sources.RemoveAt(1);
+        await fixture.SeedReplayAsync(command);fixture.InvalidateReceiptFormat();
+        var result=await fixture.Service.CreateAsync(command);
+        Assert.AreEqual("OUTCOME_UNKNOWN",result.Data.Sources.Single().ErrorCode);Assert.IsEmpty(result.Data.Sources.Single().PurchaseDrafts);
+        Assert.AreEqual(1,fixture.Connection.Rollbacks);Assert.AreEqual(0,fixture.Connection.Commits);
+    }
     /// <summary>已成功来源按 CommandItemId 重放，后续失败来源单独回滚，不清除已提交结果。</summary>
     [TestMethod]
     public async Task ReplayThenMissingSource_CommitAndRollbackSeparately()
     {
         var f = new Fixture();
         var command = f.Command();
+        await f.SeedReplayAsync(command);
         var result = await f.Service.CreateAsync(command);
         Assert.IsTrue(result.Success, result.Message);
         Assert.HasCount(2, result.Data.Sources);
@@ -59,10 +70,10 @@ public sealed class PurchaseDraftSourceOrchestrationTests
         firstSource.Items.Add(new CreatePurchaseDraftItemCommand
         {
             CommandItemId = Guid.NewGuid(), NetDemandId = Guid.NewGuid(), SupplierId = Guid.NewGuid(),
-            ExpectedVersion = 1, ExpectedRemainingQty = 1, PurchaseQty = 1
+            ExpectedVersion = 1, PurchaseQty = 1
         });
         command.Sources.RemoveAt(1);
-        command.PreviewToken = firstSource.SourcePreviewToken;
+
         var result = await f.Service.CreateAsync(command);
         Assert.IsTrue(result.Success, result.Message);
         Assert.AreEqual("IDEMPOTENCY_PARTIAL_STATE", result.Data.Sources.Single().ErrorCode);
@@ -78,6 +89,7 @@ public sealed class PurchaseDraftSourceOrchestrationTests
     public async Task Preparation_PrecedesEachTransactionAndReleasesAfterReplayOrRollback()
     {
         var f = new Fixture(withPreparation: true); var command = f.Command();
+        await f.SeedReplayAsync(command);
         var result = await f.Service.CreateAsync(command);
         Assert.IsTrue(result.Success); Assert.HasCount(2, f.Preparations);
         for (var i = 0; i < 2; i++)
@@ -100,8 +112,8 @@ public sealed class PurchaseDraftSourceOrchestrationTests
     {
         var f = new Fixture(withPreparation: true) { NullPreparationOnCall = 1 };
         var result = await f.Service.CreateAsync(f.Command());
-        Assert.IsTrue(result.Success); Assert.AreEqual("UNEXPECTED_ERROR", result.Data.Sources[0].ErrorCode);
-        Assert.AreEqual("创建采购草稿失败。", result.Data.Sources[0].Message);
+        Assert.IsTrue(result.Success); Assert.AreEqual("OUTCOME_UNKNOWN", result.Data.Sources[0].ErrorCode);
+        StringAssert.Contains(result.Data.Sources[0].Message,"保留原执行请求");
         Assert.IsEmpty(result.Data.Sources[0].PurchaseDrafts);
         Assert.AreEqual("SOURCE_NOT_FOUND", result.Data.Sources[1].ErrorCode);
         Assert.HasCount(2, f.Preparations); Assert.AreEqual(1, f.Connection.Begins);
@@ -154,6 +166,9 @@ public sealed class PurchaseDraftSourceOrchestrationTests
         public readonly ConnectionStub Connection = new();
         public readonly DbSession Session;
         public readonly PurchaseDraftCreationService Service;
+        private readonly PurchaseDraftCommandTestContext commands;
+        /// <summary>保留原成功回执身份，仅将格式置为当前不能解读，验证不得重新执行业务。</summary>
+        public void InvalidateReceiptFormat(){foreach(var receipt in commands.Receipts.Values)receipt.ResultVersion=999;}
         public readonly PurchaseOrderHead Head = new()
         {
             Uid = Guid.NewGuid(), Version = 2, OrderNo = "PO-REPLAY",
@@ -220,33 +235,45 @@ public sealed class PurchaseDraftSourceOrchestrationTests
                 throw new AssertFailedException("重放不得取号：" + method.Name));
             var previewQuery = Proxy<IMaterialDemandQueryRepository>.New((method, _) => throw new AssertFailedException(method.Name));
             var preview = new PurchaseDraftPreviewService(context, previewQuery, orders,
-                null!, null!, null!, null!, null!, null!, new PurchaseDraftPreviewBuilder());
+                null!, null!, null!, null!, null!, null!, new PurchaseDraftPreviewBuilder(),null!);
+            commands=new(context);
             Service = new PurchaseDraftCreationService(context, gross, net, links, orders, numbers,
-                preview, new PurchaseDraftPreviewBuilder(), new PurchaseDraftWriteModelBuilder());
+                preview, new PurchaseDraftPreviewBuilder(), new PurchaseDraftWriteModelBuilder(),commands.Executor,commands.Support);
+        }
+
+        /// <summary>使用公共执行器持久化同一输入的来源成功回执；不以Link猜测完整商务输入。</summary>
+        public async Task SeedReplayAsync(CreatePurchaseDraftsCommand command)
+        {
+            var source=command.Sources[0];
+            await commands.Executor.ExecuteAsync(PurchaseDraftCreationService.SourceCommandId(command.ExecutionRequestId,source.SourceType,source.SourceUid),
+                "Procurement.Demand.CreateDraft",source.SourceUid,
+                new{command.EntryMode,SourceType=source.SourceType.ToUpperInvariant(),source.SourceUid,source.LineMode,
+                    Items=source.Items.OrderBy(item=>item.CommandItemId).ToArray(),Targets=source.Targets.OrderBy(target=>target.SupplierId).ToArray()},
+                _=>Task.FromResult(new CreatePurchaseDraftSourceResult{SourceType=source.SourceType,SourceUid=source.SourceUid,
+                    Outcome=NetDemandCommandOutcomeEnum.Succeeded,PurchaseDrafts=[new(){PurchaseOrderId=Head.Uid,OrderNo=Head.OrderNo,Version=Head.Version}]}),default);
+            Connection.Begins=Connection.Commits=Connection.Rollbacks=0;
         }
 
         public CreatePurchaseDraftsCommand Command() => new()
         {
             ExecutionRequestId = requestId, EntryMode = PurchaseDraftEntryModeEnum.ManualSelection,
-            PreviewToken = "batch-token",
+
             Sources =
             [
                 new CreatePurchaseDraftSourceCommand
                 {
-                    SourceType = "SO", SourceUid = sourceId, SourcePreviewToken = "source-token",
-                    Items = [new CreatePurchaseDraftItemCommand
+                    SourceType = "SO", SourceUid = sourceId, Items = [new CreatePurchaseDraftItemCommand
                     {
                         CommandItemId = commandItemId, NetDemandId = demandId, SupplierId = Head.SupplierId,
-                        ExpectedVersion = 1, ExpectedRemainingQty = 1, PurchaseQty = 1
+                        ExpectedVersion = 1, PurchaseQty = 1
                     }]
                 },
                 new CreatePurchaseDraftSourceCommand
                 {
-                    SourceType = "SO", SourceUid = missingSourceId, SourcePreviewToken = "source-token",
-                    Items = [new CreatePurchaseDraftItemCommand
+                    SourceType = "SO", SourceUid = missingSourceId, Items = [new CreatePurchaseDraftItemCommand
                     {
                         CommandItemId = Guid.NewGuid(), NetDemandId = Guid.NewGuid(), SupplierId = Head.SupplierId,
-                        ExpectedVersion = 1, ExpectedRemainingQty = 1, PurchaseQty = 1
+                        ExpectedVersion = 1, PurchaseQty = 1
                     }]
                 }
             ]

@@ -14,6 +14,11 @@ internal static class ProcurementDemandReferencePolicy
     internal static void RequireExisting(ProcurementReversalFacts facts)
     {
         var head=facts.Head??throw new InvalidOperationException("采购单不存在。");
+        if(facts.Links.Any(link=>link.TargetType=="PO" && ((link.LinkStatus==DemandExecutionLinkStatusEnum.Active
+                && (link.IsDeleted || link.AllocatedQty<=link.ReleasedQty)) || !Enum.IsDefined(link.LinkStatus)
+                || link.AllocatedQty<=0 || link.ReleasedQty<0 || link.ReleasedQty>link.AllocatedQty
+                || (link.LinkStatus!=DemandExecutionLinkStatusEnum.Active && link.AllocatedQty!=link.ReleasedQty))))
+            throw new InvalidOperationException("物料现有采购占用状态或数量异常，请核实后再处理。");
         var lines=facts.Lines.Where(row=>!row.IsDeleted).ToDictionary(row=>row.Uid);
         // 先验证本单完整引用，不能先剔除坏活动Link而把它伪装为纯独立采购。
         var owned=facts.Links.Where(link=>link.TargetHeadId==head.Uid || lines.ContainsKey(link.TargetLineId)).ToArray();

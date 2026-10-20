@@ -12,6 +12,7 @@ using SwiftExport.Infrastructure.DatabaseSchema;
 using SwiftExport.Infrastructure.Repositories.Base;
 using SwiftExport.Infrastructure.Repositories.DemandPlanning.Sources.Document;
 using System.Data;
+using SwiftExport.Infrastructure.Repositories.Procurement.PurchaseOrders.Query;
 
 namespace SwiftExport.Infrastructure.Repositories.DemandPlanning.Materials.Execution;
 
@@ -202,14 +203,15 @@ public sealed class PostgreSqlNetDemandExecutionLinkRepository(RepositoryBaseCon
         return await action();
     }
 
-    /// <summary>净贡献由SQL计算，日期NULL先与源SqlGuid尾键保持原序，只锁实际匹配关系行。</summary>
+    /// <summary>先锁全部活动及异常关系，再携带目标核实原因；草稿和已确认采购都占容量，不能把坏关系过滤为零。</summary>
     private static string ActiveSql() => $"""
         SELECT l."uid" AS "Uid",l."net_demand_id" AS "NetDemandId",
-               l."allocated_qty"-l."released_qty" AS "AllocatedQty"
+               l."allocated_qty"-l."released_qty" AS "AllocatedQty",l.target_head_id AS "TargetHeadId",l.target_line_id AS "TargetLineId",
+               evidence.review_reason AS "ReviewReason"
         FROM "public"."demand_execution_link" AS l
+        JOIN LATERAL ({PurchaseDemandCommitmentSql.Evidence("l.net_demand_id")}) evidence ON evidence.uid=l.uid
         WHERE l."net_demand_id"=ANY(@Uids)
           AND {Dictionary("l." + "\"target_type\"")}={Dictionary("@PurchaseTargetType")}
-          AND l."allocated_qty">l."released_qty" AND l."is_deleted"=FALSE
         ORDER BY l."created_date" NULLS FIRST,{UuidOrder("l." + "\"uid\"")}
         FOR UPDATE OF l;
         """;
@@ -221,8 +223,7 @@ public sealed class PostgreSqlNetDemandExecutionLinkRepository(RepositoryBaseCon
                l."link_status" AS "LinkStatus",
                concat('净需求已关联 ',l."target_type",' ',l."target_no",'，请先取消或完成反向处理。') AS "Message"
         FROM "public"."demand_execution_link" AS l
-        WHERE l."net_demand_id"=ANY(@Uids) AND l."allocated_qty">l."released_qty"
-          AND l."is_deleted"=FALSE
+        WHERE l."net_demand_id"=ANY(@Uids) AND (l.link_status=0 OR l."allocated_qty"<>l."released_qty")
         ORDER BY {Dictionary("l." + "\"target_type\"")} NULLS FIRST,
                  {Dictionary("l." + "\"target_no\"")} NULLS FIRST,{UuidOrder("l." + "\"target_line_id\"")}
         FOR UPDATE OF l;

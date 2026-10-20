@@ -19,6 +19,28 @@ namespace SwiftExport.Application.Tests.Commands;
 [TestClass]
 public sealed class BusinessCommandExecutorTests
 {
+    /// <summary>确定回滚通知只证明未尝试提交的成功回滚；提交异常和提交后租约异常均不得标记可安全重建。</summary>
+    [TestMethod,DataRow("action",true),DataRow("receipt",true),DataRow("commit",false),DataRow("replay-commit",false),
+        DataRow("after-commit-lease",false),DataRow("action-rollback-fails",false),DataRow("replay-unknown-format",false),DataRow("receipt-read",false)]
+    public async Task ConfirmedRollbackNotificationRespectsCommitBoundary(string stage,bool expectedNotification)
+    {
+        var fixture=new Fixture(prepared:true);var id=Guid.NewGuid();var notified=false;var calls=0;
+        Task<Result> Action(CancellationToken _)
+        {calls++;if(stage.StartsWith("action",StringComparison.Ordinal))throw new IOException("提交前业务失败");return Task.FromResult(new Result(Guid.NewGuid(),1));}
+        if(stage.StartsWith("replay",StringComparison.Ordinal) || stage=="receipt-read")
+            await fixture.Executor.ExecuteAsync(id,"Test.RollbackBoundary",null,new{Value=1},Action,default);
+        fixture.Connection.FailCommit=stage is "commit" or "replay-commit";
+        fixture.Connection.FailLeaseDispose=stage=="after-commit-lease";
+        fixture.Connection.FailRollback=stage=="action-rollback-fails";
+        fixture.Receipts.FailInsert=stage=="receipt";
+        fixture.Receipts.FailFind=stage=="receipt-read";
+        if(stage=="replay-unknown-format")fixture.Receipts.Rows[id].ResultVersion=999;
+        var error=await Assert.ThrowsAsync<Exception>(()=>fixture.Executor.ExecuteAsync(id,"Test.RollbackBoundary",null,new{Value=1},Action,default,
+            onConfirmedRollback:()=>notified=true));
+        Assert.AreEqual(expectedNotification,notified);Assert.IsNull(fixture.Session.Transaction);Assert.AreEqual(1,calls);
+        if(stage is "commit" or "replay-unknown-format")Assert.AreEqual(ServiceErrorCodes.OutcomeUnknown,((BusinessCommandException)error).Code);
+        if(stage=="after-commit-lease"){Assert.AreEqual(1,fixture.Connection.Commits);Assert.AreEqual(1,fixture.Receipts.Inserts);}
+    }
     /// <summary>默认PG会话将明确序列化失败区别于结果未知；查询/提交/重放不自动重试，清理故障不覆盖分类。</summary>
     [TestMethod]
     [DataRow("action", false)]
@@ -444,6 +466,8 @@ public sealed class BusinessCommandExecutorTests
         public readonly Dictionary<Guid, CommandReceipt> Rows = [];
         public int LockResult, Inserts;
         public bool FailInsert;
+        /// <summary>模拟已提交命令重试时读取回执失败，当前回滚不能证明历史提交不存在。</summary>
+        public bool FailFind;
         /// <summary>记录事务内取锁顺序，不提供真实数据库互斥。</summary>
         public Task<int> LockAsync(Guid commandId, CancellationToken token)
         {
@@ -455,6 +479,7 @@ public sealed class BusinessCommandExecutorTests
         public Task<CommandReceipt?> FindAsync(Guid commandId, CancellationToken token)
         {
             events.Add("Find");
+            if(FailFind)throw new IOException("模拟历史回执读取失败");
             return Task.FromResult(Rows.GetValueOrDefault(commandId));
         }
         /// <summary>记录追加调用；字典不随回滚撤销，不能证明真实持久化结果。</summary>
@@ -509,6 +534,7 @@ public sealed class BusinessCommandExecutorTests
                 Assert.IsNull(session.Transaction);
                 Assert.AreEqual(connection.StartedTransactions, connection.DisposedTransactions);
                 connection.Events.Add("LeaseDispose");
+                if(connection.FailLeaseDispose)throw new IOException("模拟提交后租约释放异常");
                 return ValueTask.CompletedTask;
             }
         }
@@ -571,6 +597,8 @@ public sealed class BusinessCommandExecutorTests
         public bool FailRollback;
         /// <summary>在对象释放已记录后注入故障，不模拟真实连接资源回收。</summary>
         public bool FailTransactionDispose;
+        /// <summary>在事务已释放后注入租约清理故障，验证提交成功不能误报确定回滚。</summary>
+        public bool FailLeaseDispose;
         /// <summary>在事务对象创建前注入故障。</summary>
         public bool FailBegin;
         [AllowNull] public string ConnectionString { get; set; } = "";

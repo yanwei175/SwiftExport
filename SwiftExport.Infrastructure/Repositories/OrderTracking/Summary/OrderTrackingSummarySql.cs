@@ -1,3 +1,4 @@
+using SwiftExport.Infrastructure.Repositories.OrderTracking.Receipts;
 
 using SwiftExport.Infrastructure.Repositories.OrderTracking.Deliveries;
 using SwiftExport.Infrastructure.Repositories.OrderTracking.Purchases;
@@ -52,22 +53,23 @@ CASE WHEN g.source_uid IS NULL OR g.source_uid='00000000-0000-0000-0000-00000000
     // 与采购草稿资格一致：采购型快照才参与承接；客供和其他执行方式不算缺采购。
     internal static string Purchase => $"""
         summary_purchase_links AS (
-          SELECT n.uid AS net_id,l.allocated_qty-l.released_qty AS qty,{OrderTrackingPurchaseSql.Review} AS review_reason
+          SELECT n.uid AS net_id,l.allocated_qty-l.released_qty AS qty,poh.confirmation_status,{OrderTrackingPurchaseSql.Review} AS review_reason
           {OrderTrackingPurchaseSql.From}
           WHERE n.uid IN(SELECT uid FROM summary_material WHERE active)
-            AND l.link_status=0 AND NOT l.is_deleted
-            AND (l.allocated_qty<>l.released_qty OR l.allocated_qty<=0 OR l.released_qty<0)
+            AND {OrderTrackingPurchaseSql.Current}
         ), summary_purchase_material AS (
           SELECT m.gross_id,m.uid,m.net_qty,
+            COALESCE((SELECT sum(p.qty) FROM summary_purchase_links p WHERE p.net_id=m.uid),0) AS occupied_qty,
             CASE WHEN m.review_reason='' AND NOT EXISTS(SELECT 1 FROM summary_purchase_links p WHERE p.net_id=m.uid AND p.review_reason<>'')
-              THEN COALESCE((SELECT sum(p.qty) FROM summary_purchase_links p WHERE p.net_id=m.uid),0) END AS associated_qty
+                AND COALESCE((SELECT sum(p.qty) FROM summary_purchase_links p WHERE p.net_id=m.uid),0)<=m.net_qty
+              THEN COALESCE((SELECT sum(p.qty) FROM summary_purchase_links p WHERE p.net_id=m.uid AND p.confirmation_status=1),0) END AS associated_qty
           FROM summary_material m WHERE m.active
             AND rtrim(m.supply_type_snapshot,' ') COLLATE public.erp_dictionary_ci='采购'
             AND COALESCE(rtrim(m.material_type_snapshot,' '),'') COLLATE public.erp_dictionary_ci<>'客供件'
         ), summary_purchase_counts AS (
           SELECT b.gross_id,count(m.uid)::int AS applicable_count,
             count(m.uid) FILTER(WHERE associated_qty<net_qty)::int AS shortfall_count,
-            count(m.uid) FILTER(WHERE associated_qty>net_qty)::int AS excess_count,
+            count(m.uid) FILTER(WHERE occupied_qty>net_qty)::int AS excess_count,
             count(m.uid) FILTER(WHERE associated_qty IS NULL)::int AS review_count,
             count(m.uid) FILTER(WHERE associated_qty>0)::int AS allocated_count
           FROM summary_base b LEFT JOIN summary_purchase_material m ON m.gross_id=b.gross_id GROUP BY b.gross_id
@@ -79,7 +81,9 @@ CASE WHEN g.source_uid IS NULL OR g.source_uid='00000000-0000-0000-0000-00000000
           SELECT DISTINCT n.gross_demand_id AS gross_id,l.target_line_id,l.target_head_id
           FROM public.net_demand n JOIN public.gross_demand g ON g.uid=n.gross_demand_id
           JOIN public.demand_execution_link l ON l.net_demand_id=n.uid
+          LEFT JOIN public.purchase_order_head relatedHead ON relatedHead.uid=l.target_head_id
           WHERE n.gross_demand_id IN(SELECT gross_id FROM summary_base WHERE lifecycle_status=0)
+            AND {OrderTrackingReceiptScopeSql.Include("relatedHead","l.target_line_id")}
             AND NOT n.is_deleted AND n.lifecycle_status=0
             AND NOT l.is_deleted AND l.link_status=0
             AND (l.allocated_qty<>l.released_qty OR l.allocated_qty<=0 OR l.released_qty<0)
@@ -93,6 +97,7 @@ CASE WHEN g.source_uid IS NULL OR g.source_uid='00000000-0000-0000-0000-00000000
           SELECT il.source_line_id AS line_id,h.posting_status,il.quantity,
             CASE WHEN h.uid IS NULL THEN TRUE WHEN h.posting_status=0 THEN FALSE
               WHEN h.is_deleted OR il.is_deleted OR pol.uid IS NULL OR poh.uid IS NULL
+                OR poh.confirmation_status IS DISTINCT FROM 1
                 OR h.posting_status NOT IN(0,1,8) OR il.quantity<=0 OR il.original_line_id IS NOT NULL
                 OR (h.posting_status IN(1,8) AND h.posted_date IS NULL)
                 OR (h.posting_status=8 AND h.reversed_date IS NULL)
@@ -110,7 +115,7 @@ CASE WHEN g.source_uid IS NULL OR g.source_uid='00000000-0000-0000-0000-00000000
         ), summary_receipt_lines AS (
           SELECT t.target_line_id AS line_id,
             CASE WHEN t.head_count=1 AND pol.uid IS NOT NULL AND poh.uid IS NOT NULL AND NOT pol.is_deleted AND NOT poh.is_deleted
-              AND pol.quantity>0 AND NULLIF(btrim(pol.unit_snapshot,' '),'') IS NOT NULL
+              AND poh.confirmation_status=1 AND pol.quantity>0 AND NULLIF(btrim(pol.unit_snapshot,' '),'') IS NOT NULL
               AND NOT EXISTS(SELECT 1 FROM summary_receipt_evidence e WHERE e.line_id=t.target_line_id AND e.invalid)
               THEN pol.quantity-COALESCE((SELECT sum(e.quantity) FROM summary_receipt_evidence e
                   WHERE e.line_id=t.target_line_id AND e.posting_status=1 AND NOT e.invalid),0) END AS remaining_qty,

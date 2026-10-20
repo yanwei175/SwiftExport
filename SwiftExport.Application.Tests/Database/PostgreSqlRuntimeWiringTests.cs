@@ -1782,18 +1782,16 @@ public sealed class PostgreSqlRuntimeWiringTests
             Assert.AreEqual(1, established.CreatedMaterialDemandCount);
             netId = await observer.Connection.QuerySingleAsync<Guid>("SELECT uid FROM public.net_demand WHERE gross_demand_id=@Id AND NOT is_deleted", new { Id = grossId });
             var net = await RunEntity<NetDemand>(netId);
-            var purchasePreview = await Run(sp => sp.GetRequiredService<IPurchaseDraftPreviewService>().PreviewAsync(new() { ExecutionRequestId = Id(4),
+            var purchasePreview = await Run(sp => sp.GetRequiredService<SwiftExport.Application.Services.Procurement.PurchaseOrders.Draft.FromDemand.PurchaseDraftPreviewService>().PreviewAsync(new() { ExecutionRequestId = Id(4),
                 EntryMode = PurchaseDraftEntryModeEnum.ManualSelection, LineMode = PurchaseDraftLineModeEnum.KeepSourceLines,
                 Items = [new PurchaseDraftPreviewItem { CommandItemId = Id(41), NetDemandId = netId, ExpectedVersion = net.Version,
                     ExpectedRemainingQty = 1, PurchaseQty = 1, SupplierId = supplierId, UnitPrice = 10, TaxPrice = 10 }] }));
             Assert.IsFalse(purchasePreview.HasBlockers, string.Join(";", purchasePreview.Warnings.Select(x => x.Message)));
             var sourceGroup = purchasePreview.SourceGroups.Single();
             var linked = await Run(sp => sp.GetRequiredService<IPurchaseDraftCreationService>().CreateAsync(new() { ExecutionRequestId = Id(4),
-                EntryMode = PurchaseDraftEntryModeEnum.ManualSelection, PreviewToken = purchasePreview.PreviewToken,
-                Sources = [new CreatePurchaseDraftSourceCommand { SourceType = "SO", SourceUid = salesId, SourcePreviewToken = sourceGroup.SourcePreviewToken,
-                    LineMode = PurchaseDraftLineModeEnum.KeepSourceLines, ConfirmedWarningCodes = sourceGroup.Warnings.Where(x => x.RequiresConfirmation).Select(x => x.Code).Distinct().ToList(),
-                    Items = [new CreatePurchaseDraftItemCommand { CommandItemId = Id(41), NetDemandId = netId, ExpectedVersion = net.Version,
-                        ExpectedRemainingQty = 1, PurchaseQty = 1, SupplierId = supplierId, UnitPrice = 10, TaxPrice = 10 }] }] }));
+                EntryMode = PurchaseDraftEntryModeEnum.ManualSelection,
+                Sources = [new CreatePurchaseDraftSourceCommand { SourceType = "SO", SourceUid = salesId, LineMode = PurchaseDraftLineModeEnum.KeepSourceLines, Items = [new CreatePurchaseDraftItemCommand { CommandItemId = Id(41), NetDemandId = netId, ExpectedVersion = net.Version,
+                        PurchaseQty = 1, SupplierId = supplierId, UnitPrice = 10, TaxPrice = 10 }] }] }));
             Assert.AreEqual(NetDemandCommandOutcomeEnum.Succeeded, linked.Sources.Single().Outcome, linked.Sources.Single().Message);
             autoPurchaseId = linked.Sources.Single().PurchaseDrafts.Single().PurchaseOrderId;
             autoLineId = await observer.Connection.QuerySingleAsync<Guid>("SELECT uid FROM public.purchase_order_line WHERE purchase_order_id=@Id AND NOT is_deleted", new { Id = autoPurchaseId });
@@ -1959,18 +1957,16 @@ public sealed class PostgreSqlRuntimeWiringTests
             Assert.AreEqual(1, established.CreatedMaterialDemandCount);
             netId = await observer.Connection.QuerySingleAsync<Guid>("SELECT uid FROM public.net_demand WHERE gross_demand_id=@Id AND NOT is_deleted", new { Id = grossId });
             var net = await RunEntity<NetDemand>(netId);
-            var purchasePreview = await Run(sp => sp.GetRequiredService<IPurchaseDraftPreviewService>().PreviewAsync(new() { ExecutionRequestId = Id(4),
+            var purchasePreview = await Run(sp => sp.GetRequiredService<SwiftExport.Application.Services.Procurement.PurchaseOrders.Draft.FromDemand.PurchaseDraftPreviewService>().PreviewAsync(new() { ExecutionRequestId = Id(4),
                 EntryMode = PurchaseDraftEntryModeEnum.ManualSelection, LineMode = PurchaseDraftLineModeEnum.KeepSourceLines,
                 Items = [new PurchaseDraftPreviewItem { CommandItemId = Id(41), NetDemandId = netId, ExpectedVersion = net.Version,
                     ExpectedRemainingQty = 1, PurchaseQty = 1, SupplierId = supplierId, UnitPrice = 10, TaxPrice = 10 }] }));
             Assert.IsFalse(purchasePreview.HasBlockers, string.Join(";", purchasePreview.Warnings.Select(x => x.Message)));
             var sourceGroup = purchasePreview.SourceGroups.Single();
             var linked = await Run(sp => sp.GetRequiredService<IPurchaseDraftCreationService>().CreateAsync(new() { ExecutionRequestId = Id(4),
-                EntryMode = PurchaseDraftEntryModeEnum.ManualSelection, PreviewToken = purchasePreview.PreviewToken,
-                Sources = [new CreatePurchaseDraftSourceCommand { SourceType = "SO", SourceUid = salesId, SourcePreviewToken = sourceGroup.SourcePreviewToken,
-                    LineMode = PurchaseDraftLineModeEnum.KeepSourceLines, ConfirmedWarningCodes = sourceGroup.Warnings.Where(x => x.RequiresConfirmation).Select(x => x.Code).Distinct().ToList(),
-                    Items = [new CreatePurchaseDraftItemCommand { CommandItemId = Id(41), NetDemandId = netId, ExpectedVersion = net.Version,
-                        ExpectedRemainingQty = 1, PurchaseQty = 1, SupplierId = supplierId, UnitPrice = 10, TaxPrice = 10 }] }] }));
+                EntryMode = PurchaseDraftEntryModeEnum.ManualSelection,
+                Sources = [new CreatePurchaseDraftSourceCommand { SourceType = "SO", SourceUid = salesId, LineMode = PurchaseDraftLineModeEnum.KeepSourceLines, Items = [new CreatePurchaseDraftItemCommand { CommandItemId = Id(41), NetDemandId = netId, ExpectedVersion = net.Version,
+                        PurchaseQty = 1, SupplierId = supplierId, UnitPrice = 10, TaxPrice = 10 }] }] }));
             Assert.AreEqual(NetDemandCommandOutcomeEnum.Succeeded, linked.Sources.Single().Outcome, linked.Sources.Single().Message);
             autoPurchaseId = linked.Sources.Single().PurchaseDrafts.Single().PurchaseOrderId;
             autoLineId = await observer.Connection.QuerySingleAsync<Guid>("SELECT uid FROM public.purchase_order_line WHERE purchase_order_id=@Id AND NOT is_deleted", new { Id = autoPurchaseId });
@@ -2671,13 +2667,12 @@ public sealed class PostgreSqlRuntimeWiringTests
             using var scope = app.Services.CreateScope(); var sp = scope.ServiceProvider;
             var input = new PurchaseDraftPreviewRequest { ExecutionRequestId = request, EntryMode = PurchaseDraftEntryModeEnum.ManualSelection, LineMode = PurchaseDraftLineModeEnum.KeepSourceLines,
                 Items = [new PurchaseDraftPreviewItem { CommandItemId = item, NetDemandId = netId, ExpectedVersion = 1, ExpectedRemainingQty = 3, PurchaseQty = 2, SupplierId = supplierId, UnitPrice = 10, TaxPrice = 10 }] };
-            var preview = await sp.GetRequiredService<IPurchaseDraftPreviewService>().PreviewAsync(input);
+            var preview = await sp.GetRequiredService<SwiftExport.Application.Services.Procurement.PurchaseOrders.Draft.FromDemand.PurchaseDraftPreviewService>().PreviewAsync(input);
             Assert.IsTrue(preview.Success, preview.Error?.Code + ":" + preview.Message); Assert.IsFalse(preview.Data.HasBlockers);
             var group = preview.Data.SourceGroups.Single(); Clean(sp);
-            return new() { ExecutionRequestId = request, EntryMode = input.EntryMode, PreviewToken = preview.Data.PreviewToken,
-                Sources = [new CreatePurchaseDraftSourceCommand { SourceType = "SO", SourceUid = salesId, SourcePreviewToken = group.SourcePreviewToken, LineMode = input.LineMode,
-                    Items = [new CreatePurchaseDraftItemCommand { CommandItemId = item, NetDemandId = netId, ExpectedVersion = 1, ExpectedRemainingQty = 3, PurchaseQty = 2, SupplierId = supplierId, UnitPrice = 10, TaxPrice = 10 }],
-                    ConfirmedWarningCodes = group.Warnings.Where(x => x.RequiresConfirmation).Select(x => x.Code).Distinct().ToList() }] };
+            return new() { ExecutionRequestId = request, EntryMode = input.EntryMode,
+                Sources = [new CreatePurchaseDraftSourceCommand { SourceType = "SO", SourceUid = salesId, LineMode = input.LineMode,
+                    Items = [new CreatePurchaseDraftItemCommand { CommandItemId = item, NetDemandId = netId, ExpectedVersion = 1, PurchaseQty = 2, SupplierId = supplierId, UnitPrice = 10, TaxPrice = 10 }] }] };
         }
 
         // 第三连接持同来源整组租约；观察实际try-lock与未开事务后才释放，所有发起任务必须等待终态。
@@ -3039,14 +3034,12 @@ public sealed class PostgreSqlRuntimeWiringTests
                     Items = [new PurchaseDraftPreviewItem { CommandItemId = itemId, NetDemandId = netId, ExpectedVersion = net.Version, ExpectedRemainingQty = remaining, PurchaseQty = 1, SupplierId = supplierId, UnitPrice = 10, TaxPrice = 10 }] };
                 if (append is not null) previewInput.Targets.Add(new PurchaseDraftTargetSelectionDto { SourceType = "SO", SourceUid = salesId, SupplierId = supplierId, TargetMode = PurchaseDraftTargetModeEnum.AppendExisting,
                     ExistingPurchaseOrderId = append.PurchaseOrderId, ExpectedPurchaseOrderVersion = append.Version });
-                var preview = await services.GetRequiredService<IPurchaseDraftPreviewService>().PreviewAsync(previewInput);
+                var preview = await services.GetRequiredService<SwiftExport.Application.Services.Procurement.PurchaseOrders.Draft.FromDemand.PurchaseDraftPreviewService>().PreviewAsync(previewInput);
                 Assert.IsTrue(preview.Success, preview.Error?.Code + ": " + preview.Message);
                 Assert.IsFalse(preview.Data.HasBlockers, string.Join(";", preview.Data.Warnings.Select(x => x.Code + ":" + x.Message)));
                 var group = preview.Data.SourceGroups.Single();
-                var input = new CreatePurchaseDraftsCommand { ExecutionRequestId = requestId, EntryMode = previewInput.EntryMode, PreviewToken = preview.Data.PreviewToken,
-                    Sources = [new CreatePurchaseDraftSourceCommand { SourceType = "SO", SourceUid = salesId, SourcePreviewToken = group.SourcePreviewToken, LineMode = previewInput.LineMode,
-                        Items = [new CreatePurchaseDraftItemCommand { CommandItemId = itemId, NetDemandId = netId, ExpectedVersion = net.Version, ExpectedRemainingQty = remaining, PurchaseQty = 1, SupplierId = supplierId, UnitPrice = 10, TaxPrice = 10 }],
-                        ConfirmedWarningCodes = group.Warnings.Where(x => x.RequiresConfirmation).Select(x => x.Code).Distinct().ToList() }] };
+                var input = new CreatePurchaseDraftsCommand { ExecutionRequestId = requestId, EntryMode = previewInput.EntryMode, Sources = [new CreatePurchaseDraftSourceCommand { SourceType = "SO", SourceUid = salesId, LineMode = previewInput.LineMode,
+                        Items = [new CreatePurchaseDraftItemCommand { CommandItemId = itemId, NetDemandId = netId, ExpectedVersion = net.Version, PurchaseQty = 1, SupplierId = supplierId, UnitPrice = 10, TaxPrice = 10 }] }] };
                 if (append is not null) input.Sources.Single().Targets.Add(new CreatePurchaseDraftTargetCommand { SupplierId = supplierId, TargetMode = PurchaseDraftTargetModeEnum.AppendExisting,
                     ExistingPurchaseOrderId = append.PurchaseOrderId, ExpectedPurchaseOrderVersion = append.Version });
                 var result = await services.GetRequiredService<IPurchaseDraftCreationService>().CreateAsync(input);

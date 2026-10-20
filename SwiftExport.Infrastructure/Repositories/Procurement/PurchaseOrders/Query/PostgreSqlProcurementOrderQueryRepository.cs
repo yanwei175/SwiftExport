@@ -122,6 +122,8 @@ public sealed class PostgreSqlProcurementOrderQueryRepository(RepositoryBaseCont
                 CASE WHEN h."lifecycle_status"<>@Active THEN '采购单不是活动状态。'
                      WHEN h."confirmation_status" NOT IN (@Pending,@Confirmed) THEN '采购确认状态不支持当前命令。'
                      ELSE '' END AS "CommandBlockedReason",
+                ({PurchaseDraftDeletionSql.BlockReason("h")}='' AND totals.line_count>0) AS "CanDeleteDraft",
+                {PurchaseDraftDeletionSql.BlockReason("h")} AS "DeleteDraftBlockReason",
                 totals.line_count AS "LineCount",totals.total_quantity AS "TotalQuantity",totals.cny_total_amount AS "CnyTotalAmount"
             FROM "public"."purchase_order_head" h
             LEFT JOIN LATERAL (

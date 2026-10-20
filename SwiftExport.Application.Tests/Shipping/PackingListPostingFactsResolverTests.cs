@@ -49,6 +49,16 @@ public sealed class PackingListPostingFactsResolverTests
         Assert.AreEqual("EXECUTION_LINK_INVALID", f.Resolve().Preview.Blockers.Single().Code);
     }
 
+    /// <summary>即使已有库存，未确认或非活动采购Link也不能伪装为正式执行依据。</summary>
+    [TestMethod,DataRow(false),DataRow(true)]
+    public void DraftOrClosedPurchaseCannotSupplyFormalExecution(bool closed)
+    {
+        var f=new Fixture();
+        if(closed)f.Facts.PurchaseHeads[0].LifecycleStatus=PurchaseOrderLifecycleStatusEnum.Closed;
+        else f.Facts.PurchaseHeads[0].ConfirmationStatus=ConfirmationStatusEnum.待确认;
+        Assert.AreEqual("EXECUTION_LINK_INVALID",f.Resolve().Preview.Blockers.Single().Code);
+    }
+
     /// <summary>客供件使用需求数量快照，允许没有自己的 Link。</summary>
     [TestMethod]
     public void ComponentWithoutLinkCanConsumeStock()
@@ -125,7 +135,7 @@ public sealed class PackingListPostingFactsResolverTests
                 SourceDemandBasisFingerprintSnapshot = "basis", DecompositionRevision = 1 };
             Root.RootNetDemandId = Root.Uid;
             Warehouse = new WarehouseSite { Code = "W1", SupplierId = supplier, IsActive = true, SiteType = WarehouseSiteTypeEnum.SupplierVirtual };
-            var po = new PurchaseOrderHead { SupplierId = supplier };
+            var po = new PurchaseOrderHead { SupplierId = supplier,ConfirmationStatus=ConfirmationStatusEnum.已确认 };
             var line = new PurchaseOrderLine { PurchaseOrderId = po.Uid, ProductId = Product.Uid, Quantity = 100 };
             Facts.Sources = [Source]; Facts.Demands = [Root]; Facts.Products = [Product]; Facts.Warehouses = [Warehouse];
             Facts.PurchaseHeads = [po]; Facts.PurchaseLines = [line];

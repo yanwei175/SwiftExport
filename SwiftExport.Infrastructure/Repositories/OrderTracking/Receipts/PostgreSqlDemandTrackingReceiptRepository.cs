@@ -32,7 +32,8 @@ public sealed class PostgreSqlDemandTrackingReceiptRepository(RepositoryBaseCont
             WITH related AS (
             SELECT l.target_line_id,l.target_head_id,l.target_no FROM public.net_demand n
             JOIN public.demand_execution_link l ON l.net_demand_id=n.uid AND rtrim(l.target_type,' ') COLLATE public.erp_dictionary_ci='PO'
-            WHERE {scope}
+            LEFT JOIN public.purchase_order_head relatedHead ON relatedHead.uid=l.target_head_id
+            WHERE {scope} AND {OrderTrackingReceiptScopeSql.Include("relatedHead","l.target_line_id")}
             ), targets AS(
             SELECT target_line_id,min(target_head_id::text)::uuid AS head_id,min(target_no COLLATE "C") AS target_no,count(DISTINCT target_head_id) AS head_count
             FROM related GROUP BY target_line_id
@@ -40,13 +41,14 @@ public sealed class PostgreSqlDemandTrackingReceiptRepository(RepositoryBaseCont
             SELECT t.head_id AS "PurchaseOrderId",t.target_line_id AS "PurchaseLineId",COALESCE(poh.order_no,t.target_no) AS "PurchaseOrderNo",
             COALESCE(pol.line_number,0) AS "PurchaseLineNumber",pol.sku AS "Sku",pol.unit_snapshot AS "Unit",
             CASE WHEN t.head_count=1 AND pol.uid IS NOT NULL AND poh.uid IS NOT NULL AND NOT pol.is_deleted AND NOT poh.is_deleted
-            AND pol.quantity>0 AND NULLIF(btrim(pol.unit_snapshot,' '),'') IS NOT NULL THEN pol.quantity END AS "PurchaseLineQty",
+            AND poh.confirmation_status=1 AND pol.quantity>0 AND NULLIF(btrim(pol.unit_snapshot,' '),'') IS NOT NULL THEN pol.quantity END AS "PurchaseLineQty",
             EXISTS(SELECT 1 FROM public.demand_execution_link other
             WHERE other.target_line_id=t.target_line_id AND rtrim(other.target_type,' ') COLLATE public.erp_dictionary_ci='PO'
             AND other.link_status=0 AND NOT other.is_deleted AND other.allocated_qty>other.released_qty
             GROUP BY other.target_line_id HAVING count(DISTINCT other.net_demand_id)>1) AS "IsSharedPurchaseLine",
             CASE WHEN t.head_count<>1 THEN '关联采购头身份不一致'
             WHEN pol.uid IS NULL OR poh.uid IS NULL OR pol.is_deleted OR poh.is_deleted THEN '采购目标缺失或已删除'
+            WHEN poh.confirmation_status<>1 THEN '未确认采购已有入库证据，需核实'
             WHEN pol.quantity<=0 OR NULLIF(btrim(pol.unit_snapshot,' '),'') IS NULL THEN '采购数量或单位需核实'
             ELSE '' END AS "ReviewReason"
             FROM targets t LEFT JOIN public.purchase_order_line pol ON pol.uid=t.target_line_id AND pol.purchase_order_id=t.head_id
@@ -69,6 +71,7 @@ public sealed class PostgreSqlDemandTrackingReceiptRepository(RepositoryBaseCont
                     WHEN h.posting_status=0 THEN ''
                     WHEN h.is_deleted OR il.is_deleted THEN '入库记录已删除，历史需核实'
                     WHEN pol.uid IS NULL OR poh.uid IS NULL THEN '采购来源缺失'
+                    WHEN poh.confirmation_status<>1 THEN '未确认采购已有正式收货，需核实'
                     WHEN h.posting_status NOT IN (0,1,8) THEN '入库状态需核实'
                     WHEN il.quantity<=0 OR il.original_line_id IS NOT NULL THEN '入库数量或历史类型需核实'
                     WHEN h.posting_status IN (1,8) AND h.posted_date IS NULL THEN '过账时间缺失'

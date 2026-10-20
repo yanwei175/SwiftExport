@@ -82,7 +82,8 @@ public sealed class PackingListPostingFactsResolver
             {
                 if (link.TargetType != "PO" || !purchases.TryGetValue(link.TargetLineId, out var line)
                     || line.PurchaseOrderId != link.TargetHeadId || line.ProductId != productId || line.IsDeleted
-                    || !purchaseHeads.TryGetValue(line.PurchaseOrderId, out var po) || po.IsDeleted)
+                    || !purchaseHeads.TryGetValue(line.PurchaseOrderId, out var po) || po.IsDeleted
+                    || po.ConfirmationStatus!=ConfirmationStatusEnum.已确认 || po.LifecycleStatus!=PurchaseOrderLifecycleStatusEnum.Active)
                 {
                     blockers.Add(new(PackingListErrorCodes.ExecutionLinkInvalid, source.Uid, "执行关系的采购目标、产品或归属无效。"));
                     continue;

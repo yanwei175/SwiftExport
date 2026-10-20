@@ -1,3 +1,4 @@
+using SwiftExport.Infrastructure.Repositories.Procurement.PurchaseOrders.Query;
 using SwiftExport.Contracts.DTOs.Errors;
 using System.Data;
 using Dapper;
@@ -60,7 +61,8 @@ public sealed class PostgreSqlProcurementDemandAssociationRepository(RepositoryB
                        h.version AS "HeadVersion",p.version AS "LineVersion",p.product_id AS "ProductId",
                        p.delivery_target_supplier_id AS "DeliveryTargetSupplierId"
                 FROM public.purchase_order_line p JOIN public.purchase_order_head h ON h.uid=p.purchase_order_id
-                WHERE p.uid=ANY(@Uids) AND p.is_deleted=FALSE AND h.is_deleted=FALSE AND h.lifecycle_status=0
+                WHERE p.uid=ANY(@Uids) AND p.is_deleted=FALSE AND h.is_deleted=FALSE
+                    AND (h.lifecycle_status=0 OR (h.lifecycle_status=8 AND h.confirmation_status=1))
                 ORDER BY {SqlGuidOrder("h.uid")},{SqlGuidOrder("p.uid")};
                 """, PostgreSqlParameters.Ids(ids), ct)));
         return result;
@@ -107,16 +109,19 @@ public sealed class PostgreSqlProcurementDemandAssociationRepository(RepositoryB
                    g.is_non_standard AS "IsNonStandard",n.sku_snapshot AS "Sku",n.customer_sku_snapshot AS "CustomerSku",
                    n.description_snapshot AS "Description",n.material_type_snapshot AS "MaterialType",n.supply_type_snapshot AS "SupplyType",
                    n.unit_snapshot AS "Unit",n.delivery_target_net_demand_id AS "DeliveryTargetNetDemandId",
-                   n.net_qty AS "NetQty",COALESCE(used.qty,0) AS "LinkedQty",n.net_qty-COALESCE(used.qty,0) AS "RemainingQty"
+                   n.net_qty AS "NetQty",CASE WHEN used.review_reason='' AND used.associated_qty<=n.net_qty THEN used.associated_qty END AS "LinkedQty",
+                   CASE WHEN used.review_reason='' AND used.associated_qty<=n.net_qty THEN n.net_qty-used.associated_qty END AS "RemainingQty",
+                   CASE WHEN used.review_reason='' AND used.associated_qty<=n.net_qty THEN used.purchased_qty END AS "PurchasedQty",
+                   CASE WHEN used.review_reason='' AND used.associated_qty<=n.net_qty THEN used.draft_qty END AS "DraftOccupiedQty",
+                   CASE WHEN used.review_reason='' AND used.associated_qty<=n.net_qty THEN n.net_qty-used.associated_qty END AS "CreatableQty",
+                   CASE WHEN used.review_reason='' AND used.associated_qty<=n.net_qty THEN n.net_qty-used.purchased_qty END AS "UnpurchasedQty"
             FROM public.net_demand n JOIN public.gross_demand g ON g.uid=n.gross_demand_id
             JOIN public.purchase_order_head h ON h.uid=@uid AND h.customer_id=g.customer_id
             JOIN public.purchase_order_line p ON p.purchase_order_id=h.uid AND p.uid=@LineId
-            LEFT JOIN LATERAL (SELECT SUM(l.allocated_qty-l.released_qty) AS qty FROM public.demand_execution_link l
-                WHERE l.net_demand_id=n.uid AND rtrim(l.target_type,' ') COLLATE public.erp_dictionary_ci='PO'
-                    AND l.is_deleted=FALSE AND l.allocated_qty>l.released_qty) used ON TRUE
+            LEFT JOIN LATERAL ({PurchaseDemandCommitmentSql.Aggregate("n.uid")}) used ON TRUE
             WHERE n.is_deleted=FALSE AND n.lifecycle_status=0 AND g.is_deleted=FALSE AND g.lifecycle_status=0
                 AND h.is_deleted=FALSE AND h.lifecycle_status=0 AND h.confirmation_status IN(0,1) AND p.is_deleted=FALSE
-                AND p.unlinked_qty>0 AND n.net_qty>COALESCE(used.qty,0) AND n.decomposition_revision>0
+                AND p.unlinked_qty>0 AND used.review_reason='' AND n.net_qty>used.associated_qty AND n.decomposition_revision>0
                 AND {SwiftExport.Infrastructure.Repositories.DemandPlanning.MaterialDemandBasisSql.IsApplicable("n","g")}
                 AND ((p.product_id=n.product_id AND g.is_non_standard=FALSE
                     AND rtrim(p.material_type,' ') COLLATE public.erp_dictionary_ci=rtrim(n.material_type_snapshot,' ') COLLATE public.erp_dictionary_ci
@@ -139,7 +144,7 @@ public sealed class PostgreSqlProcurementDemandAssociationRepository(RepositoryB
                pg."NetDemandId",pg."Version",pg."GrossDemandId",pg."SourceDemandVersion",pg."DecompositionRevision",
                pg."SourceType",pg."SourceUid",pg."SourceNo",pg."SourceLineNumber",pg."ProductId",pg."IsNonStandard",
                pg."Sku",pg."CustomerSku",pg."Description",pg."MaterialType",pg."SupplyType",pg."Unit",
-               pg."DeliveryTargetNetDemandId",pg."NetQty",pg."LinkedQty",pg."RemainingQty"
+               pg."DeliveryTargetNetDemandId",pg."NetQty",pg."LinkedQty",pg."RemainingQty",pg."PurchasedQty",pg."DraftOccupiedQty",pg."CreatableQty",pg."UnpurchasedQty"
         FROM totals t LEFT JOIN page pg ON TRUE ORDER BY {CandidateOrder("pg")};
         """;
 

@@ -22,6 +22,15 @@ public sealed class ProcurementOrderReversalService(
     private const string Module = "Procurement.OrderManagement";
 
     /// <inheritdoc/>
+    public Task<ServiceResult<ProcurementOrderCommandResult>> DeleteDraftAsync(Guid uid,
+        DeleteProcurementDraftCommand command, CancellationToken ct = default) =>
+        pipeline.ExecuteAsync<DeleteProcurementDraftCommand, ProcurementOrderCommandResult>(command, command?.CommandId,
+            CommandType(ProcurementReversalOperation.DeleteDraft),
+            token => support.AuthorizeAsync<ProcurementOrderCommandResult>("Edit", token),
+            token => ExecuteReversalCommandAsync(uid, ProcurementReversalOperation.DeleteDraft,
+                command!.CommandId, command.ExpectedVersion, command.Reason, command.Lines, token), ct);
+
+    /// <inheritdoc/>
     public Task<ServiceResult<ProcurementReversalPreviewDto>> PreviewAsync(Guid uid, ProcurementReversalOperation operation,
         ProcurementReversalPreviewRequest request, CancellationToken ct = default)
         => reads.ReadConsistentAsync(Permission(operation), async () =>
@@ -85,8 +94,11 @@ public sealed class ProcurementOrderReversalService(
         var head = facts.Head!;
         var operationName = operation.ToString();
         var result = new ProcurementOrderCommandResult { PurchaseOrderId = uid, OrderNo = head.OrderNo, Version = head.Version,
+            IsDeleted=head.IsDeleted,
             ConfirmationStatus = head.ConfirmationStatus, LifecycleStatus = head.LifecycleStatus, ConfirmationId = head.ActiveConfirmationId,
-            Lines = facts.Lines.Where(x => !x.IsDeleted).Select(x => new ProcurementLineVersionDto { PurchaseOrderLineId = x.Uid, Version = x.Version }).ToList() };
+            Lines = facts.Lines.Where(x => operation==ProcurementReversalOperation.DeleteDraft
+                ? lines.Any(input=>input.PurchaseOrderLineId==x.Uid) : !x.IsDeleted)
+                .Select(x => new ProcurementLineVersionDto { PurchaseOrderLineId = x.Uid, Version = x.Version }).ToList() };
         if (await logs.InsertAsync(new BusinessOperationLog
         {
             CommandId = commandId, CorrelationId = correlation.CorrelationId, Module = Module,
@@ -111,6 +123,7 @@ public sealed class ProcurementOrderReversalService(
     {
         ProcurementReversalOperation.CancelConfirmation => "Procurement.Order.Reversal.CancelConfirmation",
         ProcurementReversalOperation.DeleteLines => "Procurement.Order.Reversal.DeleteLines",
+        ProcurementReversalOperation.DeleteDraft => "Procurement.Order.Reversal.DeleteDraft",
         ProcurementReversalOperation.Void => "Procurement.Order.Reversal.Void",
         _ => throw new InvalidOperationException("未知采购反向操作。")
     };
@@ -119,6 +132,7 @@ public sealed class ProcurementOrderReversalService(
     private static string Permission(ProcurementReversalOperation operation) => operation switch
     {
         ProcurementReversalOperation.CancelConfirmation => "Confirm", ProcurementReversalOperation.DeleteLines => "Edit",
+        ProcurementReversalOperation.DeleteDraft => "Edit",
         ProcurementReversalOperation.Void => "Void", _ => throw new InvalidOperationException("未知采购反向操作。")
     };
 
@@ -126,6 +140,7 @@ public sealed class ProcurementOrderReversalService(
     private static string Title(ProcurementReversalOperation operation) => operation switch
     {
         ProcurementReversalOperation.CancelConfirmation => "取消采购确认",
+        ProcurementReversalOperation.DeleteDraft => "整单删除采购草稿",
         ProcurementReversalOperation.DeleteLines => "删除采购草稿行", _ => "作废采购单"
     };
 }

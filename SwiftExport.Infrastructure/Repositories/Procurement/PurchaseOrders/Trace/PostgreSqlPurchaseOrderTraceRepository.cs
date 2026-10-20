@@ -207,7 +207,10 @@ public sealed class PostgreSqlPurchaseOrderTraceRepository(RepositoryBaseContext
                        log."user_name_snapshot" AS "UserName",
                        log."occurred_date" AS "OccurredDate"
                 FROM "public"."business_operation_log" log
-                WHERE log."aggregate_uid"=@PurchaseOrderId AND COALESCE(log."is_deleted",FALSE)=FALSE
+                WHERE COALESCE(log."is_deleted",FALSE)=FALSE AND (log."aggregate_uid"=@PurchaseOrderId
+                    OR CASE WHEN log.module='Procurement.OrderManagement' AND log.operation_type='CreateDraftsFromDemand'
+                            AND log.related_objects_json IS JSON ARRAY THEN log.related_objects_json::jsonb
+                        @> jsonb_build_array(jsonb_build_object('PurchaseOrderId',@PurchaseOrderId)) ELSE FALSE END)
                 ORDER BY log."occurred_date" DESC NULLS LAST,{UuidOrder("log.\"uid\"")} DESC NULLS LAST;
         """;
     /// <summary>保留SQL Server uniqueidentifier的SqlGuid字节比较顺序。</summary>
