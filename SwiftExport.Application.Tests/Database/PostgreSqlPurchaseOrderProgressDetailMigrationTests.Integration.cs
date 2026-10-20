@@ -37,7 +37,7 @@ public sealed class PostgreSqlPurchaseOrderProgressDetailMigrationIntegrationTes
     {
         using var f=new Fixture();var h=f.Head();h.IsDeleted=mode=="deleted-head";if(mode!="missing")await f.InsertAsync(h);
         if(mode=="deleted-head"){var l=f.Line(h);await f.InsertAsync(l);await f.InsertAsync(Report(l,1,null));}
-        f.Hook.Commands.Clear();var d=await f.Repository.GetDetailAsync(h.Uid);Assert.HasCount(2,f.Hook.Commands);
+        f.Hook.Commands.Clear();var d=await f.Repository.GetDetailAsync(h.Uid);Assert.HasCount(1,f.Hook.Commands);
         if(mode=="empty-lines"){Assert.IsNotNull(d);Assert.HasCount(0,d.Lines);Assert.AreEqual(3,f.Hook.NextResults);}
         else{Assert.IsNull(d);Assert.AreEqual(1,f.Hook.NextResults);Assert.AreEqual(0,f.Hook.ReadCounts[1]);Assert.AreEqual(0,f.Hook.ReadCounts[2]);}
         Assert.AreEqual(1,f.Hook.Disposals);Assert.IsTrue(f.Hook.ReaderClosed);await f.Usable();
@@ -52,23 +52,23 @@ public sealed class PostgreSqlPurchaseOrderProgressDetailMigrationIntegrationTes
         if(mode!="nonstandard"){var p=Product(f);l.ProductId=p.Uid;if(mode=="null-image")p.MainImage=null;if(mode=="deleted-product")p.IsDeleted=true;if(mode!="missing-product")await f.InsertAsync(p);}
         l.SupplierSku=null;l.DescriptionZh=null;l.PlannedDeliveryDate=null;await f.InsertAsync(l);
         var line=(await f.Repository.GetDetailAsync(h.Uid))!.Lines.Single();Assert.AreEqual(mode=="current"?"当前图像":"",line.MainImage);
-        Assert.IsNull(line.SupplierSku);Assert.IsNull(line.DescriptionZh);Assert.IsNull(line.PlannedDeliveryDate);Assert.AreEqual(10m,line.Quantity);Assert.AreEqual(0m,line.ReceivedQty);Assert.IsNull(line.LatestProgress);Assert.HasCount(0,line.ProgressHistory);
+        Assert.IsNull(line.SupplierSku);Assert.IsNull(line.DescriptionZh);Assert.IsNull(line.PlannedDeliveryDate);Assert.AreEqual(10m,line.Quantity);Assert.IsNull(line.LatestProgress);Assert.HasCount(0,line.ProgressHistory);
     }
 
-    /// <summary>正式采购Posted贡献量，Reversed贡献零，草稿/其他类型/软删头排除；不依赖Link。</summary>
+    /// <summary>各种入库状态不影响供应商反馈上下文；详情不再查询正式收货。</summary>
     [TestMethod]
     [DataRow("posted",3)] [DataRow("reversed",0)] [DataRow("draft",0)] [DataRow("other-type",0)] [DataRow("deleted-head",0)] [DataRow("deleted-line",0)]
-    public async Task ReceiptStates_UsePurchaseLineIdentity(string mode,int expected)
+    public async Task ReceiptStates_DoNotAffectFeedbackContext(string mode,int expected)
     {
         using var f=new Fixture();var h=f.Head();await f.InsertAsync(h);var l=f.Line(h);await f.InsertAsync(l);
         var receipt=await Receipt(f,l.Uid,3m,mode=="reversed"?8:mode=="draft"?0:1,mode=="other-type"?11:10,mode=="deleted-head",mode=="deleted-line");
-        var d=await f.Repository.GetDetailAsync(h.Uid);Assert.AreEqual((decimal)expected,d!.Lines.Single().ReceivedQty);await f.Usable();
+        var d=await f.Repository.GetDetailAsync(h.Uid);Assert.AreEqual(l.Uid,d!.Lines.Single().PurchaseOrderLineId);Assert.IsTrue(f.Hook.Commands.All(sql=>!sql.Contains("inbound_document",StringComparison.Ordinal)));await f.Usable();
     }
 
-    /// <summary>多个Link共享同采购行，收货仍单次按SourceLineId汇总，且无单位遮罩。</summary>
+    /// <summary>多个需求Link不复制反馈上下文，历史仍按采购行身份读取。</summary>
     [TestMethod]
     [DataRow(0)] [DataRow(2)]
-    public async Task SharedLinks_DoNotMultiplyReceipt(int links)
+    public async Task SharedLinks_DoNotMultiplyFeedbackLines(int links)
     {
         using var f=new Fixture();var h=f.Head();await f.InsertAsync(h);var l=f.Line(h);await f.InsertAsync(l);await Receipt(f,l.Uid,4m,1,10);
         for(int i=0;i<links;i++)
@@ -77,7 +77,7 @@ public sealed class PostgreSqlPurchaseOrderProgressDetailMigrationIntegrationTes
             await f.InsertAsync(g);var nid=Guid.NewGuid();await f.InsertAsync(new NetDemand{Uid=nid,GrossDemandId=gid,RootNetDemandId=nid,LineNumber=1,DecompositionRevision=1,SourceDemandVersionSnapshot=1,SourceVersionSnapshot=1,SourceDemandBasisFingerprintSnapshot=g.DemandBasisFingerprint,SupplyTypeSnapshot="采购",SkuSnapshot="非标",UnitSnapshot="PCS",GrossQty=5m,NetQty=5m});
             await f.InsertAsync(new DemandExecutionLink{Uid=Guid.NewGuid(),NetDemandId=nid,ExecutionRequestId=Guid.NewGuid(),CommandItemId=Guid.NewGuid(),TargetType="PO",TargetHeadId=h.Uid,TargetLineId=l.Uid,TargetNo=h.OrderNo,AllocatedQty=5m,ReleasedQty=0m});
         }
-        var d=await f.Repository.GetDetailAsync(h.Uid);Assert.AreEqual(4m,d!.Lines.Single().ReceivedQty);
+        var d=await f.Repository.GetDetailAsync(h.Uid);Assert.AreEqual(l.Uid,d!.Lines.Single().PurchaseOrderLineId);Assert.HasCount(0,d.Lines.Single().ProgressHistory);
     }
 
     /// <summary>旧行/旧反馈软删按源排除，完整未删历史保留最新NULL及纠错快照，不补旧值。</summary>
@@ -101,49 +101,49 @@ public sealed class PostgreSqlPurchaseOrderProgressDetailMigrationIntegrationTes
         var old=Report(a,1,7);var latest=Report(a,2,3);latest.IsCorrection=true;latest.CorrectionReason="反馈修正";await f.InsertAsync(latest);await f.InsertAsync(old);f.Hook.Commands.Clear();
         var d=await f.Repository.GetDetailAsync(h.Uid);CollectionAssert.AreEqual(new[]{a.Uid,b.Uid},d!.Lines.Select(x=>x.PurchaseOrderLineId).ToArray());
         CollectionAssert.AreEqual(new[]{latest.Uid,old.Uid},d.Lines[0].ProgressHistory.Select(x=>x.Uid).ToArray());Assert.AreEqual(3m,d.Lines[0].LatestProgress.ReadyQty);
-        var key=Regex.Match(f.Hook.Commands[1],@"ARRAY\[get_byte\(uuid_send\(l\.""uid""\).*?\]").Value.Replace("l.\"uid\"","v.uid");Assert.IsFalse(string.IsNullOrWhiteSpace(key));
+        var key=Regex.Match(f.Hook.Commands[0],@"ARRAY\[get_byte\(uuid_send\(l\.""uid""\).*?\]").Value.Replace("l.\"uid\"","v.uid");Assert.IsFalse(string.IsNullOrWhiteSpace(key));
         var ids=new[]{Guid.Parse("ffffffff-ffff-ffff-ffff-000000000001"),Guid.Parse("00000000-0000-0000-0000-000000000002")};
         var actual=(await f.Session.Connection.QueryAsync<Guid>(new CommandDefinition($"SELECT v.uid FROM (VALUES (@A::uuid),(@B::uuid)) v(uid) ORDER BY {key} ASC",new{A=ids[0],B=ids[1]},f.Session.Transaction))).ToArray();
         CollectionAssert.AreEqual(ids.OrderBy(x=>new SqlGuid(x)).ToArray(),actual);
-        // 反馈Sequence和有效行号唯一约束不允许合法同序号/同行号并列，.NET Guid并列仅离线验证。
+        // 反馈Sequence和有效行号唯一约束不允许合法同序号/同行号并列，SqlGuid并列由离线夹具验证。
     }
 
-    /// <summary>Guard完成到实际详情批次开始之间修改图像/行/反馈；三SQL按当前表条件读取，不冻结Guard时身份。</summary>
+    /// <summary>实际详情批次开始之前修改图像/行/反馈；三SQL按当前表条件读取，不冻结旧身份。</summary>
     [TestMethod]
     [DataRow(false)] [DataRow(true)]
     public async Task ChangeBeforeBatch_UsesCurrentTables(bool deleteHead)
     {
         using var f=new Fixture();var h=f.Head();await f.InsertAsync(h);var p=Product(f);await f.InsertAsync(p);var l=f.Line(h);l.ProductId=p.Uid;await f.InsertAsync(l);await f.InsertAsync(Report(l,1,7m));bool changed=false;
-        f.Hook.Before=async(sql,token)=>{if(!sql.Contains("WITH ReceiptFacts AS",StringComparison.Ordinal))return;f.Hook.Before=null;changed=true;
+        f.Hook.Before=async(sql,token)=>{if(!sql.Contains("SELECT EXISTS(",StringComparison.Ordinal))return;f.Hook.Before=null;changed=true;
             if(deleteHead)await f.Session.Connection.ExecuteAsync(new CommandDefinition("UPDATE public.purchase_order_head SET is_deleted=true WHERE uid=@Uid",new{Uid=h.Uid},f.Session.Transaction,cancellationToken:token));
             else{await f.Session.Connection.ExecuteAsync(new CommandDefinition("UPDATE public.purchase_order_line SET quantity=17 WHERE uid=@Uid",new{Uid=l.Uid},f.Session.Transaction,cancellationToken:token));await f.Session.Connection.ExecuteAsync(new CommandDefinition("UPDATE public.product SET main_image='更新图像' WHERE uid=@Uid",new{Uid=p.Uid},f.Session.Transaction,cancellationToken:token));
                 var latest=Report(l,2,0m);latest.IsCorrection=true;latest.CorrectionReason="供应商修正";await f.InsertAsync(latest);}};
         var d=await f.Repository.GetDetailAsync(h.Uid);Assert.IsTrue(changed);
         if(deleteHead)Assert.IsNull(d);else{Assert.AreEqual(17m,d!.Lines.Single().Quantity);Assert.AreEqual("更新图像",d.Lines.Single().MainImage);Assert.AreEqual(0m,d.Lines.Single().LatestProgress.ReadyQty);}
         await f.Usable();
-        // 这是Guard→整批前真实阶段自写，不冒称三语句服务器执行中间的跨连接修改。
+        // 这是整批前真实阶段自写，不冒称三语句服务器执行中间的跨连接修改。
     }
 
     /// <summary>预取消及真实Npgsql命令/结果推进边界取消；不改SQL/拆批，读者释放和外层回滚由原边界处理。</summary>
     [TestMethod]
-    [DataRow(-1)] [DataRow(0)] [DataRow(1)] [DataRow(2)] [DataRow(3)] [DataRow(4)]
+    [DataRow(-1)] [DataRow(0)] [DataRow(1)] [DataRow(2)] [DataRow(3)]
     public async Task Cancellation_RealReaderBoundaries(int stage)
     {
         using var f=new Fixture();var h=f.Head();await f.InsertAsync(h);await f.InsertAsync(f.Line(h));f.Hook.Commands.Clear();using var c=new CancellationTokenSource();
-        if(stage<0)c.Cancel();else if(stage<2)f.Hook.Before=(sql,token)=>{if(f.Hook.Commands.Count==stage)c.Cancel();return Task.CompletedTask;};
-        else f.Hook.ResultAction=i=>{if(i==stage-2)c.Cancel();};
+        if(stage<0)c.Cancel();else if(stage<1)f.Hook.Before=(sql,token)=>{if(f.Hook.Commands.Count==stage)c.Cancel();return Task.CompletedTask;};
+        else f.Hook.ResultAction=i=>{if(i==stage-1)c.Cancel();};
         await Assert.ThrowsAsync<OperationCanceledException>(()=>f.Repository.GetDetailAsync(h.Uid,c.Token));
         f.Hook.Before=null;f.Hook.ResultAction=null;Assert.IsNotNull(f.Session.Transaction);
         // 取消可能使真实事务aborted；先回滚释放本例事务，再验证同连接可继续读取，不把事务中SELECT1强加给驱动。
         f.Session.Transaction!.Rollback();f.Session.Transaction.Dispose();f.Session.Transaction=null;await f.Usable();
     }
 
-    /// <summary>全局无关坏正式采购收货历史先拒绝；缺头请求也不绕过公共门禁。</summary>
+    /// <summary>无关坏收货不能阻断反馈选行；缺采购头仍正确返回null。</summary>
     [TestMethod]
-    public async Task GlobalGuard_RejectsEvenMissingHeader()
+    public async Task InvalidReceipt_DoesNotBlockMissingHeader()
     {
         using var f=new Fixture();await f.InsertAsync(new InboundDocument{Uid=Guid.NewGuid(),DocumentNo=f.Prefix+"BAD",DocumentType=InboundDocumentTypeEnum.PurchaseReceipt,PostingStatus=InboundPostingStatusEnum.Posted,ReceiptDate=new DateTime(2026,10,5),PostedDate=new DateTime(2026,10,5),WarehouseSiteId=Guid.NewGuid()});
-        f.Hook.Commands.Clear();await Assert.ThrowsAsync<UnverifiedReceiptHistoryException>(()=>f.Repository.GetDetailAsync(Guid.NewGuid()));Assert.HasCount(1,f.Hook.Commands);await f.Usable();
+        f.Hook.Commands.Clear();Assert.IsNull(await f.Repository.GetDetailAsync(Guid.NewGuid()));Assert.HasCount(1,f.Hook.Commands);await f.Usable();
     }
 
     /// <summary>无外层事务真实空头批次正常释放，连续读取同连接，不隐式创建事务。</summary>
@@ -261,7 +261,7 @@ public sealed class PostgreSqlPurchaseOrderProgressDetailMigrationIntegrationTes
             protected override async Task<DbDataReader> ExecuteDbDataReaderAsync(CommandBehavior behavior,CancellationToken token)
             {
                 await Starting(token);var reader=await innerCommand.ExecuteReaderAsync(behavior,token);
-                return CommandText.Contains("WITH ReceiptFacts AS",StringComparison.Ordinal)?new BatchReader(owner,reader):reader;
+                return CommandText.Contains("SELECT EXISTS(",StringComparison.Ordinal)?new BatchReader(owner,reader):reader;
             }
             protected override void Dispose(bool disposing){if(disposing)innerCommand.Dispose();base.Dispose(disposing);}
         }

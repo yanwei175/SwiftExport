@@ -35,7 +35,7 @@ public sealed class PostgreSqlPurchaseOrderProgressSearchMigrationIntegrationTes
         using var f=new Fixture();var h=f.Head();h.IsDeleted=mode=="deleted-head";if(mode!="empty")await f.InsertAsync(h);
         f.Hook.Commands.Clear();var d=await f.Repository.SearchAsync(new(){OrderNo=f.Prefix,PageIndex=mode=="beyond"?99:1,PageSize=1});
         Assert.AreEqual(mode is "empty" or "deleted-head"?0:1,d.TotalCount);Assert.HasCount(mode=="no-lines"?1:0,d.Items);
-        Assert.HasCount(2,f.Hook.Commands);if(d.Items.Count>0){var row=d.Items.Single();Assert.AreEqual(0,row.LineCount);Assert.AreEqual(0,row.UnknownReadyQtyLineCount);Assert.AreEqual(0m,row.TotalQty);Assert.AreEqual(0m,row.LatestReadyQty);}
+        Assert.HasCount(1,f.Hook.Commands);if(d.Items.Count>0){var row=d.Items.Single();Assert.AreEqual(0,row.LineCount);Assert.AreEqual(0,row.UnknownReadyQtyLineCount);Assert.AreEqual(0m,row.TotalQty);Assert.AreEqual(0m,row.LatestReadyQty);}
         await f.Usable();
     }
 
@@ -157,22 +157,22 @@ public sealed class PostgreSqlPurchaseOrderProgressSearchMigrationIntegrationTes
         // 同事务真实SQL冻结后自写，只证明不回查；物理跨连接并发另由主控授权。
     }
 
-    /// <summary>全局无关坏正式入库头先抛公共异常，不能只限定返回采购头忽略坏历史。</summary>
+    /// <summary>反馈选单不读取无关收货历史；坏入库头不影响有效采购单与计数。</summary>
     [TestMethod]
-    public async Task GlobalBadHistory_RejectsBeforeFacts()
+    public async Task InvalidReceipt_DoesNotBlockFeedbackSearch()
     {
         using var f=new Fixture();var h=f.Head();await f.InsertAsync(h);
         await f.InsertAsync(new InboundDocument{Uid=Guid.NewGuid(),DocumentNo=f.Prefix+"BAD",DocumentType=InboundDocumentTypeEnum.PurchaseReceipt,PostingStatus=InboundPostingStatusEnum.Posted,ReceiptDate=new DateTime(2026,10,5),PostedDate=new DateTime(2026,10,5),WarehouseSiteId=Guid.NewGuid()});
-        f.Hook.Commands.Clear();await Assert.ThrowsAsync<UnverifiedReceiptHistoryException>(()=>Search(f));Assert.HasCount(1,f.Hook.Commands);await f.Usable();
+        f.Hook.Commands.Clear();Assert.AreEqual(h.Uid,(await Search(f)).Items.Single().PurchaseOrderId);Assert.HasCount(1,f.Hook.Commands);Assert.IsFalse(f.Hook.Commands[0].Contains("inbound_document",StringComparison.Ordinal));await f.Usable();
     }
 
-    /// <summary>预取消和两个真实入口边界取消保持外层事务，服务器中途取消另验。</summary>
+    /// <summary>预取消、反馈命令前和结果缓冲后取消保持外层事务，服务器中途取消另验。</summary>
     [TestMethod]
     [DataRow(-1)] [DataRow(0)] [DataRow(1)]
     public async Task Cancellation_Boundaries(int stage)
     {
         using var f=new Fixture();using var c=new CancellationTokenSource();f.Hook.Commands.Clear();
-        if(stage<0)c.Cancel();else f.Hook.Before=(sql,token)=>{if(f.Hook.Commands.Count==stage)c.Cancel();return Task.CompletedTask;};
+        if(stage<0)c.Cancel();else if(stage==1)f.Hook.AfterFacts=token=>{c.Cancel();return Task.CompletedTask;};else f.Hook.Before=(sql,token)=>{if(f.Hook.Commands.Count==stage)c.Cancel();return Task.CompletedTask;};
         await Assert.ThrowsAsync<OperationCanceledException>(()=>f.Repository.SearchAsync(new(){OrderNo=f.Prefix,PageIndex=1,PageSize=1},c.Token));
         f.Hook.Before=null;Assert.IsNotNull(f.Session.Transaction);await f.Usable();
     }
@@ -184,7 +184,7 @@ public sealed class PostgreSqlPurchaseOrderProgressSearchMigrationIntegrationTes
         using var f=new Fixture();var a=f.Head();var b=f.Head();var c=f.Head();a.OrderNo=f.Prefix+"A";b.OrderNo=f.Prefix+"B";c.OrderDate=a.OrderDate.AddDays(1);
         await f.InsertAsync(a);await f.InsertAsync(b);await f.InsertAsync(c);f.Hook.Commands.Clear();var d=await Search(f);
         CollectionAssert.AreEqual(new[]{c.Uid,b.Uid,a.Uid},d.Items.Select(x=>x.PurchaseOrderId).ToArray());
-        var key=Regex.Match(f.Hook.Commands[1],@"ARRAY\[get_byte\(uuid_send\(facts\.""PurchaseOrderId""\).*?\]").Value.Replace("facts.\"PurchaseOrderId\"","v.uid");Assert.IsFalse(string.IsNullOrWhiteSpace(key));
+        var key=Regex.Match(f.Hook.Commands[0],@"ARRAY\[get_byte\(uuid_send\(facts\.""PurchaseOrderId""\).*?\]").Value.Replace("facts.\"PurchaseOrderId\"","v.uid");Assert.IsFalse(string.IsNullOrWhiteSpace(key));
         var ids=new[]{Guid.Parse("ffffffff-ffff-ffff-ffff-000000000001"),Guid.Parse("00000000-0000-0000-0000-000000000002")};
         var actual=(await f.Session.Connection.QueryAsync<Guid>(new CommandDefinition($"SELECT v.uid FROM (VALUES (@A::uuid),(@B::uuid)) v(uid) ORDER BY {key} DESC",new{A=ids[0],B=ids[1]},f.Session.Transaction))).ToArray();
         CollectionAssert.AreEqual(ids.OrderByDescending(x=>new SqlGuid(x)).ToArray(),actual);

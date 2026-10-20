@@ -2,7 +2,6 @@ using SwiftExport.Infrastructure.Repositories.OrderTracking.Receipts;
 
 using SwiftExport.Infrastructure.Repositories.OrderTracking.Deliveries;
 using SwiftExport.Infrastructure.Repositories.OrderTracking.Purchases;
-using SwiftExport.Infrastructure.Repositories.Inventory.Inbounds;
 
 namespace SwiftExport.Infrastructure.Repositories.OrderTracking.Summary;
 
@@ -88,37 +87,17 @@ CASE WHEN g.source_uid IS NULL OR g.source_uid='00000000-0000-0000-0000-00000000
             AND NOT l.is_deleted AND l.link_status=0
             AND (l.allocated_qty<>l.released_qty OR l.allocated_qty<=0 OR l.released_qty<0)
             AND rtrim(l.target_type,' ') COLLATE public.erp_dictionary_ci='PO'
-        ), summary_bad_heads AS (
-          {PostgreSqlInboundReceiptHistoryGuard.InvalidHeadsSql.Replace("@Scoped","TRUE").Replace("=ANY(@PurchaseLineIds)"," IN(SELECT target_line_id FROM summary_related)")}
-        ), summary_receipt_targets AS (
+        ),
+        {PurchaseReceiptFactsSql.Ctes("SELECT DISTINCT target_line_id AS uid FROM summary_related")}, summary_receipt_targets AS (
           SELECT target_line_id,min(target_head_id::text)::uuid AS head_id,count(DISTINCT target_head_id) AS head_count
           FROM summary_related GROUP BY target_line_id
-        ), summary_receipt_evidence AS (
-          SELECT il.source_line_id AS line_id,h.posting_status,il.quantity,
-            CASE WHEN h.uid IS NULL THEN TRUE WHEN h.posting_status=0 THEN FALSE
-              WHEN h.is_deleted OR il.is_deleted OR pol.uid IS NULL OR poh.uid IS NULL
-                OR poh.confirmation_status IS DISTINCT FROM 1
-                OR h.posting_status NOT IN(0,1,8) OR il.quantity<=0 OR il.original_line_id IS NOT NULL
-                OR (h.posting_status IN(1,8) AND h.posted_date IS NULL)
-                OR (h.posting_status=8 AND h.reversed_date IS NULL)
-                OR NULLIF(btrim(il.unit_snapshot,' '),'') IS NULL OR NULLIF(btrim(pol.unit_snapshot,' '),'') IS NULL
-                OR btrim(il.unit_snapshot,' ') COLLATE public.erp_dictionary_ci<>btrim(pol.unit_snapshot,' ') COLLATE public.erp_dictionary_ci
-                OR il.product_id IS DISTINCT FROM pol.product_id
-                OR EXISTS(SELECT 1 FROM summary_bad_heads bad WHERE bad.uid=h.uid)
-              THEN TRUE ELSE FALSE END AS invalid
-          FROM public.inbound_document_line il LEFT JOIN public.inbound_document h ON h.uid=il.inbound_document_id
-          LEFT JOIN public.purchase_order_line pol ON pol.uid=il.source_line_id
-          LEFT JOIN public.purchase_order_head poh ON poh.uid=pol.purchase_order_id
-          WHERE il.source_line_id IN(SELECT target_line_id FROM summary_related)
-            AND (h.document_type=10 OR h.uid IS NULL)
-            AND NOT(COALESCE(h.posting_status,-1)=0 AND (il.is_deleted OR h.is_deleted))
         ), summary_receipt_lines AS (
           SELECT t.target_line_id AS line_id,
             CASE WHEN t.head_count=1 AND pol.uid IS NOT NULL AND poh.uid IS NOT NULL AND NOT pol.is_deleted AND NOT poh.is_deleted
               AND poh.confirmation_status=1 AND pol.quantity>0 AND NULLIF(btrim(pol.unit_snapshot,' '),'') IS NOT NULL
-              AND NOT EXISTS(SELECT 1 FROM summary_receipt_evidence e WHERE e.line_id=t.target_line_id AND e.invalid)
-              THEN pol.quantity-COALESCE((SELECT sum(e.quantity) FROM summary_receipt_evidence e
-                  WHERE e.line_id=t.target_line_id AND e.posting_status=1 AND NOT e.invalid),0) END AS remaining_qty,
+              AND NOT EXISTS(SELECT 1 FROM receipt_evidence e WHERE e.source_line_id=t.target_line_id AND e.invalid)
+              THEN pol.quantity-COALESCE((SELECT sum(e.quantity) FROM receipt_evidence e
+                  WHERE e.source_line_id=t.target_line_id AND e.posting_status=1 AND NOT e.invalid),0) END AS remaining_qty,
             EXISTS(SELECT 1 FROM public.demand_execution_link other WHERE other.target_line_id=t.target_line_id
               AND rtrim(other.target_type,' ') COLLATE public.erp_dictionary_ci='PO'
               AND other.link_status=0 AND NOT other.is_deleted AND other.allocated_qty>other.released_qty

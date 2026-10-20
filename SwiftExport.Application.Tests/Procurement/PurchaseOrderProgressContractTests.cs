@@ -62,13 +62,16 @@ public sealed class PurchaseOrderProgressContractTests
             typeof(PostgreSqlSupplierProgressReportRepository).GetMethods(System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.DeclaredOnly).Select(method => method.Name).ToArray());
     }
 
-    /// <summary>跟进详情以采购行标识汇总正式收货，不依赖需求 Link。</summary>
+    /// <summary>反馈详情只按采购行身份读取反馈上下文，不读取收货或需求Link。</summary>
     [TestMethod]
-    public void Detail_uses_purchase_line_identity_for_receipts()
+    public void Detail_reads_feedback_context_without_receipts()
     {
         var repository = (string)typeof(PostgreSqlPurchaseOrderProgressQueryRepository).GetMethod("DetailSql", System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.NonPublic)!.Invoke(null, null)!;
-        StringAssert.Contains(repository, "receipt.source_line_id=l.\"uid\"");
-        StringAssert.Contains(repository, "receiveHead.\"posting_status\"=ANY(@FormalPostingStatuses)");
+        Assert.IsNull(typeof(PurchaseOrderProgressLineDto).GetProperty("ReceivedQty"));
+        StringAssert.Contains(repository, "l.\"uid\" AS \"PurchaseOrderLineId\"");
+        StringAssert.Contains(repository, "supplier_progress_report");
+        Assert.IsFalse(repository.Contains("inbound_document", StringComparison.Ordinal));
+        Assert.IsFalse(repository.Contains("inventory_ledger", StringComparison.Ordinal));
         Assert.IsFalse(repository.Contains("demand_execution_link", StringComparison.Ordinal));
     }
 

@@ -17,11 +17,11 @@ using SwiftExport.Infrastructure.Services.Auth;
 
 namespace SwiftExport.Application.Tests.Database;
 
-/// <summary>实际Dapper多结果入口验证exists早返及释放、顺序缓冲、DTO和.NET Guid组装，不证明PG商业SQL执行。</summary>
+/// <summary>实际Dapper多结果入口验证exists早返及释放、顺序缓冲、DTO和写入端一致的SqlGuid组装，不证明PG商业SQL执行。</summary>
 [TestClass]
 public sealed class PostgreSqlPurchaseOrderProgressDetailMigrationTests
 {
-    /// <summary>全局Guard后一次三语句，正常缓冲全部结果并借用可空事务及同token。</summary>
+    /// <summary>只读取采购与反馈的一次三语句，正常缓冲全部结果并借用可空事务及同token。</summary>
     [TestMethod]
     [DataRow(false)] [DataRow(true)]
     public async Task StagesAndOwnership(bool transaction)
@@ -29,13 +29,13 @@ public sealed class PostgreSqlPurchaseOrderProgressDetailMigrationTests
         using var f=new Fixture(transaction);using var c=new CancellationTokenSource();Queue(f,true);
         IPurchaseOrderProgressQueryRepository repository=f.Repository;var d=await repository.GetDetailAsync(f.Uid,c.Token);
         Assert.IsNotNull(d);Assert.AreEqual(f.Uid,d.PurchaseOrderId);Assert.HasCount(1,d.Lines);Assert.HasCount(2,d.Lines.Single().ProgressHistory);
-        Assert.HasCount(2,f.Connection.Commands);Assert.AreEqual(false,f.Connection.Commands[0].Values["Scoped"]);Assert.HasCount(3,f.Connection.ReadCounts);
+        Assert.HasCount(1,f.Connection.Commands);Assert.HasCount(3,f.Connection.ReadCounts);
         Assert.IsTrue(f.Connection.ReadCounts.All(x=>x>0));Assert.AreEqual(3,f.Connection.NextResults);Assert.AreEqual(1,f.Connection.Disposals);
         foreach(var cmd in f.Connection.Commands)Assert.AreSame(f.Session.Transaction,cmd.Transaction);
         Assert.AreEqual(c.Token,f.Connection.LastToken);Assert.AreEqual(transaction?1:0,f.Connection.Begins);Assert.AreEqual(0,f.Connection.Commits);Assert.AreEqual(0,f.Connection.Rollbacks);
-        var command=f.Connection.Commands[1];Assert.AreEqual(f.Uid,command.Values["PurchaseOrderId"]);Assert.AreEqual(NpgsqlDbType.Uuid,command.Types["PurchaseOrderId"]);
-        Assert.AreEqual(NpgsqlDbType.Array|NpgsqlDbType.Integer,command.Types["FormalPostingStatuses"]);CollectionAssert.AreEqual(new[]{1,8},(int[])command.Values["FormalPostingStatuses"]!);
-        Assert.AreEqual(10,command.Values["PurchaseReceipt"]);Assert.AreEqual(NpgsqlDbType.Integer,command.Types["PurchaseReceipt"]);
+        var command=f.Connection.Commands[0];Assert.AreEqual(f.Uid,command.Values["PurchaseOrderId"]);Assert.AreEqual(NpgsqlDbType.Uuid,command.Types["PurchaseOrderId"]);
+        Assert.HasCount(1,command.Values);
+        Assert.IsFalse(command.Sql.Contains("inbound_document",StringComparison.Ordinal));
     }
 
     /// <summary>exists=false仍发生源ReadSingle的第一次NextResult，但不读取行或报告，并释放reader。</summary>
@@ -44,7 +44,7 @@ public sealed class PostgreSqlPurchaseOrderProgressDetailMigrationTests
     public async Task MissingHeader_ReturnsNullAndDisposes(bool transaction)
     {
         using var f=new Fixture(transaction);Queue(f,false);Assert.IsNull(await f.Repository.GetDetailAsync(Guid.Empty));
-        Assert.HasCount(2,f.Connection.Commands);Assert.AreEqual(1,f.Connection.NextResults);Assert.AreEqual(0,f.Connection.ReadCounts[1]);Assert.AreEqual(0,f.Connection.ReadCounts[2]);
+        Assert.HasCount(1,f.Connection.Commands);Assert.AreEqual(1,f.Connection.NextResults);Assert.AreEqual(0,f.Connection.ReadCounts[1]);Assert.AreEqual(0,f.Connection.ReadCounts[2]);
         Assert.AreEqual(1,f.Connection.Disposals);Assert.IsTrue(f.Connection.ReaderClosed);Assert.AreEqual(0,f.Connection.Rollbacks);
     }
 
@@ -67,33 +67,35 @@ public sealed class PostgreSqlPurchaseOrderProgressDetailMigrationTests
     {
         using var f=new Fixture(false);Queue(f,true);f.Connection.Results[1].Rows.Clear();
         var d=await f.Repository.GetDetailAsync(Guid.Empty);Assert.IsNotNull(d);Assert.AreEqual(Guid.Empty,d.PurchaseOrderId);Assert.HasCount(0,d.Lines);
-        Assert.IsTrue(f.Connection.ReadCounts[2]>0);Assert.AreEqual(Guid.Empty,f.Connection.Commands[1].Values["PurchaseOrderId"]);
+        Assert.IsTrue(f.Connection.ReadCounts[2]>0);Assert.AreEqual(Guid.Empty,f.Connection.Commands[0].Values["PurchaseOrderId"]);
     }
 
-    /// <summary>SourceLineId正式收货、当前图像及全部别名保留，报告不复验头或冻结行UID。</summary>
+    /// <summary>反馈上下文、当前图像及全部别名保留，报告不复验头或冻结行UID。</summary>
     [TestMethod]
     public async Task ProjectionAndSqlBoundaries()
     {
-        using var f=new Fixture(false);Queue(f,true);var d=await f.Repository.GetDetailAsync(f.Uid);var sql=f.Connection.Commands[1].Sql;
+        using var f=new Fixture(false);Queue(f,true);var d=await f.Repository.GetDetailAsync(f.Uid);var sql=f.Connection.Commands[0].Sql;
         foreach(var property in typeof(PurchaseOrderProgressLineDto).GetProperties().Where(x=>x.Name is not ("LatestProgress" or "ProgressHistory")))StringAssert.Contains(sql,"AS \""+property.Name+"\"");
         foreach(var property in typeof(SupplierProgressReportDto).GetProperties())StringAssert.Contains(sql,"AS \""+property.Name+"\"");
-        StringAssert.Contains(sql,"l.\"quantity\" AS \"Quantity\"");StringAssert.Contains(sql,"receiveLine.\"source_line_id\"");StringAssert.Contains(sql,"receiveHead.\"posting_status\"=1");
-        StringAssert.Contains(sql,"ANY(@FormalPostingStatuses)");StringAssert.Contains(sql,"COALESCE(product.\"main_image\",'')");
+        StringAssert.Contains(sql,"l.\"quantity\" AS \"Quantity\"");
+        Assert.IsFalse(sql.Contains("inbound_document",StringComparison.Ordinal));
+        Assert.IsFalse(sql.Contains("inventory_ledger",StringComparison.Ordinal));
+        StringAssert.Contains(sql,"COALESCE(product.\"main_image\",'')");
         var reports=sql[(sql.LastIndexOf("SELECT r.",StringComparison.Ordinal))..];Assert.IsFalse(reports.Contains("purchase_order_head",StringComparison.Ordinal));
         Assert.IsFalse(reports.Contains("@LineIds",StringComparison.Ordinal));Assert.IsFalse(sql.Contains("demand_execution_link",StringComparison.Ordinal));Assert.IsFalse(sql.Contains("unit_snapshot",StringComparison.Ordinal));
-        Assert.AreEqual(10m,d!.Lines.Single().Quantity);Assert.AreEqual(3m,d.Lines.Single().ReceivedQty);Assert.AreEqual("",d.Lines.Single().MainImage);
+        Assert.AreEqual(10m,d!.Lines.Single().Quantity);Assert.AreEqual("",d.Lines.Single().MainImage);
         Assert.IsNull(d.Lines.Single().SupplierSku);Assert.IsNull(d.Lines.Single().PlannedDeliveryDate);Assert.IsNull(d.Lines.Single().LatestProgress.ReadyQty);
     }
 
-    /// <summary>Sequence相同的内存合法协议结果独立验证.NET Guid而非SQL Guid；真实索引不允许制造同序号夹具。</summary>
+    /// <summary>同序号协议边界按写入端SqlGuid优先级选择整条快照；不采用不同的.NET Guid顺序。</summary>
     [TestMethod]
-    public async Task History_UsesDotNetGuidAndWholeLatest()
+    public async Task History_UsesWriterSqlGuidAndWholeLatest()
     {
         using var f=new Fixture(false);Queue(f,true);
         var a=Guid.Parse("ffffffff-ffff-ffff-ffff-000000000001");var b=Guid.Parse("00000000-0000-0000-0000-000000000002");
         var table=f.Connection.Results[2];table.Rows[0]["Uid"]=b;table.Rows[1]["Uid"]=a;table.Rows[0]["Sequence"]=7;table.Rows[1]["Sequence"]=7;
-        var line=(await f.Repository.GetDetailAsync(f.Uid))!.Lines.Single();CollectionAssert.AreEqual(new[]{a,b},line.ProgressHistory.Select(x=>x.Uid).ToArray());
-        Assert.AreEqual(a,line.LatestProgress.Uid);Assert.AreSame(line.ProgressHistory[0],line.LatestProgress);
+        var line=(await f.Repository.GetDetailAsync(f.Uid))!.Lines.Single();CollectionAssert.AreEqual(new[]{b,a},line.ProgressHistory.Select(x=>x.Uid).ToArray());
+        Assert.AreEqual(b,line.LatestProgress.Uid);Assert.AreSame(line.ProgressHistory[0],line.LatestProgress);
     }
 
     /// <summary>第三阶段报告可有第二阶段尚未列出的当前行；不冻结行身份，组装只关联已返回行。</summary>
@@ -104,17 +106,18 @@ public sealed class PostgreSqlPurchaseOrderProgressDetailMigrationTests
         var line=(await f.Repository.GetDetailAsync(f.Uid))!.Lines.Single();Assert.HasCount(0,line.ProgressHistory);Assert.IsNull(line.LatestProgress);Assert.IsTrue(f.Connection.ReadCounts[2]>0);
     }
 
-    /// <summary>全局Guard先拒绝，不创建多结果reader，保持公共异常类别。</summary>
+    /// <summary>即使旧收货门禁模拟为坏历史，反馈详情仍正常读取，且不执行收货SQL。</summary>
     [TestMethod]
-    public async Task GlobalGuardFailure()
+    public async Task UnrelatedReceiptHistory_DoesNotBlockFeedback()
     {
         using var f=new Fixture(true);Queue(f,true);f.Connection.Invalid=true;
-        await Assert.ThrowsAsync<UnverifiedReceiptHistoryException>(()=>f.Repository.GetDetailAsync(f.Uid));Assert.HasCount(1,f.Connection.Commands);Assert.AreEqual(0,f.Connection.Disposals);
+        Assert.IsNotNull(await f.Repository.GetDetailAsync(f.Uid));Assert.HasCount(1,f.Connection.Commands);Assert.AreEqual(1,f.Connection.Disposals);
+        Assert.IsTrue(f.Connection.Commands.All(cmd=>!cmd.Sql.Contains("inbound_document",StringComparison.Ordinal)));
     }
 
-    /// <summary>Guard及多结果命令技术失败原样上交，无仓储回滚或空详情降级。</summary>
+    /// <summary>多结果命令技术失败原样上交，无仓储回滚或空详情降级。</summary>
     [TestMethod]
-    [DataRow(0)] [DataRow(1)]
+    [DataRow(0)]
     public async Task CommandFailure(int stage)
     {
         using var f=new Fixture(true);Queue(f,true);var failure=new InvalidOperationException("技术失败");f.Connection.CommandAction=i=>{if(i==stage)throw failure;};
@@ -132,22 +135,22 @@ public sealed class PostgreSqlPurchaseOrderProgressDetailMigrationTests
 
     /// <summary>预取消和命令/各结果边界透传原token，读取取消后释放grid。</summary>
     [TestMethod]
-    [DataRow(-1)] [DataRow(0)] [DataRow(1)] [DataRow(2)] [DataRow(3)] [DataRow(4)]
+    [DataRow(-1)] [DataRow(0)] [DataRow(1)] [DataRow(2)] [DataRow(3)]
     public async Task Cancellation_AllBoundaries(int stage)
     {
         using var f=new Fixture(true);Queue(f,true);using var c=new CancellationTokenSource();
-        if(stage<0)c.Cancel();else if(stage<2)f.Connection.CommandAction=i=>{if(i==stage)throw new OperationCanceledException(c.Token);};
-        else f.Connection.ResultAction=i=>{if(i==stage-2)throw new OperationCanceledException(c.Token);};
-        await Assert.ThrowsAsync<OperationCanceledException>(()=>f.Repository.GetDetailAsync(f.Uid,c.Token));Assert.AreEqual(0,f.Connection.Rollbacks);Assert.AreEqual(stage>=2?1:0,f.Connection.Disposals);
+        if(stage<0)c.Cancel();else if(stage<1)f.Connection.CommandAction=i=>{if(i==stage)throw new OperationCanceledException(c.Token);};
+        else f.Connection.ResultAction=i=>{if(i==stage-1)throw new OperationCanceledException(c.Token);};
+        await Assert.ThrowsAsync<OperationCanceledException>(()=>f.Repository.GetDetailAsync(f.Uid,c.Token));Assert.AreEqual(0,f.Connection.Rollbacks);Assert.AreEqual(stage>=1?1:0,f.Connection.Disposals);
     }
 
-    /// <summary>数据表只提供源结果形状，Guard独立标量，商业SQL不在内存执行。</summary>
+    /// <summary>数据表只提供反馈上下文与历史结果形状，商业SQL不在内存执行。</summary>
     private static void Queue(Fixture f,bool exists)
     {
         var e=new DataTable();e.Columns.Add("Exists",typeof(bool));e.Rows.Add(exists);
         var l=new DataTable();l.Columns.Add("PurchaseOrderLineId",typeof(Guid));l.Columns.Add("Version",typeof(int));l.Columns.Add("LineNumber",typeof(int));l.Columns.Add("MainImage",typeof(string));
-        l.Columns.Add("Quantity",typeof(decimal));l.Columns.Add("ReceivedQty",typeof(decimal));l.Columns.Add("SupplierSku",typeof(string));l.Columns.Add("PlannedDeliveryDate",typeof(DateTime));
-        l.Rows.Add(f.LineId,3,1,"",10m,3m,DBNull.Value,DBNull.Value);
+        l.Columns.Add("Quantity",typeof(decimal));l.Columns.Add("SupplierSku",typeof(string));l.Columns.Add("PlannedDeliveryDate",typeof(DateTime));
+        l.Rows.Add(f.LineId,3,1,"",10m,DBNull.Value,DBNull.Value);
         var r=new DataTable();r.Columns.Add("Uid",typeof(Guid));r.Columns.Add("PurchaseOrderLineId",typeof(Guid));r.Columns.Add("Sequence",typeof(int));r.Columns.Add("ReadyQty",typeof(decimal));
         r.Rows.Add(Guid.NewGuid(),f.LineId,1,7m);r.Rows.Add(Guid.NewGuid(),f.LineId,2,DBNull.Value);
         f.Connection.Results=[e,l,r];

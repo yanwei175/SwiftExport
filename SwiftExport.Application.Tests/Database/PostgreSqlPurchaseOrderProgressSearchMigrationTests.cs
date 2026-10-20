@@ -1,3 +1,4 @@
+using System.Text.Json;
 using System.Data;
 using System.Data.Common;
 using System.Diagnostics.CodeAnalysis;
@@ -15,22 +16,24 @@ using SwiftExport.Infrastructure.Services.Auth;
 
 namespace SwiftExport.Application.Tests.Database;
 
-/// <summary>公开入口记录全局Guard和一次HeadFacts，验证冻结结构分页、局部类型及DTO；不模拟PG商业计算。</summary>
+/// <summary>公开入口记录单次反馈查询，验证数据库分页回执、局部类型及DTO；不模拟PG商业计算。</summary>
 [TestClass]
 public sealed class PostgreSqlPurchaseOrderProgressSearchMigrationTests
 {
-    /// <summary>只执行一次全局门禁和一次全部事实SQL；count来自完整缓冲，页不重新读取商业表。</summary>
+    /// <summary>只执行一次反馈SQL；准确count与当前页由数据库同一快照返回，不访问收货。</summary>
     [TestMethod]
     [DataRow(false,1,2,3,2)] [DataRow(true,2,2,3,1)] [DataRow(false,99,2,3,0)] [DataRow(true,1,2,0,0)]
-    public async Task FrozenStages_KeepCountAndPage(bool transaction,int page,int size,int count,int rows)
+    public async Task DatabasePage_KeepCountAndPage(bool transaction,int page,int size,int count,int rows)
     {
-        using var f=new Fixture(transaction);Queue(f,count);using var c=new CancellationTokenSource();
+        using var f=new Fixture(transaction);Queue(f,count,page:page,size:size);using var c=new CancellationTokenSource();
         var d=await f.Repository.SearchAsync(new(){PageIndex=page,PageSize=size},c.Token);
         Assert.AreEqual(count,d.TotalCount);Assert.HasCount(rows,d.Items);Assert.AreEqual(page,d.PageIndex);Assert.AreEqual(size,d.PageSize);
-        Assert.HasCount(2,f.Connection.Commands);Assert.AreEqual(false,f.Connection.Commands[0].Values["Scoped"]);
-        CollectionAssert.AreEqual(Array.Empty<Guid>(),(Guid[])f.Connection.Commands[0].Values["PurchaseLineIds"]!);
-        var sql=f.Connection.Commands[1].Sql;StringAssert.Contains(sql,"WITH LineFacts AS MATERIALIZED");
-        Assert.IsFalse(sql.Contains("OFFSET",StringComparison.Ordinal));Assert.IsFalse(sql.Contains("LIMIT @",StringComparison.Ordinal));Assert.IsFalse(sql.Contains("CREATE",StringComparison.Ordinal));
+        Assert.HasCount(1,f.Connection.Commands);
+        var sql=f.Connection.Commands[0].Sql;StringAssert.Contains(sql,"WITH LineFacts AS MATERIALIZED");
+        StringAssert.Contains(sql,"LIMIT @PageSize OFFSET @Offset");
+        Assert.IsFalse(sql.Contains("inbound_document",StringComparison.Ordinal));
+        Assert.AreEqual((long)(page-1)*size,f.Connection.Commands[0].Values["Offset"]);
+        Assert.AreEqual(size,f.Connection.Commands[0].Values["PageSize"]);
         StringAssert.Contains(sql,"facts.\"OrderDate\" DESC NULLS LAST");StringAssert.Contains(sql,"get_byte(uuid_send(facts.\"PurchaseOrderId\"),10)");
         if(rows>0)Assert.AreEqual("SQL-"+((page-1)*size),d.Items[0].OrderNo);
         foreach(var command in f.Connection.Commands)Assert.AreSame(f.Session.Transaction,command.Transaction);
@@ -39,10 +42,10 @@ public sealed class PostgreSqlPurchaseOrderProgressSearchMigrationTests
 
     /// <summary>分页保留原输入和原int乘法，服务负责有效范围；仓储不套Manager默认/上限。</summary>
     [TestMethod]
-    [DataRow(1,500,3)] [DataRow(3,1,1)] [DataRow(0,0,0)]
+    [DataRow(1,500,3)] [DataRow(3,1,1)]
     public async Task Paging_NoDefaults(int page,int size,int rows)
     {
-        using var f=new Fixture(false);Queue(f,3);var d=await f.Repository.SearchAsync(new(){PageIndex=page,PageSize=size},default);
+        using var f=new Fixture(false);Queue(f,3,page:page,size:size);var d=await f.Repository.SearchAsync(new(){PageIndex=page,PageSize=size},default);
         Assert.AreEqual(page,d.PageIndex);Assert.AreEqual(size,d.PageSize);Assert.HasCount(rows,d.Items);
     }
 
@@ -53,7 +56,7 @@ public sealed class PostgreSqlPurchaseOrderProgressSearchMigrationTests
     {
         using var f=new Fixture(false);Queue(f,0);var r=new PurchaseOrderProgressSearchRequest();
         if(limit){r.ConfirmationStatuses=[ConfirmationStatusEnum.已确认,ConfirmationStatusEnum.已确认];r.LifecycleStatuses=[PurchaseOrderLifecycleStatusEnum.Active,PurchaseOrderLifecycleStatusEnum.Closed];r.ArrangementStatuses=[(SupplierArrangementStatusEnum)0,(SupplierArrangementStatusEnum)0,(SupplierArrangementStatusEnum)1];}
-        await f.Repository.SearchAsync(r,default);var cmd=f.Connection.Commands[1];
+        await f.Repository.SearchAsync(r,default);var cmd=f.Connection.Commands[0];
         foreach(var name in new[]{"Confirmation","Lifecycle","Arrangement"}){Assert.AreEqual(NpgsqlDbType.Array|NpgsqlDbType.Integer,cmd.Types[name+"Statuses"]);Assert.AreEqual(limit,cmd.Values["Limit"+name+"Statuses"]);Assert.AreEqual(NpgsqlDbType.Boolean,cmd.Types["Limit"+name+"Statuses"]);}
         CollectionAssert.AreEqual(limit?new[]{1}:new[]{-1},(int[])cmd.Values["ConfirmationStatuses"]!);
         CollectionAssert.AreEqual(limit?new[]{0,8}:new[]{-1},(int[])cmd.Values["LifecycleStatuses"]!);
@@ -67,7 +70,7 @@ public sealed class PostgreSqlPurchaseOrderProgressSearchMigrationTests
     {
         using var f=new Fixture(false);Queue(f,0);var date=new DateTime(2026,10,5,19,21,32,DateTimeKind.Utc);
         await f.Repository.SearchAsync(new(){PlannedDeliveryDateFrom=value?date:null,PlannedDeliveryDateTo=value?date:null,ExpectedReadyDateFrom=value?date:null,ExpectedReadyDateTo=value?date:null},default);
-        var cmd=f.Connection.Commands[1];foreach(var name in new[]{"PlannedDeliveryDateFrom","PlannedDeliveryDateTo","ExpectedReadyDateFrom","ExpectedReadyDateTo"})
+        var cmd=f.Connection.Commands[0];foreach(var name in new[]{"PlannedDeliveryDateFrom","PlannedDeliveryDateTo","ExpectedReadyDateFrom","ExpectedReadyDateTo"})
         {Assert.AreEqual(NpgsqlDbType.Timestamp,cmd.Types[name]);Assert.AreEqual(value?(object)DateTime.SpecifyKind(date,DateTimeKind.Unspecified):DBNull.Value,cmd.Values[name]);}
         StringAssert.Contains(cmd.Sql,"<@PlannedDeliveryDateTo+INTERVAL '1 day'");StringAssert.Contains(cmd.Sql,"<@ExpectedReadyDateTo+INTERVAL '1 day'");
         Assert.IsFalse(cmd.Sql.Contains("date_trunc",StringComparison.Ordinal));
@@ -79,7 +82,7 @@ public sealed class PostgreSqlPurchaseOrderProgressSearchMigrationTests
     public async Task Text_BindLiteral(string input,string? expected)
     {
         using var f=new Fixture(false);Queue(f,0);await f.Repository.SearchAsync(new(){Keyword=input,OrderNo=input,SupplierKeyword=input,Sku=input},default);
-        var cmd=f.Connection.Commands[1];foreach(var name in new[]{"Keyword","OrderNo","SupplierKeyword","Sku"}){Assert.AreEqual(expected is null?DBNull.Value:(object)expected,cmd.Values[name]);Assert.AreEqual(NpgsqlDbType.Text,cmd.Types[name]);}
+        var cmd=f.Connection.Commands[0];foreach(var name in new[]{"Keyword","OrderNo","SupplierKeyword","Sku"}){Assert.AreEqual(expected is null?DBNull.Value:(object)expected,cmd.Values[name]);Assert.AreEqual(NpgsqlDbType.Text,cmd.Types[name]);}
         StringAssert.Contains(cmd.Sql,"COLLATE public.erp_dictionary_ci LIKE @Keyword ESCAPE '~'");
     }
 
@@ -87,7 +90,7 @@ public sealed class PostgreSqlPurchaseOrderProgressSearchMigrationTests
     [TestMethod]
     public async Task Projection_PreserveCommercialFactsAndNull()
     {
-        using var f=new Fixture(false);Queue(f,1);var row=(await f.Repository.SearchAsync(new(),default)).Items.Single();var sql=f.Connection.Commands[1].Sql;
+        using var f=new Fixture(false);Queue(f,1);var row=(await f.Repository.SearchAsync(new(),default)).Items.Single();var sql=f.Connection.Commands[0].Sql;
         foreach(var property in typeof(PurchaseOrderProgressListItemDto).GetProperties())StringAssert.Contains(sql,"AS \""+property.Name+"\"");
         Assert.IsNull(row.OrderDate);Assert.IsNull(row.SupplierName);Assert.IsNull(row.LatestExpectedReadyDate);Assert.AreEqual(7m,row.LatestReadyQty);Assert.AreEqual(19m,row.TotalQty);
         Assert.AreEqual(2,row.UnknownReadyQtyLineCount);Assert.IsTrue(row.CanReportProgress);
@@ -97,17 +100,17 @@ public sealed class PostgreSqlPurchaseOrderProgressSearchMigrationTests
         foreach(var forbidden in new[]{"inventory_ledger","inbound_document","demand_execution_link","unit_snapshot","orphan","Greatest","LEAST("})Assert.IsFalse(sql.Contains(forbidden,StringComparison.OrdinalIgnoreCase));
     }
 
-    /// <summary>全局坏历史先拒绝且不执行HeadFacts，保留公共异常类别。</summary>
+    /// <summary>旧收货门禁即使返回坏历史也不被调用；仍返回完整反馈事实。</summary>
     [TestMethod]
-    public async Task GuardFailure_StopsBusinessRead()
+    public async Task UnrelatedReceiptHistory_DoesNotBlockFeedback()
     {
-        using var f=new Fixture(true);Queue(f,1,true);await Assert.ThrowsAsync<UnverifiedReceiptHistoryException>(()=>f.Repository.SearchAsync(new(),default));
-        Assert.HasCount(1,f.Connection.Commands);Assert.HasCount(1,f.Connection.Results);Assert.AreEqual(0,f.Connection.Rollbacks);
+        using var f=new Fixture(true);Queue(f,1,true);var result=await f.Repository.SearchAsync(new(),default);Assert.HasCount(1,result.Items);
+        Assert.HasCount(1,f.Connection.Commands);Assert.HasCount(0,f.Connection.Results);Assert.AreEqual(0,f.Connection.Rollbacks);
     }
 
-    /// <summary>两阶段技术异常原样上交，不转换空页或业务错误。</summary>
+    /// <summary>反馈命令技术异常原样上交，不转换空页或业务错误。</summary>
     [TestMethod]
-    [DataRow(0)] [DataRow(1)]
+    [DataRow(0)]
     public async Task TechnicalFailure_Propagates(int stage)
     {
         using var f=new Fixture(true);Queue(f,1);var failure=new InvalidOperationException("技术失败");
@@ -115,26 +118,25 @@ public sealed class PostgreSqlPurchaseOrderProgressSearchMigrationTests
         var ex=await Assert.ThrowsAsync<InvalidOperationException>(()=>f.Repository.SearchAsync(new(),default));Assert.AreSame(failure,ex);Assert.AreEqual(0,f.Connection.Rollbacks);
     }
 
-    /// <summary>预取消、Guard/事实命令边界及缓冲后取消均可见，不归零返回。</summary>
+    /// <summary>预取消、命令边界及缓冲后取消均可见，不归零返回。</summary>
     [TestMethod]
-    [DataRow(-1)] [DataRow(0)] [DataRow(1)] [DataRow(2)]
+    [DataRow(-1)] [DataRow(0)] [DataRow(1)]
     public async Task Cancellation_PreserveToken(int stage)
     {
         using var f=new Fixture(true);Queue(f,2);using var c=new CancellationTokenSource();
-        if(stage<0)c.Cancel();else f.Connection.BeforeCommand=i=>{if(i==stage)throw new OperationCanceledException(c.Token);if(stage==2&&i==1)c.Cancel();};
+        if(stage<0)c.Cancel();else f.Connection.BeforeCommand=i=>{if(i==stage)throw new OperationCanceledException(c.Token);if(stage==1&&i==0)c.Cancel();};
         await Assert.ThrowsAsync<OperationCanceledException>(()=>f.Repository.SearchAsync(new(),c.Token));
         Assert.AreEqual(stage<0?0:stage,f.Connection.Commands.Count);Assert.AreEqual(0,f.Connection.Commits);Assert.AreEqual(0,f.Connection.Rollbacks);
     }
 
-    /// <summary>仅提供Guard标量及已由SQL排序的事实表，内存夹具不计算商业规则。</summary>
-    private static void Queue(Fixture f,int count,bool invalid=false)
+    /// <summary>只提供数据库分页回执；本夹具不计算商业筛选或重读收货。</summary>
+    private static void Queue(Fixture f,int count,bool invalid=false,int page=1,int size=20)
     {
-        var guard=new DataTable();guard.Columns.Add("Invalid",typeof(bool));guard.Rows.Add(invalid);f.Connection.Results.Enqueue(guard);
-        var table=new DataTable();table.Columns.Add("PurchaseOrderId",typeof(Guid));table.Columns.Add("OrderNo",typeof(string));table.Columns.Add("OrderDate",typeof(DateTime));
-        table.Columns.Add("SupplierName",typeof(string));table.Columns.Add("LatestExpectedReadyDate",typeof(DateTime));table.Columns.Add("TotalQty",typeof(decimal));table.Columns.Add("LatestReadyQty",typeof(decimal));
-        table.Columns.Add("UnknownReadyQtyLineCount",typeof(int));table.Columns.Add("CanReportProgress",typeof(bool));
-        for(int i=0;i<count;i++)table.Rows.Add(Guid.NewGuid(),"SQL-"+i,DBNull.Value,DBNull.Value,DBNull.Value,19m,7m,2,true);
-        f.Connection.Results.Enqueue(table);
+        var items=Enumerable.Range(0,count).Select(i=>new PurchaseOrderProgressListItemDto{
+            PurchaseOrderId=Guid.NewGuid(),OrderNo="SQL-"+i,TotalQty=19m,LatestReadyQty=7m,
+            UnknownReadyQtyLineCount=2,CanReportProgress=true}).Skip((page-1)*size).Take(size).ToList();
+        var table=new DataTable();table.Columns.Add("TotalCount",typeof(int));table.Columns.Add("ItemsJson",typeof(string));
+        table.Rows.Add(count,JsonSerializer.Serialize(items));f.Connection.Results.Enqueue(table);
     }
 
     /// <summary>每例独享内存会话与可空事务，不接触网络。</summary>

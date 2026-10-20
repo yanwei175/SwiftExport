@@ -1,3 +1,4 @@
+using System.Text.Json;
 using Dapper;
 using Npgsql;
 using NpgsqlTypes;
@@ -8,16 +9,15 @@ using SwiftExport.Core.Entities.Procurement;
 using SwiftExport.Infrastructure.Contexts;
 using SwiftExport.Infrastructure.DatabaseSchema;
 using SwiftExport.Infrastructure.Repositories.Base;
-using SwiftExport.Infrastructure.Repositories.Inventory.Inbounds;
 
 namespace SwiftExport.Infrastructure.Repositories.Procurement.PurchaseOrders.Progress;
 
-/// <summary>采购进度列表PG投影；全局历史门禁后一次冻结商业事实，再仅按结构分页，详情另行实施。</summary>
+/// <summary>供应商反馈录入选单投影；只读取采购和反馈，数据库完成筛选、计数和稳定分页。</summary>
 public sealed partial class PostgreSqlPurchaseOrderProgressQueryRepository(RepositoryBaseContext context)
 {
     private static readonly EntityMetadata ReportMap = EntityMetadataCache.GetMetadata(typeof(SupplierProgressReport));
 
-    /// <summary>借用当前连接及可空事务，完整缓冲SQL排序后的HeadFacts；分页不重新观察头、行或反馈。</summary>
+    /// <summary>借用当前连接及事务；同一SQL快照计算总数和当前页，不读取入库或库存历史。</summary>
     public async Task<PagedResponseBase<PurchaseOrderProgressListItemDto>> SearchAsync(
         PurchaseOrderProgressSearchRequest request, CancellationToken cancellationToken = default)
     {
@@ -34,12 +34,12 @@ public sealed partial class PostgreSqlPurchaseOrderProgressQueryRepository(Repos
         parameters.AddTimestamp("ExpectedReadyDateTo", request.ExpectedReadyDateTo);
         parameters.Add("Active", (int)PurchaseOrderLifecycleStatusEnum.Active);
         parameters.Add("Confirmed", (int)ConfirmationStatusEnum.已确认);
-        var skip = (request.PageIndex - 1) * request.PageSize;
-        await PostgreSqlInboundReceiptHistoryGuard.ValidateGlobalAsync(context.Session, cancellationToken);
-        var frozen = (await context.Session.Connection.QueryAsync<PurchaseOrderProgressListItemDto>(new CommandDefinition(
-            SearchSql(), new SearchParameters(parameters), context.Session.Transaction, cancellationToken: cancellationToken))).ToList();
+        parameters.Add("PageSize", request.PageSize);
+        parameters.Add("Offset", (long)(request.PageIndex - 1) * request.PageSize);
+        var page = await context.Session.Connection.QuerySingleAsync<ProgressPageRow>(new CommandDefinition(
+            SearchSql(), new SearchParameters(parameters), context.Session.Transaction, cancellationToken: cancellationToken));
         cancellationToken.ThrowIfCancellationRequested();
-        return new() { TotalCount = frozen.Count, Items = frozen.Skip(skip).Take(request.PageSize).ToList(), PageIndex = request.PageIndex, PageSize = request.PageSize };
+        return new() { TotalCount = page.TotalCount, Items = JsonSerializer.Deserialize<List<PurchaseOrderProgressListItemDto>>(page.ItemsJson) ?? [], PageIndex = request.PageIndex, PageSize = request.PageSize };
     }
 
     /// <summary>空状态仍传源哨兵-1但关闭限制；枚举去重不增加新状态资格。</summary>
@@ -106,7 +106,7 @@ public sealed partial class PostgreSqlPurchaseOrderProgressQueryRepository(Repos
                         AND (@PlannedDeliveryDateTo IS NULL OR plannedLine."planned_delivery_date"<@PlannedDeliveryDateTo+INTERVAL '1 day')))
             GROUP BY h."uid",h."version",h."confirmation_status",h."lifecycle_status",
                 h."order_no",h."order_date",h."bo_no",h."supplier_name",h."demand_source_no"
-        )
+        ), filtered AS (
         SELECT facts."PurchaseOrderId" AS "PurchaseOrderId",facts."Version" AS "Version",facts."ConfirmationStatus" AS "ConfirmationStatus",
             facts."LifecycleStatus" AS "LifecycleStatus",facts."OrderNo" AS "OrderNo",facts."OrderDate" AS "OrderDate",facts."BoNo" AS "BoNo",
             facts."SupplierName" AS "SupplierName",facts."DemandSourceNo" AS "DemandSourceNo",facts."LineCount" AS "LineCount",
@@ -118,12 +118,23 @@ public sealed partial class PostgreSqlPurchaseOrderProgressQueryRepository(Repos
         FROM HeadFacts facts
         WHERE (@ExpectedReadyDateFrom IS NULL OR facts."LatestExpectedReadyDate">=@ExpectedReadyDateFrom)
             AND (@ExpectedReadyDateTo IS NULL OR facts."LatestExpectedReadyDate"<@ExpectedReadyDateTo+INTERVAL '1 day')
-        ORDER BY facts."OrderDate" DESC NULLS LAST,facts."OrderNo" COLLATE public.erp_dictionary_ci DESC NULLS LAST,
-            {UuidOrder("facts.\"PurchaseOrderId\"")} DESC
+        )
+        SELECT (SELECT count(*)::int FROM filtered) AS "TotalCount",
+            COALESCE((SELECT jsonb_agg(page ORDER BY page."OrderDate" DESC NULLS LAST,
+                page."OrderNo" COLLATE public.erp_dictionary_ci DESC NULLS LAST,{UuidOrder("page.\"PurchaseOrderId\"")} DESC) FROM (
+                SELECT "PurchaseOrderId","Version","ConfirmationStatus","LifecycleStatus","OrderNo","OrderDate","BoNo","SupplierName","DemandSourceNo","LineCount","ReportedLineCount","UnknownReadyQtyLineCount","TotalQty","LatestReadyQty","LatestExpectedReadyDate","CanReportProgress","ReadOnlyReason" FROM filtered facts
+                ORDER BY facts."OrderDate" DESC NULLS LAST,facts."OrderNo" COLLATE public.erp_dictionary_ci DESC NULLS LAST,
+                    {UuidOrder("facts.\"PurchaseOrderId\"")} DESC LIMIT @PageSize OFFSET @Offset
+            ) page),'[]'::jsonb)::text AS "ItemsJson"
         """;
 
-    /// <summary>固定SQL字面筛选沿既有字典比较，不扩展为通配搜索。</summary>
-    private static string Like(string column, string parameter) => column + " COLLATE public.erp_dictionary_ci LIKE @" + parameter + " ESCAPE '~'";
+    /// <summary>接纳数据库分页回执，超末页仍返回同一筛选范围的总数。</summary>
+    private sealed class ProgressPageRow
+    {
+        public int TotalCount { get; set; }
+        public string ItemsJson { get; set; } = "[]";
+    }
+
     /// <summary>以CLR属性定位PG列，包括旧QTY对应quantity，不接受外部标识符。</summary>
     private static string C(EntityMetadata map, string alias, string property) => alias + "." + PostgreSqlNames.Quote(map.Columns.Single(x => x.PropertyName == property).ColumnName);
     private static string R(string property) => C(ReportMap, "r", property);
@@ -144,6 +155,7 @@ public sealed partial class PostgreSqlPurchaseOrderProgressQueryRepository(Repos
                     "PlannedDeliveryDateFrom" or "PlannedDeliveryDateTo" or "ExpectedReadyDateFrom" or "ExpectedReadyDateTo" => NpgsqlDbType.Timestamp,
                     "Keyword" or "OrderNo" or "SupplierKeyword" or "Sku" => NpgsqlDbType.Text,
                     "LimitConfirmationStatuses" or "LimitLifecycleStatuses" or "LimitArrangementStatuses" => NpgsqlDbType.Boolean,
+                    "Offset" => NpgsqlDbType.Bigint,
                     _ => NpgsqlDbType.Integer
                 };
         }

@@ -31,8 +31,12 @@ public sealed class OrderTrackingSlicesReadOnlyTests
     [TestMethod]
     public Task ReadOnlyPg_PurchaseTrackingAndManagerFacts()=>RunMatrixAsync(true);
 
+    /// <summary>同头完整校验、跨头隔离及反馈无收货依赖共用真实生产SQL和只读CTE。</summary>
+    [TestMethod]
+    public Task ReadOnlyPg_ReceiptFactsAndFeedbackIsolation()=>RunMatrixAsync(true,true);
+
     /// <summary>共享真实PG只读连接及内联表数据；保留原全链路入口和断言。</summary>
-    private static async Task RunMatrixAsync(bool purchaseOnly)
+    private static async Task RunMatrixAsync(bool purchaseOnly,bool receiptOnly=false)
     {
         if(Environment.GetEnvironmentVariable("SWIFTEXPORT_ORDER_TRACKING_READONLY")!="1") Assert.Inconclusive("未启用跟踪只读PG验证。");
         var root=Root();
@@ -102,6 +106,7 @@ public sealed class OrderTrackingSlicesReadOnlyTests
         };
         try
         {
+            if(receiptOnly){await VerifyReceiptFactsAsync();return;}
             await VerifyPurchaseManagerAsync();
             if(purchaseOnly)
             {
@@ -383,6 +388,93 @@ public sealed class OrderTrackingSlicesReadOnlyTests
 
         Task<SwiftExport.Contracts.Wrappers.PagedResponseBase<OrderTrackingSourceGroupDto>> Groups(OrderTrackingSourceSearchRequest request)
             =>new PostgreSqlOrderTrackingSourceRepository(fixture.Context).SearchSourcesAsync(request,OrderTrackingReadFixture.BusinessDate);
+
+        // 生产仓储共同使用整头事实；所有变体只修改内存JSON，不执行任何业务表写入。
+        async Task VerifyReceiptFactsAsync()
+        {
+            data["demand_execution_link"].RemoveAt(3);
+            data["purchase_order_head"].Single()["version"]=1;data["purchase_order_head"].Single()["origin_kind"]=1;
+            var b=Guid.NewGuid();var c=Guid.NewGuid();var cHead=Guid.NewGuid();
+            var purchase=data["purchase_order_line"].Single();
+            data["purchase_order_line"].Add(new(purchase){["uid"]=b,["line_number"]=2});
+            var third=new Dictionary<string,object?>(purchase){["uid"]=c,["line_number"]=3};data["purchase_order_line"].Add(third);
+            data["demand_execution_link"].Add(Link(Guid.NewGuid(),net,b,po,2m));
+            data["demand_execution_link"].Add(Link(Guid.NewGuid(),net,c,po,2m));
+            var sibling=ReceiptLine(Guid.NewGuid(),receiptHead,2m);sibling["source_line_id"]=b;data["inbound_document_line"].Add(sibling);
+            data["inbound_document"].Add(Receipt(cHead,1));var separate=ReceiptLine(Guid.NewGuid(),cHead,5m);separate["source_line_id"]=c;data["inbound_document_line"].Add(separate);
+            var tracking=new SwiftExport.Infrastructure.Repositories.OrderTracking.PurchaseOrders.PostgreSqlPurchaseOrderTrackingRepository(fixture.Context);
+            var demand=new PostgreSqlDemandTrackingReceiptRepository(fixture.Context);
+            var summary=new SwiftExport.Infrastructure.Repositories.OrderTracking.Summary.PostgreSqlOrderTrackingSummaryRepository(fixture.Context);
+            var keys=new SwiftExport.Contracts.DTOs.OrderTracking.Summary.OrderTrackingSourceKeyDto[]{new(){SourceType="SO",SourceGroupId=source}};
+            await Check(4m,2m);
+            sibling["unit_snapshot"]="BOX";await Check(null,null);sibling["unit_snapshot"]="PCS";
+            // 请求内第三行拥有独立入库头，不能因其他两行的同头异常而未知。
+            var orphan=ReceiptLine(Guid.NewGuid(),receiptHead,1m);orphan["source_line_id"]=Guid.NewGuid();data["inbound_document_line"].Add(orphan);
+            await Check(null,null);data["inbound_document_line"].Remove(orphan);
+            data["inbound_document"].Single(row=>Equals(row["uid"],reverseHead))["reverse_reason"]="";
+            await Check(null,2m);
+            data["inbound_document"].Single(row=>Equals(row["uid"],reverseHead))["reverse_reason"]="纠错";
+            // 可信超收保留原数量及负剩余；列表/摘要仍报告超收，不伪造为零。
+            third["quantity"]=4m;
+            var excess=(await tracking.GetReceiptsAsync(po)).PurchaseLines.Single(row=>row.PurchaseLineId==c);
+            Assert.AreEqual(5m,excess.ReceivedQty);Assert.AreEqual(-1m,excess.RemainingQty);StringAssert.Contains(excess.ReviewReason,"超收");
+            Assert.AreEqual(1,(await summary.ReadDimensionAsync(keys,"Receipt",OrderTrackingReadFixture.BusinessDate)).Single(row=>row.GrossDemandId==g).ReceiptExcessLineCount);
+            third["quantity"]=20m;
+            // 目标缺失、头缺失与软删除的正式证据都保持可见，不能把NULL解释为零。
+            data["purchase_order_line"].Remove(purchase);await Check(null,null);data["purchase_order_line"].Insert(0,purchase);
+            var formal=data["inbound_document"].Single(row=>Equals(row["uid"],receiptHead));data["inbound_document"].Remove(formal);await Check(null,null);data["inbound_document"].Add(formal);
+            sibling["is_deleted"]=true;await Check(null,null);sibling["is_deleted"]=false;
+            // 反馈只读选单、选行和最新快照，不查询入库；即使同请求范围存在坏反向也不阻断。
+            data["inbound_document"].Single(row=>Equals(row["uid"],reverseHead))["reverse_reason"]="";
+            var feedback=new SwiftExport.Infrastructure.Repositories.Procurement.PurchaseOrders.Progress.PostgreSqlPurchaseOrderProgressQueryRepository(fixture.Context);
+            var latestA=Guid.Parse("ffffffff-ffff-ffff-ffff-000000000001");var latestB=Guid.Parse("00000000-0000-0000-0000-000000000002");
+            data["supplier_progress_report"].Add(R(("uid",latestA),("purchase_order_line_id",poLine),("sequence",7),("ready_qty",9m),("is_deleted",false)));
+            data["supplier_progress_report"].Add(R(("uid",latestB),("purchase_order_line_id",poLine),("sequence",7),("ready_qty",3m),("is_deleted",false)));
+            var start=fixture.Connection.Commands.Count;
+            var feedbackPage=await feedback.SearchAsync(new(){PageSize=1,ExpectedReadyDateFrom=null});Assert.AreEqual(1,feedbackPage.TotalCount);Assert.AreEqual(3m,feedbackPage.Items.Single().LatestReadyQty);
+            Assert.AreEqual(1,(await feedback.SearchAsync(new(){PageIndex=99,PageSize=1})).TotalCount);Assert.HasCount(0,(await feedback.SearchAsync(new(){PageIndex=99,PageSize=1})).Items);
+            var feedbackDetail=(await feedback.GetDetailAsync(po))!;Assert.HasCount(3,feedbackDetail.Lines);
+            Assert.AreEqual(latestB,feedbackDetail.Lines.Single(row=>row.PurchaseOrderLineId==poLine).LatestProgress.Uid);
+            Assert.IsTrue(fixture.Connection.Commands.Skip(start).All(cmd=>!cmd.Sql.Contains("inbound_document",StringComparison.Ordinal)&&!cmd.Sql.Contains("inventory_ledger",StringComparison.Ordinal)));
+
+            // 正常采购草稿无待收；草稿有正式证据后须核实，不能借排除草稿隐藏异常。
+            var draftPo=Guid.NewGuid();var draftPoLine=Guid.NewGuid();
+            var draftPurchase=new Dictionary<string,object?>(data["purchase_order_head"].Single()){["uid"]=draftPo,["order_no"]="DRAFT-ONLY",["confirmation_status"]=0};
+            data["purchase_order_head"].Add(draftPurchase);data["purchase_order_line"].Add(new(purchase){["uid"]=draftPoLine,["purchase_order_id"]=draftPo});
+            data["demand_execution_link"].Add(Link(Guid.NewGuid(),net,draftPoLine,draftPo,1m));
+            Assert.HasCount(0,(await tracking.GetReceiptsAsync(draftPo)).PurchaseLines);
+            Assert.IsNull((await tracking.SearchAsync(new(){Keyword="DRAFT-ONLY"},true,true)).Items.Single().ReceiptStatus);
+            var draftInbound=Receipt(Guid.NewGuid(),0);draftInbound["lifecycle_status"]=0;data["inbound_document"].Add(draftInbound);
+            var draftEvidence=ReceiptLine(Guid.NewGuid(),(Guid)draftInbound["uid"]!,1m);draftEvidence["source_line_id"]=draftPoLine;data["inbound_document_line"].Add(draftEvidence);
+            var draftSection=await tracking.GetReceiptsAsync(draftPo);Assert.AreEqual(false,draftSection.Items.Single().CountsTowardReceipt);Assert.IsNull(draftSection.PurchaseLines.Single().ReceivedQty);
+            draftInbound["posting_status"]=1;
+            Assert.IsNull((await tracking.GetReceiptsAsync(draftPo)).Items.Single().CountsTowardReceipt);
+            Assert.AreEqual((SwiftExport.Contracts.SysEnums.PurchaseReceiptStatusEnum)9,(await tracking.SearchAsync(new(){Keyword="DRAFT-ONLY"},true,true)).Items.Single().ReceiptStatus);
+            var noDimensions=(await tracking.SearchAsync(new(){Keyword="DRAFT-ONLY"},false,false)).Items.Single();Assert.IsNull(noDimensions.ReceiptStatus);Assert.IsNull(noDimensions.ReadyQty);
+
+            // 局部函数同时检查采购从表、三种收货详情、需求/来源摘要和分页前收货状态筛选。
+            async Task Check(decimal? aQty,decimal? bQty)
+            {
+                var expected=new Dictionary<Guid,decimal?>{{poLine,aQty},{b,bQty},{c,5m}};
+                var purchaseDetail=await tracking.GetReceiptsAsync(po);var demandDetail=await demand.GetReceiptsAsync(g);var materialDetail=(await demand.GetMaterialReceiptsAsync(net))!;
+                foreach(var section in new[]{purchaseDetail.PurchaseLines,demandDetail.PurchaseLines,materialDetail.PurchaseLines})
+                    foreach(var (id,qty) in expected)
+                    {
+                        if(ReferenceEquals(section,purchaseDetail.PurchaseLines)&&!data["purchase_order_line"].Any(row=>Equals(row["uid"],id)))
+                            Assert.IsFalse(section.Any(row=>row.PurchaseLineId==id),"采购视角不虚构已缺失的行；需求Link仍保留目标历史。");
+                        else Assert.AreEqual(qty,section.Single(row=>row.PurchaseLineId==id).ReceivedQty,id.ToString());
+                    }
+                var lines=await tracking.GetLinesAsync(po,true,true);
+                foreach(var (id,qty) in expected.Where(pair=>data["purchase_order_line"].Any(row=>Equals(row["uid"],pair.Key))))Assert.AreEqual(qty,lines.Single(row=>row.PurchaseOrderLineId==id).ReceivedQty,id.ToString());
+                Assert.IsTrue(demandDetail.Items.Single(row=>row.InboundLineId==receiptLine).IsSharedPurchaseLine);
+                Assert.AreEqual(bQty.HasValue?true:null,demandDetail.Items.Single(row=>row.InboundLineId==receiptLine).CountsTowardReceipt);
+                var reviews=expected.Values.Count(qty=>!qty.HasValue);
+                Assert.AreEqual(reviews,(await summary.ReadDimensionAsync(keys,"Receipt",OrderTrackingReadFixture.BusinessDate)).Single(row=>row.GrossDemandId==g).ReceiptReviewLineCount);
+                Assert.AreEqual(reviews,(await summary.ReadSourceReceiptsAsync(keys,OrderTrackingReadFixture.BusinessDate)).Single().ReceiptReviewLineCount);
+                var page=await tracking.SearchAsync(new(){ReceiptStatuses=[reviews>0?(SwiftExport.Contracts.SysEnums.PurchaseReceiptStatusEnum)9:(SwiftExport.Contracts.SysEnums.PurchaseReceiptStatusEnum)2]},true,true);
+                Assert.AreEqual(1,page.TotalCount);Assert.AreEqual(po,page.Items.Single().PurchaseOrderId);
+            }
+        }
 
         // 采购管理真实SQL：数据库分页、局部反向证据和关联守恒使用同一只读事务，不执行写库夹具。
         async Task VerifyPurchaseManagerAsync()

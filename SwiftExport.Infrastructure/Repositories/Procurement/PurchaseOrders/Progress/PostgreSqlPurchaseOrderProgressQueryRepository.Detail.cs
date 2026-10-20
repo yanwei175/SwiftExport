@@ -2,29 +2,21 @@ using Dapper;
 using Npgsql;
 using NpgsqlTypes;
 using SwiftExport.Contracts.DTOs.Procurement.PurchaseOrderProgress;
-using SwiftExport.Contracts.SysEnums.Inventory;
-using SwiftExport.Core.Entities.Inventory;
-using SwiftExport.Core.Entities.MasterData;
 using SwiftExport.Core.Interfaces.Procurement;
-using SwiftExport.Infrastructure.DatabaseSchema;
 using SwiftExport.Infrastructure.Repositories.Base;
-using SwiftExport.Infrastructure.Repositories.Inventory.Inbounds;
 
 namespace SwiftExport.Infrastructure.Repositories.Procurement.PurchaseOrders.Progress;
 
-/// <summary>采购进度详情沿源三个结果阶段读取；与已交付Search组成原接口，不接运行DI。</summary>
+/// <summary>供应商反馈录入详情，只提供选行、最新反馈和完整反馈历史所需上下文。</summary>
 public sealed partial class PostgreSqlPurchaseOrderProgressQueryRepository : IPurchaseOrderProgressQueryRepository
 {
 
-    /// <summary>全局历史门禁后一次读取exists/当前行/完整报告；空头立即返回并释放grid，反馈以原.NET Guid顺序组装。</summary>
+    /// <summary>一次读取采购头存在性、当前行和完整反馈；不依赖收货历史，空头释放结果读取器。</summary>
     public async Task<PurchaseOrderProgressDetailDto?> GetDetailAsync(Guid purchaseOrderId, CancellationToken cancellationToken = default)
     {
         cancellationToken.ThrowIfCancellationRequested();
         var parameters = new PostgreSqlParameters();
         parameters.Add("PurchaseOrderId", purchaseOrderId);
-        parameters.Add("PurchaseReceipt", (int)InboundDocumentTypeEnum.PurchaseReceipt);
-        parameters.Add("FormalPostingStatuses", new[] { (int)InboundPostingStatusEnum.Posted, (int)InboundPostingStatusEnum.Reversed });
-        await PostgreSqlInboundReceiptHistoryGuard.ValidateGlobalAsync(context.Session, cancellationToken);
         using var grid = await context.Session.Connection.QueryMultipleAsync(new CommandDefinition(
             DetailSql(), new DetailParameters(parameters), context.Session.Transaction, cancellationToken: cancellationToken));
         var exists = await grid.ReadSingleAsync<bool>();
@@ -33,9 +25,9 @@ public sealed partial class PostgreSqlPurchaseOrderProgressQueryRepository : IPu
         var reports = (await grid.ReadAsync<SupplierProgressReportDto>()).ToList();
         foreach (var line in lines)
         {
-            // SQL反馈顺序只是当前批次读取序；源最终History/Latest用.NET Guid比较，不改为SqlGuid。
+            // 同序号边界与写入端锁定最新报告使用相同SqlGuid优先级，整条快照不拼接旧值。
             line.ProgressHistory = reports.Where(report => report.PurchaseOrderLineId == line.PurchaseOrderLineId)
-                .OrderByDescending(report => report.Sequence).ThenByDescending(report => report.Uid).ToList();
+                .OrderByDescending(report => report.Sequence).ThenByDescending(report => new System.Data.SqlTypes.SqlGuid(report.Uid)).ToList();
             line.LatestProgress = line.ProgressHistory.FirstOrDefault();
         }
         return new() { PurchaseOrderId = purchaseOrderId, Lines = lines };
@@ -46,29 +38,15 @@ public sealed partial class PostgreSqlPurchaseOrderProgressQueryRepository : IPu
         SELECT EXISTS(SELECT 1 FROM "public"."purchase_order_head" h
             WHERE h."uid"=@PurchaseOrderId AND COALESCE(h."is_deleted",FALSE)=FALSE);
 
-        WITH ReceiptFacts AS
-        (
-            SELECT receiveLine."source_line_id" AS source_line_id,
-                SUM(CASE WHEN receiveHead."posting_status"=1
-                    THEN receiveLine."quantity" ELSE 0 END) AS received_qty
-            FROM "public"."inbound_document_line" receiveLine
-            INNER JOIN "public"."inbound_document" receiveHead ON receiveHead."uid"=receiveLine."inbound_document_id"
-            WHERE receiveHead."document_type"=@PurchaseReceipt
-                AND receiveHead."posting_status"=ANY(@FormalPostingStatuses)
-                AND COALESCE(receiveLine."is_deleted",FALSE)=FALSE
-                AND COALESCE(receiveHead."is_deleted",FALSE)=FALSE
-            GROUP BY receiveLine."source_line_id"
-        )
         SELECT l."uid" AS "PurchaseOrderLineId",l."version" AS "Version",l."line_number" AS "LineNumber",
             COALESCE(product."main_image",'') AS "MainImage",
             l."sku" AS "Sku",l."supplier_sku" AS "SupplierSku",l."description_zh" AS "DescriptionZh",
-            l."quantity" AS "Quantity",COALESCE(receipt.received_qty,0) AS "ReceivedQty",
+            l."quantity" AS "Quantity",
             l."planned_delivery_date" AS "PlannedDeliveryDate"
         FROM "public"."purchase_order_line" l
         INNER JOIN "public"."purchase_order_head" h ON h."uid"=l."purchase_order_id" AND COALESCE(h."is_deleted",FALSE)=FALSE
         LEFT JOIN "public"."product" product ON product."uid"=l."product_id"
             AND COALESCE(product."is_deleted",FALSE)=FALSE
-        LEFT JOIN ReceiptFacts receipt ON receipt.source_line_id=l."uid"
         WHERE l."purchase_order_id"=@PurchaseOrderId AND COALESCE(l."is_deleted",FALSE)=FALSE
         ORDER BY l."line_number" ASC NULLS FIRST,{UuidOrder("l.\"uid\"")} ASC;
 
@@ -84,7 +62,7 @@ public sealed partial class PostgreSqlPurchaseOrderProgressQueryRepository : IPu
         ORDER BY l."line_number" ASC NULLS FIRST,{R("Sequence")} DESC NULLS LAST,{UuidOrder(R("Uid"))} DESC;
         """;
 
-    /// <summary>本详情局部明确uuid、int[]及integer；沿共享克隆，不修改公共参数或驱动推断。</summary>
+    /// <summary>本详情仅绑定采购单身份；沿共享参数克隆，不修改公共参数或驱动推断。</summary>
     private sealed class DetailParameters(PostgreSqlParameters parameters) : SqlMapper.IDynamicParameters
     {
         /// <summary>参数独立归命令所有，数组不展开，查询事务与连接仍由调用者拥有。</summary>
@@ -92,12 +70,7 @@ public sealed partial class PostgreSqlPurchaseOrderProgressQueryRepository : IPu
         {
             parameters.AddParameters(command, identity);
             foreach (NpgsqlParameter parameter in command.Parameters)
-                parameter.NpgsqlDbType = parameter.ParameterName switch
-                {
-                    "PurchaseOrderId" => NpgsqlDbType.Uuid,
-                    "FormalPostingStatuses" => NpgsqlDbType.Array | NpgsqlDbType.Integer,
-                    _ => NpgsqlDbType.Integer
-                };
+                parameter.NpgsqlDbType = NpgsqlDbType.Uuid;
         }
     }
 }
