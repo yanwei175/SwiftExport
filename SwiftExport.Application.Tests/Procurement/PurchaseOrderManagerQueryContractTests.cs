@@ -29,7 +29,13 @@ public sealed class PurchaseOrderManagerQueryContractTests
     public void RepositorySql_MustUseLatestProgressTraceableReceiptFactsAndMultiStatusFilters()
     {
         var source = Read("SwiftExport.Infrastructure", "Repositories", "Procurement", "PurchaseOrders", "Query", "PostgreSqlPurchaseOrderManagerQueryRepository.cs");
-        var repository = Sql("SearchSql") + Sql("LinesSql");
+        var facts = Sql("SearchSql") + Sql("LinesSql");
+        var repository = SwiftExport.Infrastructure.Repositories.OrderTracking.PurchaseOrders.PurchaseOrderTrackingSql.SearchSql + SwiftExport.Infrastructure.Repositories.OrderTracking.PurchaseOrders.PurchaseOrderTrackingSql.LinesSql;
+        Assert.IsFalse(source.Contains("PurchaseOrderManagerReceiptSql",StringComparison.Ordinal));
+        Assert.IsFalse(facts.Contains("LEFT JOIN LATERAL",StringComparison.Ordinal));
+        Assert.IsFalse(facts.Contains("receipt_facts",StringComparison.Ordinal));
+        StringAssert.Contains(facts,"EXISTS(SELECT 1 FROM public.supplier_progress_report");
+        Assert.IsFalse(facts.Contains(" AS \"ReceiptProgress\"",StringComparison.Ordinal));
         Assert.IsFalse(repository.Contains("ExecutionModel", StringComparison.Ordinal));
         StringAssert.Contains(repository, "h.confirmation_status=ANY(@ConfirmationStatuses)");
         StringAssert.Contains(repository, "h.lifecycle_status=ANY(@LifecycleStatuses)");
@@ -53,6 +59,25 @@ public sealed class PurchaseOrderManagerQueryContractTests
         StringAssert.Contains(repository, "MAX(f.expected_ready_date) AS expected_completion_date");
         StringAssert.Contains(repository, "rtrim(l.material_type,' ') COLLATE public.erp_dictionary_ci=@CustomerSuppliedMaterialType");
         Assert.IsFalse(repository.Contains("customer_name_snapshot AS \"CustomerName\"", StringComparison.Ordinal));
+    }
+
+    /// <summary>来源关联范围由自身声明，管理无收货CTE、跟踪无收货权限时都不能丢失关联摘要。</summary>
+    [TestMethod]
+    public void AssociationScope_IsSelfContainedForBothConsumers()
+    {
+        var association=PurchaseOrderManagerAssociationSql.Ctes;
+        StringAssert.Contains(association,"manager_association_scope AS (");
+        StringAssert.Contains(association,"h.uid=@PurchaseOrderId AND h.is_deleted=FALSE AND l.is_deleted=FALSE");
+        Assert.IsFalse(association.Contains("manager_receipt_scope",StringComparison.Ordinal));
+        Assert.IsFalse(association.Contains("@CanViewReceipts",StringComparison.Ordinal));
+        foreach(var sql in new[]{Sql("LinesSql"),SwiftExport.Infrastructure.Repositories.OrderTracking.PurchaseOrders.PurchaseOrderTrackingSql.LinesSql})
+        {
+            StringAssert.Contains(sql,"manager_association_scope AS (");
+            StringAssert.Contains(sql,"FROM manager_association_scope scope");
+            StringAssert.Contains(sql,"manager_orphan_association_heads AS (");
+        }
+        Assert.IsFalse(Sql("LinesSql").Contains("manager_receipt_scope",StringComparison.Ordinal));
+        Assert.IsFalse(Sql("LinesSql").Contains("receipt_facts",StringComparison.Ordinal));
     }
 
     /// <summary>确认管理查询不携带完整跟进历史、追溯或库存流水明细。</summary>

@@ -1,3 +1,5 @@
+using SwiftExport.Application.Interfaces.OrderTracking.PurchaseOrders;
+using SwiftExport.Contracts.DTOs.OrderTracking.PurchaseOrders;
 using Microsoft.Extensions.DependencyInjection;
 using Dapper;
 using Microsoft.AspNetCore.Builder;
@@ -74,10 +76,10 @@ public sealed class PurchaseOrderTrackingPostgreSqlTests
             UPDATE public.purchase_order_line SET is_deleted=TRUE WHERE purchase_order_id=@emptyId;
             """, new { secondLine, thirdLine, emptyId = empty.PurchaseOrderId });
 
-        async Task<PurchaseOrderManagerListItemDto> Find(PurchaseReadyStatusEnum status)
+        async Task<PurchaseOrderTrackingItemDto> Find(PurchaseReadyStatusEnum status)
         {
-            var result = await db.InScopeAsync(p => p.GetRequiredService<IPurchaseOrderManagerQueryService>()
-                .SearchAsync(new PurchaseOrderManagerSearchRequest { CustomerCode = db.CustomerCode, ReadyStatuses = [status], PageIndex = 1, PageSize = 1 }));
+            var result = await db.InScopeAsync(p => p.GetRequiredService<IPurchaseOrderTrackingService>()
+                .SearchPurchaseOrdersAsync(new PurchaseOrderTrackingSearchRequest { CustomerCodes = [db.CustomerCode], ReadyStatuses = [status], PageIndex = 1, PageSize = 1 }));
             Assert.IsTrue(result.Success, result.Message);
             Assert.AreEqual(1, result.Data!.TotalCount);
             return result.Data.Items.Single();
@@ -95,13 +97,13 @@ public sealed class PurchaseOrderTrackingPostgreSqlTests
             VALUES(gen_random_uuid(),@inboundId,1,@product,'TEST-FG','PCS',3,@thirdLine);
             """, new { inboundId = Guid.NewGuid(), site = db.ReceiptSiteId, product = db.ProductId, thirdLine, DocumentNo = db.Batch + "_TEST-RECEIPT-TRACK" });
 
-        var receipt = await db.InScopeAsync(p => p.GetRequiredService<IPurchaseOrderManagerQueryService>()
-            .SearchAsync(new PurchaseOrderManagerSearchRequest { CustomerCode = db.CustomerCode, ReceiptStatuses = [PurchaseReceiptStatusEnum.NotReceived], PageSize = 2 }));
+        var receipt = await db.InScopeAsync(p => p.GetRequiredService<IPurchaseOrderTrackingService>()
+            .SearchPurchaseOrdersAsync(new PurchaseOrderTrackingSearchRequest { CustomerCodes = [db.CustomerCode], ReceiptStatuses = [PurchaseReceiptStatusEnum.NotReceived], PageSize = 2 }));
         Assert.IsTrue(receipt.Success, receipt.Message);
         Assert.AreEqual(2, receipt.Data!.TotalCount);
         Assert.AreEqual(2, receipt.Data.Items.Count);
-        var partialReceipt = await db.InScopeAsync(p => p.GetRequiredService<IPurchaseOrderManagerQueryService>()
-            .SearchAsync(new PurchaseOrderManagerSearchRequest { CustomerCode = db.CustomerCode, ReceiptStatuses = [PurchaseReceiptStatusEnum.PartiallyReceived] }));
+        var partialReceipt = await db.InScopeAsync(p => p.GetRequiredService<IPurchaseOrderTrackingService>()
+            .SearchPurchaseOrdersAsync(new PurchaseOrderTrackingSearchRequest { CustomerCodes = [db.CustomerCode], ReceiptStatuses = [PurchaseReceiptStatusEnum.PartiallyReceived] }));
         Assert.IsTrue(partialReceipt.Success, partialReceipt.Message);
         Assert.AreEqual(third.PurchaseOrderId, partialReceipt.Data!.Items.Single().PurchaseOrderId);
     }
@@ -119,8 +121,8 @@ public sealed class PurchaseOrderTrackingPostgreSqlTests
         Assert.IsTrue(created.Success, created.Message);
         var uid = created.Data!.PurchaseOrderId;
         await db.ExecuteAsync("UPDATE public.purchase_order_line SET unit_snapshot='BOX' WHERE purchase_order_id=@uid AND line_number=2", new { uid });
-        var list = await db.InScopeAsync(p => p.GetRequiredService<IPurchaseOrderManagerQueryService>()
-            .SearchAsync(new PurchaseOrderManagerSearchRequest { Keyword = created.Data.OrderNo }));
+        var list = await db.InScopeAsync(p => p.GetRequiredService<IPurchaseOrderTrackingService>()
+            .SearchPurchaseOrdersAsync(new PurchaseOrderTrackingSearchRequest { Keyword = created.Data.OrderNo }));
         Assert.IsTrue(list.Success, list.Message);
         var row = list.Data!.Items.Single();
         Assert.AreEqual(2, row.LineCount);
@@ -169,10 +171,10 @@ public sealed class PurchaseOrderTrackingPostgreSqlTests
                 lateId = late.PurchaseOrderId, soonId = soon.PurchaseOrderId, laterId = later.PurchaseOrderId,
                 lateDate = today.AddDays(-1), soonDate = today.AddDays(7), laterDate = today.AddDays(8) });
 
-        async Task<PurchaseOrderManagerListItemDto> Find(PurchaseDueViewEnum view)
+        async Task<PurchaseOrderTrackingItemDto> Find(PurchaseDueViewEnum view)
         {
-            var result = await db.InScopeAsync(p => p.GetRequiredService<IPurchaseOrderManagerQueryService>()
-                .SearchAsync(new PurchaseOrderManagerSearchRequest { CustomerCode = db.CustomerCode, DueView = view }));
+            var result = await db.InScopeAsync(p => p.GetRequiredService<IPurchaseOrderTrackingService>()
+                .SearchPurchaseOrdersAsync(new PurchaseOrderTrackingSearchRequest { CustomerCodes = [db.CustomerCode], DueView = view }));
             Assert.IsTrue(result.Success, result.Message);
             Assert.AreEqual(1, result.Data!.TotalCount);
             return result.Data.Items.Single();
@@ -187,8 +189,8 @@ public sealed class PurchaseOrderTrackingPostgreSqlTests
             INSERT INTO public.supplier_progress_report(uid,purchase_order_line_id,sequence,arrangement_status,ready_qty,supplier_reported_date,command_id,is_correction)
             VALUES(gen_random_uuid(),@soonLine,1,0,10,timezone('UTC',clock_timestamp()),gen_random_uuid(),FALSE);
             """, new { soonLine });
-        var noSoon = await db.InScopeAsync(p => p.GetRequiredService<IPurchaseOrderManagerQueryService>()
-            .SearchAsync(new PurchaseOrderManagerSearchRequest { CustomerCode = db.CustomerCode, DueView = PurchaseDueViewEnum.DueSoonNotReady }));
+        var noSoon = await db.InScopeAsync(p => p.GetRequiredService<IPurchaseOrderTrackingService>()
+            .SearchPurchaseOrdersAsync(new PurchaseOrderTrackingSearchRequest { CustomerCodes = [db.CustomerCode], DueView = PurchaseDueViewEnum.DueSoonNotReady }));
         Assert.IsTrue(noSoon.Success, noSoon.Message);
         Assert.AreEqual(0, noSoon.Data!.TotalCount);
     }

@@ -1,4 +1,6 @@
-﻿using SwiftExport.Contracts.DTOs.Inventory.Inbounds.Posting;
+using SwiftExport.Application.Interfaces.OrderTracking.PurchaseOrders;
+using SwiftExport.Core.Interfaces.OrderTracking.PurchaseOrders;
+using SwiftExport.Contracts.DTOs.Inventory.Inbounds.Posting;
 using SwiftExport.Contracts.DTOs.Inventory.Inbounds.Draft;
 using Npgsql;
 using Microsoft.Extensions.DependencyInjection;
@@ -78,7 +80,7 @@ public sealed class IndependentProcurementSqlTests
 
         // 查询按收货事实展示进度；真正形成正式收货之前仍必须通过采购确认。
         var pending = await Db.InScopeAsync(async provider =>
-            (await provider.GetRequiredService<IPurchaseOrderManagerQueryRepository>().SearchAsync(new())).Items.Single());
+            (await provider.GetRequiredService<IPurchaseOrderTrackingRepository>().SearchAsync(new(),true,true)).Items.Single());
         Assert.AreEqual(0m, pending.ReceiptProgress);
         var confirmation = await Db.ContextAsync(orderId);
         Assert.IsTrue(confirmation.Success, confirmation.Message);
@@ -104,9 +106,9 @@ public sealed class IndependentProcurementSqlTests
 
         var withMultipleLinks = await Db.InScopeAsync(async provider =>
         {
-            var repository = provider.GetRequiredService<IPurchaseOrderManagerQueryRepository>();
-            var line = (await repository.GetLinesAsync(orderId)).Single();
-            var head = (await repository.SearchAsync(new())).Items.Single(x => x.PurchaseOrderId == orderId);
+            var repository = provider.GetRequiredService<IPurchaseOrderTrackingRepository>();
+            var line = (await repository.GetLinesAsync(orderId,true,true)).Single();
+            var head = (await repository.SearchAsync(new(),true,true)).Items.Single(x => x.PurchaseOrderId == orderId);
             return (line, head);
         });
         Assert.AreEqual(6m, withMultipleLinks.line.ReceivedQty);
@@ -114,13 +116,13 @@ public sealed class IndependentProcurementSqlTests
 
         await Db.ExecuteAsync("UPDATE public.inbound_document_line SET unit_snapshot=NULL WHERE source_line_id=@LineId", new { LineId = lineId });
         var invalidUnit = await Db.InScopeAsync(async provider =>
-            (await provider.GetRequiredService<IPurchaseOrderManagerQueryRepository>().SearchAsync(new())).Items.Single());
+            (await provider.GetRequiredService<IPurchaseOrderTrackingRepository>().SearchAsync(new(),true,true)).Items.Single());
         Assert.IsNull(invalidUnit.ReceiptProgress);
         await Db.ExecuteAsync("UPDATE public.inbound_document_line SET unit_snapshot='PCS' WHERE source_line_id=@LineId", new { LineId = lineId });
 
         await Db.ExecuteAsync("DELETE FROM public.demand_execution_link WHERE target_head_id=@OrderId;", new { OrderId = orderId });
         var noLinkReceipt = await Db.InScopeAsync(async provider =>
-            (await provider.GetRequiredService<IPurchaseOrderManagerQueryRepository>().GetLinesAsync(orderId)).Single());
+            (await provider.GetRequiredService<IPurchaseOrderTrackingRepository>().GetLinesAsync(orderId,true,true)).Single());
         Assert.AreEqual(6m, noLinkReceipt.ReceivedQty);
 
         var unknownId = Guid.NewGuid();
@@ -132,7 +134,7 @@ public sealed class IndependentProcurementSqlTests
             """, new { WarehouseId = Db.ReceiptSiteId, ProductId = Db.ProductId, Unknown = unknownId });
 
         var blocked = await Db.InScopeAsync(provider =>
-            provider.GetRequiredService<IPurchaseOrderManagerQueryService>().GetLinesAsync(orderId));
+            provider.GetRequiredService<IPurchaseOrderTrackingService>().GetPurchaseOrderLinesAsync(orderId));
         Assert.IsFalse(blocked.Success);
         Assert.AreEqual(SwiftExport.Contracts.DTOs.Errors.ServiceErrorCodes.BusinessBlocked, blocked.Error.Code);
         StringAssert.Contains(blocked.Message, "无法定位采购行");

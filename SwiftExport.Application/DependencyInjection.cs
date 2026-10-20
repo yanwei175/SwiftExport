@@ -206,6 +206,7 @@ public static class DependencyInjection
         services.AddScoped<SwiftExport.Application.Interfaces.OrderTracking.Sources.IOrderTrackingSourceService, SwiftExport.Application.Services.OrderTracking.Sources.OrderTrackingSourceService>();
         services.AddScoped<SwiftExport.Application.Interfaces.OrderTracking.Materials.IDemandTrackingMaterialService, SwiftExport.Application.Services.OrderTracking.Materials.DemandTrackingMaterialService>();
         services.AddScoped<SwiftExport.Application.Interfaces.OrderTracking.Purchases.IDemandTrackingPurchaseService, SwiftExport.Application.Services.OrderTracking.Purchases.DemandTrackingPurchaseService>();
+        services.AddScoped<SwiftExport.Application.Interfaces.OrderTracking.PurchaseOrders.IPurchaseOrderTrackingService, SwiftExport.Application.Services.OrderTracking.PurchaseOrders.PurchaseOrderTrackingService>();
         services.AddScoped<SwiftExport.Application.Interfaces.OrderTracking.Receipts.IDemandTrackingReceiptService, SwiftExport.Application.Services.OrderTracking.Receipts.DemandTrackingReceiptService>();
         services.AddScoped<SwiftExport.Application.Interfaces.OrderTracking.Deliveries.IDemandTrackingDeliveryService, SwiftExport.Application.Services.OrderTracking.Deliveries.DemandTrackingDeliveryService>();
         services.AddScoped<IManualGrossDemandService, ManualGrossDemandService>();

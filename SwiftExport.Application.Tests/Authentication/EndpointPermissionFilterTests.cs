@@ -55,7 +55,10 @@ public sealed class EndpointPermissionFilterTests
     {
         var routes = ReadMap("SingleKeys");
         // 新增来源内匹配端点沿用基础查看权限；所选关注项另有组合权限定向验证。
-        Assert.AreEqual(250, routes.Count);
+        // 已整合基线含删除草稿/预览、追加候选及已退役预览入口的变动。
+        Assert.AreEqual(252, routes.Count);
+        Assert.AreEqual("Procurement.Order.Edit",routes["ProcurementOrderReversalController.DeleteDraftAsync"]);
+        Assert.AreEqual("Procurement.Order.Read",routes["PurchaseDraftSourceController.GetAppendCandidatesAsync"]);
         Assert.IsFalse(routes.ContainsKey("MaterialDemandQueryController.GetTraceAsync"));
         Assert.AreEqual("OrderTracking.View",routes["OrderTrackingSourceController.GetSourceMatchesAsync"]);
         Assert.AreEqual("Products.Master.Edit", routes["ProductMasterController.SetMainImagesAsync"]);
@@ -149,6 +152,25 @@ public sealed class EndpointPermissionFilterTests
         var authorized = await ExecuteAsync(action, [permission]);
         Assert.IsTrue(authorized.Continued, action);
         CollectionAssert.AreEqual(new[] { permission }, authorized.RequestedKeys);
+    }
+
+    /// <summary>采购跟踪基础权限取交集，收货与反馈额外保护各自维度。</summary>
+    [TestMethod]
+    [DataRow("SearchPurchaseOrdersAsync",null)]
+    [DataRow("GetPurchaseOrderLinesAsync",null)]
+    [DataRow("GetPurchaseOrderReceiptsAsync",SwiftExport.Contracts.DTOs.Auth.PermissionKeys.InventoryInboundView)]
+    [DataRow("GetPurchaseOrderReportsAsync",SwiftExport.Contracts.DTOs.Auth.PermissionKeys.ProcurementProgressView)]
+    public async Task PurchaseTrackingRequiresAllReadPermissions(string method,string? dimension)
+    {
+        var action="PurchaseOrderTrackingController."+method;
+        var keys=new[]{"OrderTracking.View","Procurement.Order.Read"}.Concat(dimension is null?[]:new[]{dimension}).ToArray();
+        Assert.IsTrue(MvcActions.Value.ContainsKey(action));
+        foreach(var missing in keys)
+        {
+            var denied=await ExecuteAsync(action,keys.Where(key=>key!=missing).ToArray());Assert.IsFalse(denied.Continued);Assert.AreEqual(ServiceErrorCodes.Forbidden,denied.ErrorCode);
+        }
+        var anonymous=await ExecuteAsync(action,keys,authenticated:false);Assert.IsFalse(anonymous.Continued);Assert.AreEqual(ServiceErrorCodes.Unauthenticated,anonymous.ErrorCode);
+        Assert.IsTrue((await ExecuteAsync(action,keys)).Continued);
     }
 
     /// <summary>每个批量 Action 对实际出现的创建、编辑、删除独立检查，空操作一律拒绝。</summary>

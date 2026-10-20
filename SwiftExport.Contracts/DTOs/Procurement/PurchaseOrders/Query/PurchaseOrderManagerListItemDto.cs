@@ -3,7 +3,7 @@ using SwiftExport.Contracts.SysEnums;
 
 namespace SwiftExport.Contracts.DTOs.Procurement.PurchaseOrderManagerDto
 {
-    /// <summary>采购管理页的新链头表摘要；不承载完整跟进历史、Trace、入库单或库存流水。</summary>
+    /// <summary>采购订单事实及生命周期操作资格摘要；不承载供应商反馈、收货或履约进度。</summary>
     public sealed class PurchaseOrderManagerListItemDto
     {
         public Guid PurchaseOrderId { get; set; }
@@ -19,22 +19,10 @@ namespace SwiftExport.Contracts.DTOs.Procurement.PurchaseOrderManagerDto
         public DateTime? ExpectedDate { get; set; }
         public DateTime? ReplyDate { get; set; }
         public int LineCount { get; set; }
-        /// <summary>同单位且全部有效行可核实时的累计货好合计。</summary>
-        public decimal? ReadyQty { get; set; }
         /// <summary>同单位且全部有效行可核实时的采购数量合计。</summary>
         public decimal? TotalQty { get; set; }
-        /// <summary>同单位且全部有效行可核实时的正式净收货进度。</summary>
-        public decimal? ReceiptProgress { get; set; }
         public string UnitSnapshot { get; set; }
-        public PurchaseReadyStatusEnum ReadyStatus { get; set; }
-        public PurchaseReceiptStatusEnum ReceiptStatus { get; set; }
-        public int DueHitLineCount { get; set; }
-        public DateTime? EarliestDueHitDate { get; set; }
-        public bool HasUnconfirmedReadyRisk { get; set; }
-        public string ReviewReason { get; set; }
         public decimal TaxTotalAmount { get; set; }
-        public int ReportedLineCount { get; set; }
-        public DateTime? ExpectedCompletionDate { get; set; }
         /// <summary>当前是否允许删除整张草稿；服务端执行时仍需持锁复核。</summary>
         public bool CanDeleteDraft { get; set; }
         /// <summary>不能删除草稿的原因，不泄露无权读取的下游信息。</summary>

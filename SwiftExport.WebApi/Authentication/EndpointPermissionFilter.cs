@@ -304,6 +304,10 @@ public sealed class EndpointPermissionFilter(ICurrentUser currentUser, IPermissi
     // 跟踪区域必须同时具有跟踪及来源模块的读取权限，不让单个模块键隐式扩大跨域可见性。
     private static readonly Dictionary<string, string[]> AllKeys = new(StringComparer.Ordinal)
     {
+        ["PurchaseOrderTrackingController.SearchPurchaseOrdersAsync"] = [PermissionKeys.OrderTrackingView, PermissionKeys.ProcurementOrderRead],
+        ["PurchaseOrderTrackingController.GetPurchaseOrderLinesAsync"] = [PermissionKeys.OrderTrackingView, PermissionKeys.ProcurementOrderRead],
+        ["PurchaseOrderTrackingController.GetPurchaseOrderReceiptsAsync"] = [PermissionKeys.OrderTrackingView, PermissionKeys.ProcurementOrderRead, PermissionKeys.InventoryInboundView],
+        ["PurchaseOrderTrackingController.GetPurchaseOrderReportsAsync"] = [PermissionKeys.OrderTrackingView, PermissionKeys.ProcurementOrderRead, PermissionKeys.ProcurementProgressView],
         ["MaterialTrackingDetailController.GetMaterialDetailAsync"] = [PermissionKeys.OrderTrackingView, PermissionKeys.DemandPlanningMaterialView],
         ["DemandTrackingPurchaseController.GetMaterialPurchasesAsync"] = [PermissionKeys.OrderTrackingView, PermissionKeys.DemandPlanningMaterialView, PermissionKeys.ProcurementOrderRead],
         ["DemandTrackingReceiptController.GetMaterialReceiptsAsync"] = [PermissionKeys.OrderTrackingView, PermissionKeys.DemandPlanningMaterialView, PermissionKeys.InventoryInboundView, PermissionKeys.ProcurementOrderRead],

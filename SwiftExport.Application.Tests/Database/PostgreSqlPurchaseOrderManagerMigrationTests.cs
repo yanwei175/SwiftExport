@@ -7,7 +7,9 @@ using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using Npgsql;
 using NpgsqlTypes;
+using SwiftExport.Contracts.DTOs.OrderTracking.PurchaseOrders;
 using SwiftExport.Contracts.DTOs.Procurement.PurchaseOrderManagerDto;
+using SwiftExport.Infrastructure.Repositories.OrderTracking.PurchaseOrders;
 using SwiftExport.Contracts.SysEnums;
 using SwiftExport.Core.Common;
 using SwiftExport.Core.Interfaces.Auth;
@@ -44,7 +46,7 @@ public sealed partial class PostgreSqlPurchaseOrderManagerMigrationTests
     public async Task Offline_UnknownReceiptRemainsData(bool lines)
     {
         using var f=new ReadFixture(true);
-        if(lines){f.Connection.Rows=Rows(new[]{new PurchaseOrderManagerLineDto{ReceiptReviewReason="正式历史需核实"}});var row=(await f.Repository.GetLinesAsync(Guid.NewGuid())).Single();Assert.IsNull(row.ReceivedQty);Assert.IsNull(row.UnreceivedQty);Assert.IsFalse(string.IsNullOrEmpty(row.ReceiptReviewReason));}
+        if(lines){f.Connection.Rows=Rows(new[]{new PurchaseOrderTrackingLineDto{ReceiptReviewReason="正式历史需核实"}});var row=(await f.Repository.GetLinesAsync(Guid.NewGuid())).Single();Assert.IsNull(row.ReceivedQty);Assert.IsNull(row.UnreceivedQty);Assert.IsFalse(string.IsNullOrEmpty(row.ReceiptReviewReason));}
         else{f.Connection.Rows=Page(1,[new(){ReceiptStatus=(PurchaseReceiptStatusEnum)9,ReceiptProgress=null}]);var row=(await f.Repository.SearchAsync(new())).Items.Single();Assert.IsNull(row.ReceiptProgress);Assert.AreEqual((PurchaseReceiptStatusEnum)9,row.ReceiptStatus);}
         Assert.AreEqual(1,f.Connection.Commands); Assert.AreSame(f.Transaction,f.Session.Transaction); Assert.AreEqual(0,f.Connection.EndTransactions);
     }
@@ -53,13 +55,13 @@ public sealed partial class PostgreSqlPurchaseOrderManagerMigrationTests
     [TestMethod,DataRow(1,2,2),DataRow(2,2,2),DataRow(3,2,1),DataRow(8,2,0)]
     public async Task Offline_FrozenPagingAndFullMapping(int page,int size,int count)
     {
-        using var f=new ReadFixture(false); var samples=Enumerable.Range(1,5).Select(i=>Sample<PurchaseOrderManagerListItemDto>(i)).ToArray();
+        using var f=new ReadFixture(false); var samples=Enumerable.Range(1,5).Select(i=>Sample<PurchaseOrderTrackingItemDto>(i)).ToArray();
         f.Connection.Rows=Page(5,samples.Skip((page-1)*size).Take(size)); var result=await f.Repository.SearchAsync(new(){PageIndex=page,PageSize=size});
         Assert.AreEqual(5,result.TotalCount); Assert.HasCount(count,result.Items); Assert.AreEqual(page,result.PageIndex); Assert.AreEqual(size,result.PageSize);
-        foreach(var pair in samples.Skip((page-1)*size).Take(size).Zip(result.Items)) foreach(var p in typeof(PurchaseOrderManagerListItemDto).GetProperties()) Assert.AreEqual(p.GetValue(pair.First),p.GetValue(pair.Second),p.Name);
+        foreach(var pair in samples.Skip((page-1)*size).Take(size).Zip(result.Items)) foreach(var p in typeof(PurchaseOrderTrackingItemDto).GetProperties()) Assert.AreEqual(p.GetValue(pair.First),p.GetValue(pair.Second),p.Name);
         Assert.AreEqual(1,f.Connection.Commands);Assert.AreEqual((long)(page-1)*size,f.Connection.Values["Offset"]);Assert.AreEqual(size,f.Connection.Values["PageSize"]);
         StringAssert.Contains(f.Connection.Sql,"FROM projected p WHERE"); StringAssert.Contains(f.Connection.Sql,"decimal(18,6)");
-        foreach(var p in typeof(PurchaseOrderManagerListItemDto).GetProperties())StringAssert.Contains(f.Connection.Sql,"AS \""+p.Name+"\"");
+        foreach(var p in typeof(PurchaseOrderTrackingItemDto).GetProperties())StringAssert.Contains(f.Connection.Sql,"AS \""+p.Name+"\"");
         StringAssert.Contains(f.Connection.Sql,"DESC NULLS LAST"); StringAssert.Contains(f.Connection.Sql,"get_byte(uuid_send(\"PurchaseOrderId\"),10)");StringAssert.Contains(f.Connection.Sql,"LIMIT @PageSize OFFSET @Offset");
         StringAssert.Contains(f.Connection.Sql,"manager_orphan_association_heads");
     }
@@ -70,34 +72,39 @@ public sealed partial class PostgreSqlPurchaseOrderManagerMigrationTests
     {
         using var f=new ReadFixture(false); var date=new DateTime(2026,10,4,17,18,19,DateTimeKind.Utc);
         f.Connection.Rows=Page(0,[]);
-        var request=new PurchaseOrderManagerSearchRequest{Keyword="  a~%_[  ",CustomerCode="  CODE  ",SupplierId=Guid.NewGuid(),OrderDateFrom=date,OrderDateTo=filled?date:DateTime.MaxValue,
-            PlannedDeliveryDateFrom=date,PlannedDeliveryDateTo=date,ExpectedCompletionDateFrom=date,ExpectedCompletionDateTo=date,OnlyWithUnlinkedQuantity=true};
-        if(filled){request.ConfirmationStatuses=[ConfirmationStatusEnum.已确认,ConfirmationStatusEnum.待确认,ConfirmationStatusEnum.已确认];request.ReadyStatuses=[(PurchaseReadyStatusEnum)9,(PurchaseReadyStatusEnum)9];request.CustomerCodes=["A","A","B"];request.SupplierIds=[request.SupplierId!.Value,request.SupplierId.Value];}
+        var supplier=Guid.NewGuid();
+        var request=new PurchaseOrderTrackingSearchRequest{Keyword="  a~%_[  ",OrderDateFrom=date,OrderDateTo=filled?date:DateTime.MaxValue,
+            PlannedDeliveryDateFrom=date,PlannedDeliveryDateTo=date,ExpectedCompletionDateFrom=date,ExpectedCompletionDateTo=date};
+        if(filled){request.ConfirmationStatuses=[ConfirmationStatusEnum.已确认,ConfirmationStatusEnum.待确认,ConfirmationStatusEnum.已确认];request.ReadyStatuses=[(PurchaseReadyStatusEnum)9,(PurchaseReadyStatusEnum)9];request.CustomerCodes=["A","A","B"];request.SupplierIds=[supplier,supplier];}
         await f.Repository.SearchAsync(request); var values=f.Connection.Values; var types=f.Connection.Types;
-        Assert.AreEqual("%a~~~%~_~[%",values["Keyword"]);Assert.AreEqual("CODE",values["CustomerCode"]);Assert.AreEqual(request.SupplierId,values["SupplierId"]);
+        Assert.AreEqual("%a~~~%~_~[%",values["Keyword"]);
         CollectionAssert.AreEqual(filled?new[]{1,0}:new[]{-1},(int[])values["ConfirmationStatuses"]!);Assert.AreEqual(filled,values["LimitConfirmationStatuses"]);
         foreach(var key in new[]{"ConfirmationStatuses","LifecycleStatuses","ReadyStatuses","ReceiptStatuses"})Assert.AreEqual(NpgsqlDbType.Array|NpgsqlDbType.Integer,types[key]);
         Assert.AreEqual(date.Date,values["OrderDateFrom"]); Assert.AreEqual(filled?(object)date.Date.AddDays(1):DBNull.Value,values["OrderDateToExclusive"]);
         foreach(var key in new[]{"PlannedDeliveryDateFrom","PlannedDeliveryDateTo","ExpectedCompletionDateFrom","ExpectedCompletionDateTo"}){Assert.AreEqual(DateTime.SpecifyKind(date,DateTimeKind.Unspecified),values[key]);Assert.AreEqual(NpgsqlDbType.Timestamp,types[key]);}
         Assert.AreEqual(((DateTime)values["BusinessToday"]!).AddDays(8),values["DueSoonExclusive"]);
-        Assert.AreEqual(NpgsqlDbType.Uuid,types["SupplierId"]);Assert.AreEqual(NpgsqlDbType.Boolean,types["OnlyWithUnlinkedQuantity"]);
         CollectionAssert.AreEqual(filled?new[]{"A","B"}:Array.Empty<string>(),(string[])values["CustomerCodes"]!);
-        CollectionAssert.AreEqual(filled?new[]{request.SupplierId!.Value}:Array.Empty<Guid>(),(Guid[])values["SupplierIds"]!);
+        CollectionAssert.AreEqual(filled?new[]{supplier}:Array.Empty<Guid>(),(Guid[])values["SupplierIds"]!);
         Assert.AreEqual(NpgsqlDbType.Array|NpgsqlDbType.Text,types["CustomerCodes"]);Assert.AreEqual(NpgsqlDbType.Array|NpgsqlDbType.Uuid,types["SupplierIds"]);
         StringAssert.Contains(f.Connection.Sql,"dl.planned_delivery_date<=@PlannedDeliveryDateTo");StringAssert.Contains(f.Connection.Sql,"facts.expected_completion_date<=@ExpectedCompletionDateTo");
+        // 管理选择器继续支持旧单值条件，但进度条件已迁到跟踪。
+        await f.Facts.SearchAsync(new(){CustomerCode="  CODE  ",SupplierId=supplier,OnlyWithUnlinkedQuantity=true});
+        Assert.AreEqual("CODE",f.Connection.Values["CustomerCode"]);Assert.AreEqual(supplier,f.Connection.Values["SupplierId"]);
+        Assert.AreEqual(NpgsqlDbType.Uuid,f.Connection.Types["SupplierId"]);Assert.AreEqual(NpgsqlDbType.Boolean,f.Connection.Types["OnlyWithUnlinkedQuantity"]);
+
     }
 
     /// <summary>从表全部字段包含Guid.Empty/当前空图片/未知Ready/NULL价格日期，经实际Dapper保持原值。</summary>
     [TestMethod,DataRow(false),DataRow(true)]
     public async Task Offline_LineMapping(bool nulls)
     {
-        using var f=new ReadFixture(true);var sample=Sample<PurchaseOrderManagerLineDto>(1);
-        if(nulls)foreach(var property in typeof(PurchaseOrderManagerLineDto).GetProperties())if(property.PropertyType==typeof(string)||Nullable.GetUnderlyingType(property.PropertyType)!=null)property.SetValue(sample,null);
+        using var f=new ReadFixture(true);var sample=Sample<PurchaseOrderTrackingLineDto>(1);
+        if(nulls)foreach(var property in typeof(PurchaseOrderTrackingLineDto).GetProperties())if(property.PropertyType==typeof(string)||Nullable.GetUnderlyingType(property.PropertyType)!=null)property.SetValue(sample,null);
         sample.ProductId=Guid.Empty; f.Connection.Rows=Rows(new[]{sample});var uid=Guid.NewGuid();var actual=(await f.Repository.GetLinesAsync(uid)).Single();
-        foreach(var p in typeof(PurchaseOrderManagerLineDto).GetProperties())Assert.AreEqual(p.GetValue(sample),p.GetValue(actual),p.Name);
+        foreach(var p in typeof(PurchaseOrderTrackingLineDto).GetProperties())Assert.AreEqual(p.GetValue(sample),p.GetValue(actual),p.Name);
         Assert.AreEqual(uid,f.Connection.Values["PurchaseOrderId"]);StringAssert.Contains(f.Connection.Sql,"product.main_image");StringAssert.Contains(f.Connection.Sql,"AS \"ReceiptReviewReason\"");
         Assert.IsFalse(f.Connection.Sql.Contains("LIMIT @PageSize",StringComparison.Ordinal));
-        foreach(var p in typeof(PurchaseOrderManagerLineDto).GetProperties())StringAssert.Contains(f.Connection.Sql,"AS \""+p.Name+"\"");
+        foreach(var p in typeof(PurchaseOrderTrackingLineDto).GetProperties())StringAssert.Contains(f.Connection.Sql,"AS \""+p.Name+"\"");
         Assert.IsFalse(f.Connection.Sql.Contains("min_unit",StringComparison.Ordinal));
     }
 
@@ -126,13 +133,13 @@ public sealed partial class PostgreSqlPurchaseOrderManagerMigrationTests
     [TestMethod]
     public async Task Offline_DataChangesAfterReaderCloses()
     {
-        using var f=new ReadFixture(false);f.Connection.Rows=Page(5,Enumerable.Range(3,2).Select(Sample<PurchaseOrderManagerListItemDto>));
+        using var f=new ReadFixture(false);f.Connection.Rows=Page(5,Enumerable.Range(3,2).Select(Sample<PurchaseOrderTrackingItemDto>));
         f.Connection.AfterBuffered=()=>f.Connection.Rows.Clear();var result=await f.Repository.SearchAsync(new(){PageIndex=2,PageSize=2});
         Assert.AreEqual(0,f.Connection.Rows.Rows.Count);Assert.AreEqual(5,result.TotalCount);Assert.HasCount(2,result.Items);Assert.AreEqual(1,f.Connection.Commands);
     }
 
     /// <summary>安排数据库返回的总量及当前页，不在连接替身中解释SQL或执行分页算法。</summary>
-    private static DataTable Page(int total,IEnumerable<PurchaseOrderManagerListItemDto> items)
+    private static DataTable Page(int total,IEnumerable<PurchaseOrderTrackingItemDto> items)
     {var table=new DataTable();table.Columns.Add("TotalCount",typeof(int));table.Columns.Add("ItemsJson",typeof(string));table.Rows.Add(total,JsonSerializer.Serialize(items));return table;}
 
     /// <summary>构造丰富DTO样本，数值有意不符合商业规律，确保仓储不在C#重新计算数据库结果。</summary>
@@ -154,15 +161,24 @@ public sealed partial class PostgreSqlPurchaseOrderManagerMigrationTests
         public ReadConnection Connection { get; } = new();
         public DbSession Session { get; }
         public DbTransaction? Transaction { get; }
-        public PostgreSqlPurchaseOrderManagerQueryRepository Repository { get; }
+        public TrackingRepository Repository { get; }
+        public PostgreSqlPurchaseOrderManagerQueryRepository Facts { get; }
         /// <summary>构建既有上下文和调用者可空事务。</summary>
         public ReadFixture(bool transactional)
         {
             Session = new(new ReadFactory(Connection)); if (transactional) Session.Transaction = Transaction = Connection.BeginTransaction();
-            var user = new WorkspaceUser(); Repository = new(new RepositoryBaseContext(Session, NullLoggerFactory.Instance, new AuditStampService(user), user));
+            var user = new WorkspaceUser(); var context=new RepositoryBaseContext(Session, NullLoggerFactory.Instance, new AuditStampService(user), user);Repository = new(context);Facts=new(context);
         }
         /// <summary>夹具结束才释放会话。</summary>
         public void Dispose() => Session.Dispose();
+    }
+
+    /// <summary>仅为迁移后的跟踪测试固定授予两个查询维度；实际SQL和DTO映射仍由生产仓储执行。</summary>
+    private sealed class TrackingRepository(RepositoryBaseContext context)
+    {
+        private readonly PostgreSqlPurchaseOrderTrackingRepository repository=new(context);
+        public Task<SwiftExport.Contracts.Wrappers.PagedResponseBase<PurchaseOrderTrackingItemDto>> SearchAsync(PurchaseOrderTrackingSearchRequest request,CancellationToken ct=default)=>repository.SearchAsync(request,true,true,ct);
+        public Task<IReadOnlyList<PurchaseOrderTrackingLineDto>> GetLinesAsync(Guid id,CancellationToken ct=default)=>repository.GetLinesAsync(id,true,true,ct);
     }
 
     /// <summary>记录实际命令/参数，脚本结果不解释SQL。</summary>

@@ -16,9 +16,12 @@ internal static class PurchaseOrderManagerAssociationSql
         )
         """;
 
-    /// <summary>逐行核实活动贡献及守恒；正常作废释放不重写历史未关联量，因此仅作为不适用历史展示。</summary>
+    /// <summary>自带指定采购单的有效行范围，独立于收货权限核实贡献与守恒；正常作废释放只作历史展示。</summary>
     internal static string Ctes=>$"""
-        {OrphanHeadsCte}, manager_association_evidence AS (
+        {OrphanHeadsCte}, manager_association_scope AS (
+            SELECT l.uid FROM public.purchase_order_line l JOIN public.purchase_order_head h ON h.uid=l.purchase_order_id
+            WHERE h.uid=@PurchaseOrderId AND h.is_deleted=FALSE AND l.is_deleted=FALSE
+        ), manager_association_evidence AS (
             SELECT l.uid AS line_id,link.net_demand_id,g.uid AS gross_id,g.source_uid,g.source_type,g.source_no,g.source_line_number,
                 (link.link_status=0 OR link.allocated_qty>link.released_qty OR link.allocated_qty<=0 OR link.released_qty<0 OR link.released_qty>link.allocated_qty) AS is_current,
                 CASE WHEN link.link_status=0 AND rtrim(link.target_type,' ') COLLATE public.erp_dictionary_ci='PO'
@@ -39,7 +42,7 @@ internal static class PurchaseOrderManagerAssociationSql
                           WHERE other.net_demand_id=n.uid AND other.is_deleted=FALSE AND other.allocated_qty>other.released_qty
                             AND rtrim(other.target_type,' ') COLLATE public.erp_dictionary_ci='PO')>n.net_qty
                     THEN TRUE ELSE FALSE END AS invalid
-            FROM manager_receipt_scope scope JOIN public.purchase_order_line l ON l.uid=scope.uid
+            FROM manager_association_scope scope JOIN public.purchase_order_line l ON l.uid=scope.uid
             JOIN public.purchase_order_head h ON h.uid=l.purchase_order_id
             JOIN public.demand_execution_link link ON link.target_line_id=l.uid AND (link.is_deleted=FALSE OR link.link_status=0)
             LEFT JOIN public.net_demand n ON n.uid=link.net_demand_id LEFT JOIN public.gross_demand g ON g.uid=n.gross_demand_id
@@ -64,7 +67,7 @@ internal static class PurchaseOrderManagerAssociationSql
                     WHEN l.quantity<=0 OR l.unlinked_qty IS NULL OR l.unlinked_qty<0 OR l.unlinked_qty>l.quantity
                       OR COALESCE(t.linked_qty,0)+l.unlinked_qty<>l.quantity THEN '有效贡献与未关联数量不守恒，需核实'
                     ELSE NULL END AS review_reason
-            FROM manager_receipt_scope scope JOIN public.purchase_order_line l ON l.uid=scope.uid
+            FROM manager_association_scope scope JOIN public.purchase_order_line l ON l.uid=scope.uid
             JOIN public.purchase_order_head h ON h.uid=l.purchase_order_id LEFT JOIN manager_association_totals t ON t.line_id=l.uid
             LEFT JOIN manager_orphan_association_heads orphan ON orphan.head_id=h.uid
         )
