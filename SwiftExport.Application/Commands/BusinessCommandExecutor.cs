@@ -21,10 +21,11 @@ public sealed class BusinessCommandExecutor(ServiceBaseContext context, ICommand
     /// <summary>当前支持的成功结果结构版本。</summary>
     public const int ResultVersion = 1;
 
-    /// <summary>可选资源准备先于首次快照和回执读取；首次业务委托与完整审计/回执仍在原父事务执行。</summary>
+    /// <summary>可选资源准备先于首次快照；仅锁下确认无旧回执、本次首次执行且提交前成功回滚时通知，读取故障不能否认原命令曾提交。</summary>
     public async Task<CommandExecutionResult<T>> ExecuteAsync<T>(Guid commandId, string commandType, Guid? targetUid, object businessInput,
         Func<CancellationToken, Task<T>> action, CancellationToken token, IsolationLevel? isolationLevel = null,
-        Func<CancellationToken, Task<IAsyncDisposable?>>? beforeTransaction = null)
+        Func<CancellationToken, Task<IAsyncDisposable?>>? beforeTransaction = null,
+        Action? onConfirmedRollback = null)
     {
         token.ThrowIfCancellationRequested();
         if (!user.IsAuthenticated || user.UserId is not { } actorUid)
@@ -58,6 +59,8 @@ public sealed class BusinessCommandExecutor(ServiceBaseContext context, ICommand
             ? context.Session.Connection.BeginTransaction(isolationLevel.Value)
             : context.Session.Connection.BeginTransaction();
         context.Session.Transaction = transaction;
+        var commitAttempted = false;
+        var firstExecutionEstablished = false;
         try
         {
             if (await receipts.LockAsync(commandId, token) < 0)
@@ -86,10 +89,12 @@ public sealed class BusinessCommandExecutor(ServiceBaseContext context, ICommand
                     throw new BusinessCommandException(ServiceErrorCodes.OutcomeUnknown,
                         "历史命令结果缺失，请核实执行结果。");
                 token.ThrowIfCancellationRequested();
+                commitAttempted = true;
                 transaction.Commit();
                 return new CommandExecutionResult<T>(replay, true);
             }
 
+            firstExecutionEstablished = true;
             var result = await action(token);
             await receipts.InsertAsync(new CommandReceipt
             {
@@ -99,6 +104,7 @@ public sealed class BusinessCommandExecutor(ServiceBaseContext context, ICommand
                 ResultJson = JsonSerializer.Serialize(result), RecordedAtUtc = DateTime.UtcNow
             }, token);
             token.ThrowIfCancellationRequested();
+            commitAttempted = true;
             try { transaction.Commit(); }
             catch (Exception ex)
             {
@@ -113,10 +119,17 @@ public sealed class BusinessCommandExecutor(ServiceBaseContext context, ICommand
         catch (Exception failure)
         {
             // 数据库可能已终止事务，清理失败不能遮蔽原异常。
-            try { if (transaction.Connection is not null) transaction.Rollback(); }
+            var rollbackConfirmed = false;
+            try { if (transaction.Connection is not null) { transaction.Rollback(); rollbackConfirmed = true; } }
             catch (Exception ex)
             {
                 TryLogFailure(LogLevel.Warning, ex, commandType, commandId, "回滚清理失败");
+            }
+            if (firstExecutionEstablished && rollbackConfirmed && !commitAttempted && onConfirmedRollback is not null)
+            {
+                // 仅提供确定的事务阶段证据；调用方通知失败不得掩盖原失败或改变回执分类。
+                try { onConfirmedRollback(); }
+                catch (Exception observerError) { TryLogFailure(LogLevel.Warning, observerError, commandType, commandId, "回滚阶段通知失败"); }
             }
             if (context.Session.Errors.Classify(failure) == DatabaseFailureKind.SerializationFailure)
                 throw new BusinessCommandException(ServiceErrorCodes.ServiceUnavailable,

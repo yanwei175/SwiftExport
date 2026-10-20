@@ -8,7 +8,7 @@ using SwiftExport.Core.Interfaces.Procurement;
 
 namespace SwiftExport.Application.Services.Procurement.PurchaseOrders.Reversal;
 
-/// <summary>三个采购反向操作共用的纯资格规则；历史入库须证明完整反向，不能以余额为零放行。</summary>
+/// <summary>采购反向操作共用的纯资格规则；整单草稿删除要求从未确认且没有下游历史。</summary>
 public static class ProcurementReversalPolicy
 {
     /// <summary>依据事务内锁定事实生成预览；取消确认不释放贡献，删行只针对选定行。</summary>
@@ -29,7 +29,7 @@ public static class ProcurementReversalPolicy
             preview.Blockers.Add("采购确认状态异常。");
         var active = facts.Lines.Where(x => !x.IsDeleted).ToList();
         var selected = active;
-        if (operation == ProcurementReversalOperation.DeleteLines)
+        if (operation is ProcurementReversalOperation.DeleteLines or ProcurementReversalOperation.DeleteDraft)
         {
             if (request.Lines is null || request.Lines.Count == 0 || request.Lines.Any(x => x is null || x.PurchaseOrderLineId == Guid.Empty || x.Version <= 0)
                 || request.Lines.Select(x => x.PurchaseOrderLineId).Distinct().Count() != request.Lines.Count)
@@ -37,10 +37,21 @@ public static class ProcurementReversalPolicy
             selected = active.Where(x => request.Lines.Any(y => y.PurchaseOrderLineId == x.Uid)).ToList();
             if (selected.Count != request.Lines.Count || selected.Any(x => request.Lines.Single(y => y.PurchaseOrderLineId == x.Uid).Version != x.Version))
                 throw new ProcurementOperationException(SwiftExport.Contracts.DTOs.Errors.ServiceErrorCodes.VersionConflict, "选定采购行不存在或版本已变化。", "ExpectedVersion");
-            if (selected.Count >= active.Count) preview.Blockers.Add("不能删除全部剩余行，请使用整单作废。");
+            if (operation == ProcurementReversalOperation.DeleteLines && selected.Count >= active.Count)
+                preview.Blockers.Add("不能通过删行删除全部剩余行，请使用整单删除草稿或作废。");
+            if (operation == ProcurementReversalOperation.DeleteDraft && selected.Count != active.Count)
+                preview.Blockers.Add("整单删除必须携带全部当前有效行及版本。");
         }
         else if (request.Lines is null || request.Lines.Count != 0) throw new InvalidOperationException("整单操作不能指定部分行。");
         if (active.Count == 0) preview.Blockers.Add("采购单缺少有效明细。");
+        if (operation == ProcurementReversalOperation.DeleteDraft)
+        {
+            if (head.ConfirmationStatus != ConfirmationStatusEnum.待确认 || head.ActiveConfirmationId.HasValue
+                || head.ConfirmedDate.HasValue || facts.HasConfirmationHistory)
+                preview.Blockers.Add("采购曾确认或当前不是待确认草稿，请使用取消确认或作废保留历史。");
+            if (facts.HasDownstreamHistory || facts.Inbounds.Count>0 || facts.InboundLines.Count>0 || facts.Ledgers.Count>0 || facts.Reports.Count>0)
+                preview.Blockers.Add("采购存在下游历史，不能整单删除草稿。");
+        }
         if (facts.HasUnattributedInbound) preview.Blockers.Add("存在来源无法归属的采购入库，请先核实异常来源后再操作。");
         var ids = selected.Select(x => x.Uid).ToHashSet();
         preview.Lines = selected.OrderBy(x => x.LineNumber).Select(x => new ProcurementReversalLineDto
@@ -49,6 +60,8 @@ public static class ProcurementReversalPolicy
         if (own.Any(x => x.TargetType != "PO" || x.TargetHeadId != head.Uid || !facts.Lines.Any(l => l.Uid == x.TargetLineId)
             || !facts.Demands.Any(n => n.Uid == x.NetDemandId) || x.AllocatedQty <= 0 || x.ReleasedQty < 0 || x.ReleasedQty > x.AllocatedQty
             || (x.IsDeleted && x.LinkStatus == DemandExecutionLinkStatusEnum.Active)
+            || !Enum.IsDefined(x.LinkStatus) || (x.LinkStatus==DemandExecutionLinkStatusEnum.Active && x.AllocatedQty<=x.ReleasedQty)
+            || (x.LinkStatus!=DemandExecutionLinkStatusEnum.Active && x.AllocatedQty!=x.ReleasedQty)
             || (x.LinkStatus == DemandExecutionLinkStatusEnum.Active && facts.Lines.Any(l => l.Uid == x.TargetLineId && l.IsDeleted))))
             preview.Blockers.Add("采购与物料需求的历史引用不完整或数量异常，不能安全处理。");
         foreach (var line in selected)
@@ -57,6 +70,9 @@ public static class ProcurementReversalPolicy
             if ((head.OriginKind == 1 || line.SourceUid.HasValue) && links.Count == 0)
                 preview.Blockers.Add($"第 {line.LineNumber} 行缺少活动需求引用。");
             var linkedQty = links.Sum(x => x.AllocatedQty - x.ReleasedQty);
+            if(operation==ProcurementReversalOperation.DeleteDraft && (line.Quantity<=0 || !line.UnlinkedQty.HasValue
+                || line.UnlinkedQty<0 || line.UnlinkedQty>line.Quantity || linkedQty+line.UnlinkedQty!=line.Quantity))
+                preview.Blockers.Add($"第 {line.LineNumber} 行数量或未关联量需核实，不能整单删除。");
             // 旧需求采购漏写未关联数量时，仅整单作废可用完整活动贡献证明全量来自需求；不回填历史空值。
             var legacyFullyLinkedVoid = operation == ProcurementReversalOperation.Void
                 && (head.OriginKind == 1 || line.SourceUid.HasValue)

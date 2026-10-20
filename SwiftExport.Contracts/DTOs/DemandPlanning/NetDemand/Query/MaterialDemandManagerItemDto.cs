@@ -1,3 +1,5 @@
+using SwiftExport.Contracts.DTOs.Procurement.PurchaseDrafts;
+using System.Collections.Generic;
 using SwiftExport.Contracts.SysEnums;
 using System;
 
@@ -99,12 +101,22 @@ namespace SwiftExport.Contracts.DTOs.DemandPlanning.NetDemand
         public decimal NetQty { get; set; }
         /// <summary>成品需求交期。</summary>
         public DateTime? DemandRequiredDate { get; set; }
+        /// <summary>可信已确认采购关联量；无权或证据异常为空。</summary>
+        public decimal? PurchasedQty { get; set; }
+        /// <summary>可信未确认草稿的来源占用量，不计入已采购；无权或证据异常为空。</summary>
+        public decimal? DraftOccupiedQty { get; set; }
+        /// <summary>需求量减已采购量及草稿占用量；证据异常为空，不得按零放行。</summary>
+        public decimal? CreatableQty { get; set; }
+        /// <summary>需求量减已采购量；草稿不减少此数量，无权或证据异常为空。</summary>
+        public decimal? UnpurchasedQty { get; set; }
         /// <summary>有效采购 Link 的分配量减释放量合计。</summary>
         public decimal? AssociatedPurchaseQty { get; set; }
         /// <summary>当前尚未被有效采购 Link 承接的数量。</summary>
         public decimal? RemainingQty { get { return AssociatedPurchaseQty.HasValue ? Math.Max(0m, NetQty - AssociatedPurchaseQty.Value) : (decimal?)null; } }
         /// <summary>有效采购 Link 对应的采购单号集合；无采购查看权限时不返回。</summary>
         public string PurchaseOrderNos { get; set; }
+        /// <summary>当前占用该物料需求的草稿引用；无采购读取权限时不返回。</summary>
+        public List<PurchaseDraftReferenceDto> DraftOrders { get; set; } = new List<PurchaseDraftReferenceDto>();
         /// <summary>有效采购单实际供应商名称；无采购查看权限时不返回，多供应商按单据汇总显示。</summary>
         public string ActualPurchaseSuppliers { get; set; }
         /// <summary>承接进度：未承接、部分承接、已承接、需核实或历史。</summary>

@@ -69,7 +69,7 @@ public sealed class PostgreSqlPurchaseOrderManagerQueryRepository(RepositoryBase
         "PurchaseOrderId","Version","LifecycleStatus","OrderNo","BoNo","CustomerCode","SupplierName","ConfirmationStatus",
         "OrderDate","ExpectedDate","ReplyDate","LineCount","ReadyQty","TotalQty","ReceiptProgress","UnitSnapshot","ReadyStatus",
         "ReceiptStatus","ReviewReason","DueHitLineCount","EarliestDueHitDate","HasUnconfirmedReadyRisk","TaxTotalAmount",
-        "ReportedLineCount","ExpectedCompletionDate","CanConfirm","CanCancelConfirmation","CommandBlockedReason"
+        "ReportedLineCount","ExpectedCompletionDate","CanConfirm","CanCancelConfirmation","CommandBlockedReason","CanDeleteDraft","DeleteDraftBlockReason"
         """;
 
     /// <summary>只借用调用方事务及令牌，不新增事务、连接或锁。</summary>
@@ -135,7 +135,8 @@ public sealed class PostgreSqlPurchaseOrderManagerQueryRepository(RepositoryBase
                 COALESCE(SUM(CASE WHEN f.due_hit=1 AND f.ready_qty IS NULL THEN 1 ELSE 0 END),0) AS unconfirmed_due_count,
                 COALESCE(SUM(f.tax_amount),0) AS tax_total_amount,COALESCE(SUM(f.has_progress),0)::integer AS reported_line_count,
                 MAX(f.expected_ready_date) AS expected_completion_date,
-                MAX(CASE WHEN orphan.head_id IS NOT NULL THEN 1 ELSE 0 END) AS orphan_association
+                MAX(CASE WHEN orphan.head_id IS NOT NULL THEN 1 ELSE 0 END) AS orphan_association,
+                {PurchaseDraftDeletionSql.BlockReason("h")} AS deletion_block_reason
             FROM public.purchase_order_head h LEFT JOIN line_facts f ON f.purchase_order_id=h.uid
             LEFT JOIN manager_orphan_association_heads orphan ON orphan.head_id=h.uid
             WHERE h.is_deleted=FALSE
@@ -161,7 +162,7 @@ public sealed class PostgreSqlPurchaseOrderManagerQueryRepository(RepositoryBase
             GROUP BY h.uid,h.version,h.lifecycle_status,h.order_no,h.bo_no,h.customer_code,h.supplier_name,h.confirmation_status,h.order_date,h.expected_date,h.reply_date
         ), projected AS (
             SELECT facts.purchase_order_id,facts.version,facts.lifecycle_status,facts.order_no,facts.bo_no,facts.customer_code,facts.supplier_name,
-                facts.confirmation_status,facts.order_date,facts.expected_date,facts.reply_date,facts.line_count,facts.due_hit_line_count,
+                facts.confirmation_status,facts.order_date,facts.expected_date,facts.reply_date,facts.line_count,facts.due_hit_line_count,facts.deletion_block_reason,facts.orphan_association,
                 facts.earliest_due_hit_date,facts.tax_total_amount,facts.reported_line_count,facts.expected_completion_date,
                 CASE WHEN facts.invalid_ready_count>0 OR rtrim(facts.min_unit,' ') COLLATE public.erp_dictionary_ci<>rtrim(facts.max_unit,' ') COLLATE public.erp_dictionary_ci OR facts.unknown_ready_count>0 OR facts.line_count=0 THEN NULL ELSE facts.raw_ready_qty END AS ready_qty,
                 CASE WHEN facts.invalid_base_count>0 OR rtrim(facts.min_unit,' ') COLLATE public.erp_dictionary_ci<>rtrim(facts.max_unit,' ') COLLATE public.erp_dictionary_ci OR facts.line_count=0 THEN NULL ELSE facts.raw_total_qty END AS total_qty,
@@ -191,7 +192,10 @@ public sealed class PostgreSqlPurchaseOrderManagerQueryRepository(RepositoryBase
             p.receipt_progress AS "ReceiptProgress",p.unit_snapshot AS "UnitSnapshot",p.ready_status AS "ReadyStatus",p.receipt_status AS "ReceiptStatus",p.review_reason AS "ReviewReason",
             p.due_hit_line_count AS "DueHitLineCount",p.earliest_due_hit_date AS "EarliestDueHitDate",p.has_unconfirmed_ready_risk AS "HasUnconfirmedReadyRisk",
             p.tax_total_amount AS "TaxTotalAmount",p.reported_line_count AS "ReportedLineCount",p.expected_completion_date AS "ExpectedCompletionDate",
-            p.can_confirm AS "CanConfirm",p.can_cancel_confirmation AS "CanCancelConfirmation",p.command_blocked_reason AS "CommandBlockedReason"
+            p.can_confirm AS "CanConfirm",p.can_cancel_confirmation AS "CanCancelConfirmation",p.command_blocked_reason AS "CommandBlockedReason",
+            (p.deletion_block_reason='' AND p.line_count>0 AND p.orphan_association=0) AS "CanDeleteDraft",
+            CASE WHEN p.deletion_block_reason<>'' THEN p.deletion_block_reason WHEN p.line_count=0 THEN '采购单缺少有效明细'
+                WHEN p.orphan_association>0 THEN '需求引用目标需核实' ELSE '' END AS "DeleteDraftBlockReason"
         FROM projected p WHERE (NOT @LimitReadyStatuses OR p.ready_status=ANY(@ReadyStatuses)) AND (NOT @LimitReceiptStatuses OR p.receipt_status=ANY(@ReceiptStatuses))
         ), page AS (
             SELECT {ManagerColumns} FROM filtered

@@ -39,6 +39,67 @@ namespace SwiftExport.Application.Tests.Procurement;
 [TestClass]
 public sealed class 需求采购BONO创建测试
 {
+    /// <summary>审计写入失败在已确认回滚后返回确定失败；相同原请求修复故障后可成功，不被永久失败回执占用。</summary>
+    [TestMethod]
+    public async Task AuditFailureIsKnownRollbackAndSameCommandCanRecover()
+    {
+        var fixture=new Fixture();var command=await fixture.CommandAsync(false);fixture.Commands.RejectAudit=true;
+        var failure=await fixture.Service.CreateAsync(command);var source=failure.Data.Sources.Single();
+        Assert.AreEqual(ServiceErrorCodes.WriteFailed,source.ErrorCode);StringAssert.Contains(source.Message,"已回滚");Assert.IsEmpty(source.PurchaseDrafts);
+        Assert.AreEqual(0,fixture.Commands.Receipts.Count);Assert.AreEqual(1,fixture.Connection.Rollbacks);Assert.AreEqual(0,fixture.Connection.Commits);
+        fixture.Commands.RejectAudit=false;var success=await fixture.Service.CreateAsync(command);
+        Assert.AreEqual(NetDemandCommandOutcomeEnum.Succeeded,success.Data.Sources.Single().Outcome);Assert.AreEqual(1,fixture.Commands.Receipts.Count);
+    }
+    /// <summary>实物依据失效返回可定位的待核实错误，不能伪装为没有可创建需求。</summary>
+    [TestMethod]
+    public async Task InvalidPhysicalBasisExplainsMaterialBeforeWrites()
+    {
+        var fixture=new Fixture();var command=await fixture.CommandAsync(false);fixture.InvalidateBasis();
+        var result=await fixture.Service.CreateAsync(command);var source=result.Data.Sources.Single();
+        Assert.AreEqual(PurchaseDraftErrorCodes.CorruptedState,source.ErrorCode);StringAssert.Contains(source.Message,command.Sources[0].Items[0].NetDemandId.ToString());
+        Assert.AreEqual(0,fixture.HeadWrites);Assert.IsEmpty(source.PurchaseDrafts);
+    }
+    /// <summary>直接提交无需预览令牌，数量四位、价格六位继续沿用现有采购精度边界。</summary>
+    [TestMethod,DataRow("0.123456",true),DataRow("0.1234567",false)]
+    public async Task DirectCreatePreservesSixDecimalPrice(string price,bool valid)
+    {
+        var fixture=new Fixture();var command=await fixture.CommandAsync(false);
+        command.Sources[0].Items[0].UnitPrice=decimal.Parse(price,System.Globalization.CultureInfo.InvariantCulture);
+        var result=await fixture.Service.CreateAsync(command);
+        if(valid){Assert.IsTrue(result.Success);Assert.AreEqual(NetDemandCommandOutcomeEnum.Succeeded,result.Data.Sources.Single().Outcome);}
+        else {Assert.IsFalse(result.Success);Assert.AreEqual(0,fixture.HeadWrites);Assert.AreEqual(0,fixture.Connection.Commits);}
+    }
+
+    /// <summary>相同来源命令用不同商务输入重试必须冲突，不重新取号或生成第二份采购。</summary>
+    [TestMethod]
+    public async Task SameSourceCommandRejectsDifferentSupplierOrPrice()
+    {
+        var fixture=new Fixture();var command=await fixture.CommandAsync(false);
+        Assert.AreEqual(NetDemandCommandOutcomeEnum.Succeeded,(await fixture.Service.CreateAsync(command)).Data.Sources.Single().Outcome);
+        Assert.AreEqual(NetDemandCommandOutcomeEnum.AlreadyApplied,(await fixture.Service.CreateAsync(command)).Data.Sources.Single().Outcome);
+        command.Sources[0].Items[0].SupplierId=Guid.NewGuid();
+        Assert.AreEqual(ServiceErrorCodes.CommandConflict,(await fixture.Service.CreateAsync(command)).Data.Sources.Single().ErrorCode);
+        Assert.AreEqual(1,fixture.HeadWrites);Assert.AreEqual(1,fixture.Numbers);
+    }
+    /// <summary>查询预览与锁定创建必须采用相同型号；产品空值回退来源快照，空字符串仍保留原值。</summary>
+    [TestMethod]
+    [DataRow(null, "AA030063BG")]
+    [DataRow("", "")]
+    [DataRow("CURRENT", "CURRENT")]
+    public async Task ReadOnlyPreviewThenCreate_KeepsProductModelBasis(string? productModel, string queryModel)
+    {
+        var f = new Fixture(true, productModel, queryModel);
+        var command = await f.CommandAsync(false, true);
+        var result = await f.Service.CreateAsync(command);
+        var source = result.Data.Sources.Single();
+        Assert.AreEqual(NetDemandCommandOutcomeEnum.Succeeded, source.Outcome, $"{source.ErrorCode}: {source.Message}");
+        Assert.AreEqual(1, f.HeadWrites);
+        Assert.AreEqual(1, f.LineWrites);
+        Assert.AreEqual(1, f.LinkWrites);
+        Assert.AreEqual(1, f.Connection.Commits);
+        Assert.AreEqual(0, f.Connection.Rollbacks);
+    }
+
     /// <summary>预览完成之后正式创建仍重新查重，拒绝时不取号、不写头行或来源贡献。</summary>
     [TestMethod]
     public async Task DuplicateAfterPreview_RejectsBeforeNumberOrWrites()
@@ -89,6 +150,7 @@ public sealed class 需求采购BONO创建测试
         public readonly DbSession Session;
         public readonly PurchaseDraftCreationService Service;
         public readonly PurchaseOrderHead Head;
+        public readonly PurchaseDraftCommandTestContext Commands;
         public bool Duplicate, WriteConflict;
         public int BoNoChecks, Numbers, HeadWrites, LineWrites, LinkWrites, VersionWrites;
         private readonly Customer customer = new() { Uid = Guid.NewGuid(), CustomerCode = "C", DocRelateNo = "C", IsActive = true };
@@ -98,17 +160,25 @@ public sealed class 需求采购BONO创建测试
         private readonly NetDemand net;
         private readonly PurchaseDraftPreviewService preparation;
         private readonly PurchaseDraftPreviewBuilder builder = new();
+        /// <summary>仅改变该夹具来源实物依据，用于提交后锁内校验拒绝路径。</summary>
+        public void InvalidateBasis()=>gross.DemandBasisFingerprint=new string('B',64);
 
         /// <summary>组合真实预览与创建服务，仓储替身只观察本次用例的事务和写入。</summary>
-        public Fixture()
+        public Fixture(bool hasProduct = false, string? productModel = null, string queryModel = "")
         {
             Session = (DbSession)RuntimeHelpers.GetUninitializedObject(typeof(DbSession));
             typeof(DbSession).GetField("<Connection>k__BackingField", BindingFlags.Instance | BindingFlags.NonPublic)!.SetValue(Session, Connection);
             var context = new ServiceBaseContext(Session, NullLoggerFactory.Instance);
             gross = new() { Uid = Guid.NewGuid(), SourceType = "SO", SourceUid = sales.Uid, SourceNo = "SO1",
-                CustomerId = customer.Uid, SourceLineId = Guid.NewGuid(), SourceLineNumber = 1 };
+                CustomerId = customer.Uid, SourceLineId = Guid.NewGuid(), SourceLineNumber = 1, IsNonStandard=!hasProduct, DemandBasisFingerprint=new string('A',64) };
             net = new() { Uid = Guid.NewGuid(), Version = 1, GrossDemandId = gross.Uid, NetQty = 1, SupplyTypeSnapshot = "采购",
-                SkuSnapshot = "NS1", DescriptionSnapshot = "非标配件", UnitSnapshot = "PCS" };
+                SkuSnapshot = "NS1", DescriptionSnapshot = "非标配件", UnitSnapshot = "PCS", DecompositionRevision=1,SourceDemandBasisFingerprintSnapshot=gross.DemandBasisFingerprint };
+            var products = hasProduct ? new[] { new Product { Uid = Guid.NewGuid(), Sku = net.SkuSnapshot, LinkSku = productModel } } : [];
+            if (hasProduct)
+            {
+                net.ProductId = products[0].Uid;
+                gross.LinkSkuSnapshot = "AA030063BG";
+            }
             Head = new() { Uid = Guid.NewGuid(), Version = 1, OrderNo = "PO1", CustomerId = customer.Uid, SupplierId = supplier.Uid,
                 DemandSourceType = "SO", DemandSourceUid = sales.Uid, BoNo = "C260820S",
                 LifecycleStatus = PurchaseOrderLifecycleStatusEnum.Active, ConfirmationStatus = ConfirmationStatusEnum.待确认 };
@@ -137,31 +207,57 @@ public sealed class 需求采购BONO创建测试
                 "InsertPurchaseLinksAsync" => CountLinks(),
                 _ => throw new AssertFailedException(method.Name)
             });
-            preparation = new(context, Proxy<IMaterialDemandQueryRepository>((method, _) => throw new AssertFailedException(method.Name)), orders,
-                Proxy<IProductRepository>((method, _) => method.Name == "GetByIdListAsync" ? Task.FromResult<IReadOnlyList<Product>>([]) : throw new AssertFailedException(method.Name)),
+            preparation = new(context, Proxy<IMaterialDemandQueryRepository>((method, _) => method.Name == "SearchManagerAsync"
+                ? Task.FromResult(new PagedResponseBase<MaterialDemandManagerItemDto> { Items = [new()
+                {
+                    Uid = net.Uid, Version = net.Version, ProductId = net.ProductId,
+                    SourceType = gross.SourceType, SourceUid = gross.SourceUid, SourceNo = gross.SourceNo,
+                    SourceLineId = gross.SourceLineId, SourceLineNumber = gross.SourceLineNumber,
+                    CustomerId = customer.Uid, CustomerCode = customer.CustomerCode, CustomerName = customer.CustomerName,
+                    Sku = net.SkuSnapshot, LinkSku = queryModel, Description = net.DescriptionSnapshot,
+                    Unit = net.UnitSnapshot, SupplyType = net.SupplyTypeSnapshot, NetQty = net.NetQty,
+                    AssociatedPurchaseQty = 0
+                }] }) : throw new AssertFailedException(method.Name)), orders,
+                Proxy<IProductRepository>((method, _) => method.Name == "GetByIdListAsync" ? Task.FromResult<IReadOnlyList<Product>>(products) : throw new AssertFailedException(method.Name)),
                 Proxy<ICustomerRepository>((method, _) => method.Name == "GetByIdListAsync" ? Task.FromResult<IReadOnlyList<Customer>>([customer]) : throw new AssertFailedException(method.Name)),
                 Proxy<ICustomerPoConfigRepository>((method, _) => method.Name == "GetByPartiesAsync" ? Task.FromResult<CustomerPoConfigDto?>(null) : throw new AssertFailedException(method.Name)),
                 Proxy<ISupplierRepository>((method, _) => method.Name == "GetByIdListAsync" ? Task.FromResult<IReadOnlyList<Supplier>>([supplier]) : throw new AssertFailedException(method.Name)),
                 Proxy<ISupplierProductRepository>((method, _) => method.Name == "GetPurchaseDataAsync" ? Task.FromResult<IReadOnlyList<SupplierProduct>>([]) : throw new AssertFailedException(method.Name)),
-                Proxy<ISalesOrderHeadRepository>((method, _) => method.Name == "GetByIdListAsync" ? Task.FromResult<IReadOnlyList<SalesOrderHeader>>([sales]) : throw new AssertFailedException(method.Name)), builder);
+                Proxy<ISalesOrderHeadRepository>((method, _) => method.Name == "GetByIdListAsync" ? Task.FromResult<IReadOnlyList<SalesOrderHeader>>([sales]) : throw new AssertFailedException(method.Name)), builder,
+                Proxy<IProcurementDemandAssociationRepository>((method,_)=>Task.FromResult<IReadOnlyList<SwiftExport.Core.Models.Procurement.ProcurementAssociationTarget>>([])));
             var numbers = Proxy<IDocumentNoService>((method, _) =>
             { Numbers++; return Task.FromResult(ServiceResult<DocumentNoResponse>.Ok(new() { DocumentNo = "PO-NEW" })); });
-            Service = new(context, grossRepo, netRepo, links, orders, numbers, preparation, builder, new PurchaseDraftWriteModelBuilder());
+            Commands=new PurchaseDraftCommandTestContext(context);
+            Service = new(context, grossRepo, netRepo, links, orders, numbers, preparation, builder, new PurchaseDraftWriteModelBuilder(),Commands.Executor,Commands.Support);
         }
 
-        /// <summary>由真实锁定预览生成令牌，测试不伪造来源指纹或绕过预览验证。</summary>
-        public async Task<CreatePurchaseDraftsCommand> CommandAsync(bool append)
+        /// <summary>默认直接提交正式输入；可选内部只读预检仅用于展示映射测试，不是创建前提。</summary>
+        public async Task<CreatePurchaseDraftsCommand> CommandAsync(bool append, bool readOnlyPreview = false)
         {
             var source = new CreatePurchaseDraftSourceCommand { SourceType = "SO", SourceUid = sales.Uid,
                 Items = [new() { CommandItemId = Guid.NewGuid(), NetDemandId = net.Uid, SupplierId = supplier.Uid,
-                    ExpectedVersion = 1, ExpectedRemainingQty = 1, PurchaseQty = 1, UnitPrice = 0 }],
+                    ExpectedVersion = 1, PurchaseQty = 1, UnitPrice = 0 }],
                 Targets = [new() { SupplierId = supplier.Uid, TargetMode = append ? PurchaseDraftTargetModeEnum.AppendExisting : PurchaseDraftTargetModeEnum.CreateNew,
                     ExistingPurchaseOrderId = append ? Head.Uid : null, ExpectedPurchaseOrderVersion = append ? Head.Version : null }] };
             var command = new CreatePurchaseDraftsCommand { ExecutionRequestId = Guid.NewGuid(), EntryMode = PurchaseDraftEntryModeEnum.ManualSelection, Sources = [source] };
+            if(!readOnlyPreview)return command;
             var preview = builder.Build(await preparation.BuildLockedPreviewRequestAsync(command, source, [gross], [net], [], CancellationToken.None));
+            if (readOnlyPreview)
+            {
+                var item = source.Items.Single();
+                var response = await preparation.PreviewAsync(new()
+                {
+                    ExecutionRequestId = command.ExecutionRequestId, EntryMode = command.EntryMode, LineMode = source.LineMode,
+                    Items = [new() { CommandItemId = item.CommandItemId, NetDemandId = item.NetDemandId,
+                        ExpectedVersion = item.ExpectedVersion, ExpectedRemainingQty = 1,
+                        SupplierId = item.SupplierId, PurchaseQty = item.PurchaseQty, UnitPrice = item.UnitPrice }]
+                });
+                Assert.IsTrue(response.Success, response.Message);
+                preview = response.Data;
+            }
             Assert.IsFalse(preview.HasBlockers, string.Join("；", preview.Warnings.Select(x => x.Message)));
-            source.SourcePreviewToken = preview.SourceGroups.Single().SourcePreviewToken;
-            command.PreviewToken = source.SourcePreviewToken;
+
+
             return command;
         }
 

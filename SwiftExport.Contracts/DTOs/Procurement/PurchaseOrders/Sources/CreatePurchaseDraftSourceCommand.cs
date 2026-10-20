@@ -9,10 +9,8 @@ namespace SwiftExport.Contracts.DTOs.Procurement.PurchaseDrafts
     {
         public string SourceType { get; set; }
         public Guid SourceUid { get; set; }
-        public string SourcePreviewToken { get; set; }
         public PurchaseDraftLineModeEnum LineMode { get; set; } = PurchaseDraftLineModeEnum.MergeCompatibleLines;
         public List<CreatePurchaseDraftItemCommand> Items { get; set; } = new List<CreatePurchaseDraftItemCommand>();
         public List<CreatePurchaseDraftTargetCommand> Targets { get; set; } = new List<CreatePurchaseDraftTargetCommand>();
-        public List<string> ConfirmedWarningCodes { get; set; } = new List<string>();
     }
 }

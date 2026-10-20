@@ -66,10 +66,10 @@ namespace SwiftExport.Contracts.DTOs.OrderTracking.Summary
         /// <summary>存在适用采购物料的活动需求条数。</summary>
         public int? PurchaseApplicableDemandCount { get; set; }
 
-        /// <summary>至少一个可信适用物料承接不足的活动需求条数。</summary>
+        /// <summary>至少一个可信适用物料已确认采购不足的活动需求条数。</summary>
         public int? PurchaseShortfallDemandCount { get; set; }
 
-        /// <summary>至少一个可信适用物料承接超量的活动需求条数。</summary>
+        /// <summary>至少一个可信适用物料总采购占用超量的活动需求条数。</summary>
         public int? PurchaseExcessDemandCount { get; set; }
 
         /// <summary>当前采购承接证据需核实的活动需求条数。</summary>

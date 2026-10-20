@@ -10,7 +10,6 @@ namespace SwiftExport.Contracts.DTOs.Procurement.PurchaseDrafts
         public Guid CommandItemId { get; set; }
         public Guid NetDemandId { get; set; }
         public int ExpectedVersion { get; set; }
-        public decimal ExpectedRemainingQty { get; set; }
         public decimal PurchaseQty { get; set; }
         public Guid SupplierId { get; set; }
         public Guid? DeliveryTargetSupplierId { get; set; }

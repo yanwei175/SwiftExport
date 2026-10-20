@@ -14,9 +14,17 @@ namespace SwiftExport.Contracts.DTOs.OrderTracking.MaterialDetail
         public decimal NetQty { get; set; }
         /// <summary>物料单位快照。</summary>
         public string Unit { get; set; }
-        /// <summary>可信活动采购净贡献，历史或证据异常为未知。</summary>
+        /// <summary>可信已确认采购关联量；无权或证据异常为空。</summary>
+        public decimal? PurchasedQty { get; set; }
+        /// <summary>可信未确认草稿的来源占用量，不计入已采购；无权或证据异常为空。</summary>
+        public decimal? DraftOccupiedQty { get; set; }
+        /// <summary>需求量减已采购量及草稿占用量；证据异常为空，不得按零放行。</summary>
+        public decimal? CreatableQty { get; set; }
+        /// <summary>需求量减已采购量；草稿不减少此数量，无权或证据异常为空。</summary>
+        public decimal? UnpurchasedQty { get; set; }
+        /// <summary>可信关联总量，包含已采购和草稿占用；历史或证据异常为未知。</summary>
         public decimal? AssociatedPurchaseQty { get; set; }
-        /// <summary>需求量减可信承接量，保留异常负数供核实。</summary>
+        /// <summary>需求量减可信已采购量；草稿不减少未采购数量，保留异常负数供核实。</summary>
         public decimal? RemainingToPurchaseQty { get; set; }
         /// <summary>承接数量核实原因。</summary>
         public string ReviewReason { get; set; }

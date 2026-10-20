@@ -9,6 +9,7 @@ using SwiftExport.Contracts.DTOs.Auth;
 using SwiftExport.Contracts.DTOs.Errors;
 using SwiftExport.Contracts.DTOs.Procurement.OrderManagement;
 using SwiftExport.Contracts.Wrappers;
+using SwiftExport.Contracts.DTOs.Procurement.PurchaseDrafts;
 using SwiftExport.Core.Entities.Auditing;
 using SwiftExport.Core.Entities.Procurement;
 using SwiftExport.Core.Interfaces.Auditing;
@@ -105,5 +106,21 @@ public sealed class ProcurementOrderCommandSupport(
             UserUid = user.UserId, UserNameSnapshot = user.UserName, OccurredDate = DateTime.Now,
             ChangedFieldsJson = JsonSerializer.Serialize(result)
         }) != 1) throw new InvalidOperationException("采购业务日志写入失败。");
+    }
+
+    /// <summary>每来源命令仅追加一条汇总审计，完整列出新建和追加PO；命令回执仍负责原结果重放，Trace按结构化关联定位各PO。</summary>
+    public async Task RecordDemandDraftsAsync(Guid sourceCommandId, Guid executionRequestId, CreatePurchaseDraftSourceResult result, CancellationToken ct)
+    {
+        ct.ThrowIfCancellationRequested();
+        var drafts=result.PurchaseDrafts.OrderBy(draft=>draft.PurchaseOrderId).ToArray();
+        if(await logs.InsertAsync(new BusinessOperationLog
+        {
+            Uid=GuidSequentialGenerator.NewGuid(),CommandId=sourceCommandId,CorrelationId=correlation.CorrelationId,
+            Module="Procurement.OrderManagement",AggregateType="PurchaseDraftSource",AggregateUid=result.SourceUid,
+            OperationType="CreateDraftsFromDemand",OperationName="由需求创建或追加采购草稿",
+            Summary=$"本来源新建 {drafts.Count(draft=>!draft.AppendedToExisting)} 份，追加 {drafts.Count(draft=>draft.AppendedToExisting)} 份采购草稿：{string.Join("、",drafts.Select(draft=>draft.OrderNo))}。",
+            ChangedFieldsJson=JsonSerializer.Serialize(new{ExecutionRequestId=executionRequestId,SourceCommandId=sourceCommandId,result.SourceType,result.SourceUid,PurchaseDrafts=drafts}),
+            RelatedObjectsJson=JsonSerializer.Serialize(drafts),UserUid=user.UserId,UserNameSnapshot=user.UserName,OccurredDate=DateTime.Now
+        })!=1)throw new InvalidOperationException("需求采购来源汇总审计写入失败。");
     }
 }

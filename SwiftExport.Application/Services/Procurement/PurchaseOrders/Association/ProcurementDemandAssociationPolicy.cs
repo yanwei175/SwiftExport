@@ -45,11 +45,12 @@ public static class ProcurementDemandAssociationPolicy
         var lines = facts.Lines.Where(x => !x.IsDeleted).ToDictionary(x => x.Uid);
         var demands = facts.Demands.ToDictionary(x => x.Uid);
         var sources = facts.Sources.ToDictionary(x => x.Uid);
-        var active = facts.Links.Where(x => !x.IsDeleted && x.AllocatedQty > x.ReleasedQty).ToArray();
+        var active = facts.Links.Where(x => x.TargetType=="PO" && (x.LinkStatus==DemandExecutionLinkStatusEnum.Active
+            || x.AllocatedQty!=x.ReleasedQty || x.AllocatedQty<=0 || x.ReleasedQty<0 || !Enum.IsDefined(x.LinkStatus))).ToArray();
         // 未释放却标记取消、执行目标失效等异常不作为空余量；拒绝而非允许重复承接。
         foreach (var link in active)
         {
-            if (link.LinkStatus != DemandExecutionLinkStatusEnum.Active || link.ReleasedQty < 0 || link.TargetType != "PO"
+            if (link.IsDeleted || link.LinkStatus != DemandExecutionLinkStatusEnum.Active || link.AllocatedQty<=link.ReleasedQty || link.ReleasedQty < 0 || link.TargetType != "PO"
                 || !targets.Any(t => t.LineId == link.TargetLineId && t.HeadId == link.TargetHeadId)
                 || !demands.TryGetValue(link.NetDemandId, out var linkedDemand))
                 Block("物料现有执行贡献或采购目标异常，请先核实引用。");
