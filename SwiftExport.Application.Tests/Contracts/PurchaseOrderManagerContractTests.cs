@@ -50,7 +50,8 @@ public sealed class PurchaseOrderManagerContractTests
         var forbidden = new[]
         {
             "ProgressHistory", "SupplierProgressReports", "Trace", "Operations",
-            "InboundDocuments", "InboundLines", "InventoryLedgerEntries", "InventoryBalances"
+            "InboundDocuments", "InboundLines", "InventoryLedgerEntries", "InventoryBalances",
+            "ReadyQty", "ReadyStatus", "ReceiptStatus", "ReceiptProgress", "ReceivedQty", "UnreceivedQty", "LatestFollowUpDate", "ExpectedCompletionDate"
         };
         var properties = typeof(PurchaseOrderManagerListItemDto).GetProperties()
             .Concat(typeof(PurchaseOrderManagerLineDto).GetProperties())
@@ -63,7 +64,7 @@ public sealed class PurchaseOrderManagerContractTests
         }
 
         Assert.AreEqual(typeof(decimal?),
-            typeof(PurchaseOrderManagerLineDto).GetProperty(nameof(PurchaseOrderManagerLineDto.UnreceivedQty))!.PropertyType);
+            typeof(SwiftExport.Contracts.DTOs.OrderTracking.PurchaseOrders.PurchaseOrderTrackingLineDto).GetProperty("UnreceivedQty")!.PropertyType);
         Assert.IsNull(typeof(PurchaseOrderManagerLineDto).GetProperty("UnreceivedQtyText"));
         Assert.IsNotNull(typeof(PurchaseOrderManagerListItemDto).GetProperty("CustomerCode"));
         Assert.IsNull(typeof(PurchaseOrderManagerListItemDto).GetProperty("CustomerName"));

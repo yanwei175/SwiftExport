@@ -3,7 +3,9 @@ using Dapper;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using Npgsql;
+using SwiftExport.Contracts.DTOs.OrderTracking.PurchaseOrders;
 using SwiftExport.Contracts.DTOs.Procurement.PurchaseOrderManagerDto;
+using SwiftExport.Infrastructure.Repositories.OrderTracking.PurchaseOrders;
 using SwiftExport.Contracts.SysEnums;
 using SwiftExport.Contracts.SysEnums.Inventory;
 using SwiftExport.Core.Common;
@@ -29,7 +31,7 @@ public sealed partial class PostgreSqlPurchaseOrderManagerMigrationTests
     public Task RealPg_GlobalGates(bool lines,bool reversed)=>Rollback(async f=>
     {
         await f.Seed();await f.Receipt(Guid.NewGuid(),1,"PCS",reversed,proof:false);
-        Func<Task> read=()=>lines?f.Repository.GetLinesAsync(Guid.NewGuid()):f.Repository.SearchAsync(new(){CustomerCode="不存在"});
+        Func<Task> read=()=>lines?f.Repository.GetLinesAsync(Guid.NewGuid()):f.Repository.SearchAsync(new(){CustomerCodes=["不存在"]});
         if(reversed)await Assert.ThrowsAsync<UnverifiedReceiptHistoryException>(read);
         else Assert.AreEqual("存在无法定位采购行的正式采购入库历史，请先完成数据核实与迁移。",(await Assert.ThrowsAsync<InvalidOperationException>(read)).Message);
     });
@@ -39,7 +41,7 @@ public sealed partial class PostgreSqlPurchaseOrderManagerMigrationTests
     public Task RealPg_DeletedPurchaseLineIsTraceable()=>Rollback(async f=>
     {
         f.Line.IsDeleted=true;await f.Seed();await f.Receipt(f.Line.Uid,2);
-        var item=(await f.Search()).Single();Assert.AreEqual(0,item.LineCount);Assert.AreEqual(0,(int)item.ReadyStatus);Assert.AreEqual(0,(int)item.ReceiptStatus);
+        var item=(await f.Search()).Single();Assert.AreEqual(0,item.LineCount);Assert.AreEqual((PurchaseReadyStatusEnum)0,item.ReadyStatus);Assert.AreEqual((PurchaseReceiptStatusEnum)0,item.ReceiptStatus);
         Assert.IsNull(item.ReadyQty);Assert.IsNull(item.TotalQty);Assert.IsNull(item.ReceiptProgress);Assert.HasCount(0,await f.Repository.GetLinesAsync(f.Head.Uid));
     });
 
@@ -50,9 +52,9 @@ public sealed partial class PostgreSqlPurchaseOrderManagerMigrationTests
     {
         await f.Seed(); decimal? ready=mode switch{"null"=>null,"zero"=>0,"part"=>4,"full"=>10,"over"=>11,_=>null};
         if(mode!="none")await f.Report(f.Line,ready,1);
-        var item=(await f.Search()).Single();Assert.AreEqual(status,(int)item.ReadyStatus);Assert.AreEqual(mode=="none"?0:1,item.ReportedLineCount);
+        var item=(await f.Search()).Single();Assert.AreEqual((PurchaseReadyStatusEnum)status,item.ReadyStatus);Assert.AreEqual(mode=="none"?0:1,item.ReportedLineCount);
         Assert.AreEqual(mode is "none" or "null" or "over"?null:ready,item.ReadyQty);Assert.AreEqual(10m,item.TotalQty);Assert.AreEqual(0m,item.ReceiptProgress);
-        Assert.AreEqual(1,(int)item.ReceiptStatus);Assert.AreEqual(mode=="none"?"部分采购行尚未反馈货好数量。":mode=="null"?"部分采购行尚未反馈货好数量。":mode=="over"?"采购数量、单位、货好或收货事实不一致，需逐行核实。":null,item.ReviewReason);
+        Assert.AreEqual((PurchaseReceiptStatusEnum)1,item.ReceiptStatus);Assert.AreEqual(mode=="none"?"部分采购行尚未反馈货好数量。":mode=="null"?"部分采购行尚未反馈货好数量。":mode=="over"?"采购数量、单位、货好或收货事实不一致，需逐行核实。":null,item.ReviewReason);
         var filtered=await f.Repository.SearchAsync(f.Request(readyStatus:status));Assert.AreEqual(1,filtered.TotalCount);
         var excluded=await f.Repository.SearchAsync(f.Request(readyStatus:status==1?5:1));Assert.AreEqual(0,excluded.TotalCount);
     });
@@ -65,7 +67,7 @@ public sealed partial class PostgreSqlPurchaseOrderManagerMigrationTests
         await f.Seed();var qty=mode=="full"?10m:mode=="over"?11m:4m;
         if(mode!="none")await f.Receipt(f.Line.Uid,qty,mode=="mismatch"?"KG":mode=="nullunit"?null:"PCS",mode=="reversed");
         var item=(await f.Search()).Single();var received=mode is "none" or "reversed"?0:qty;
-        Assert.AreEqual(status,(int)item.ReceiptStatus);Assert.AreEqual(status==9?null:(decimal?)(received/10),item.ReceiptProgress);
+        Assert.AreEqual((PurchaseReceiptStatusEnum)status,item.ReceiptStatus);Assert.AreEqual(status==9?null:(decimal?)(received/10),item.ReceiptProgress);
         Assert.AreEqual(10m,item.TotalQty);var actual=(await f.Repository.GetLinesAsync(f.Head.Uid)).Single();
         Assert.AreEqual(received,actual.ReceivedQty);Assert.AreEqual(Math.Max(10-received,0),actual.UnreceivedQty);Assert.AreEqual(10m,actual.Quantity);Assert.IsNull(actual.ReadyQty);
         Assert.AreEqual(1,(await f.Repository.SearchAsync(f.Request(receiptStatus:status))).TotalCount);
@@ -79,7 +81,7 @@ public sealed partial class PostgreSqlPurchaseOrderManagerMigrationTests
         await f.Report(f.Line,10,1);await f.Report(second,10,1);var item=(await f.Search()).Single();
         if(mode=="trailing"){Assert.AreEqual(20m,item.TotalQty);Assert.AreEqual(20m,item.ReadyQty);Assert.AreEqual(0m,item.ReceiptProgress);}
         else{Assert.IsNull(item.TotalQty);Assert.IsNull(item.ReadyQty);Assert.IsNull(item.ReceiptProgress);Assert.IsNull(item.UnitSnapshot);}
-        Assert.AreEqual(mode is "null" or "space"?9:5,(int)item.ReadyStatus);Assert.HasCount(2,await f.Repository.GetLinesAsync(f.Head.Uid));
+        Assert.AreEqual((PurchaseReadyStatusEnum)(mode is "null" or "space"?9:5),item.ReadyStatus);Assert.HasCount(2,await f.Repository.GetLinesAsync(f.Head.Uid));
     });
 
     /// <summary>最新整行报告不被多个需求Link倍增，已删更新序号忽略；独立采购不依赖需求链。</summary>
@@ -101,7 +103,7 @@ public sealed partial class PostgreSqlPurchaseOrderManagerMigrationTests
         await f.Seed();var second=f.NewLine(2);await f.Add(second);
         var first=mode=="zero"?0m:10m;decimal? next=mode=="unknown"?null:mode=="full"?10m:0m;
         await f.Report(f.Line,first,1,f.Today.AddDays(1));await f.Report(second,next,1,f.Today.AddDays(2));
-        var item=(await f.Search()).Single();Assert.AreEqual(status,(int)item.ReadyStatus);Assert.AreEqual(20m,item.TotalQty);
+        var item=(await f.Search()).Single();Assert.AreEqual((PurchaseReadyStatusEnum)status,item.ReadyStatus);Assert.AreEqual(20m,item.TotalQty);
         var expectedDate=f.Today.AddDays(2);Assert.AreEqual(mode=="unknown"?null:(decimal?)(first+next),item.ReadyQty);Assert.AreEqual(expectedDate,item.ExpectedCompletionDate);Assert.AreEqual(2,item.ReportedLineCount);
     });
 
@@ -121,10 +123,11 @@ public sealed partial class PostgreSqlPurchaseOrderManagerMigrationTests
     public Task RealPg_StatusAndUnlinkedEligibility(int confirmation,int lifecycle)=>Rollback(async f=>
     {
         f.Head.ConfirmationStatus=(ConfirmationStatusEnum)confirmation;f.Head.LifecycleStatus=(PurchaseOrderLifecycleStatusEnum)lifecycle;f.Line.PlannedDeliveryDate=f.Today.AddDays(-1);await f.Seed();
-        var item=(await f.Search()).Single();Assert.AreEqual(lifecycle==0&&confirmation==0,item.CanConfirm);Assert.AreEqual(lifecycle==0&&confirmation==1,item.CanCancelConfirmation);
+        var manager=new PostgreSqlPurchaseOrderManagerQueryRepository(new RepositoryBaseContext(f.Session,NullLoggerFactory.Instance,new AuditStampService(new WorkspaceUser()),new WorkspaceUser()));
+        var item=(await manager.SearchAsync(new(){CustomerCode=f.Head.CustomerCode})).Items.Single();Assert.AreEqual(lifecycle==0&&confirmation==0,item.CanConfirm);Assert.AreEqual(lifecycle==0&&confirmation==1,item.CanCancelConfirmation);
         Assert.AreEqual(lifecycle==0?null:"采购单不是活动状态。",item.CommandBlockedReason);var request=f.Request();request.DueView=(PurchaseDueViewEnum)1;Assert.AreEqual(0,(await f.Repository.SearchAsync(request)).TotalCount);
-        request.DueView=0;request.OnlyWithUnlinkedQuantity=true;Assert.AreEqual(lifecycle==0?1:0,(await f.Repository.SearchAsync(request)).TotalCount);
-        await f.Execute("UPDATE public.purchase_order_line SET unlinked_qty=0 WHERE uid=@Uid",f.Line.Uid);Assert.AreEqual(0,(await f.Repository.SearchAsync(request)).TotalCount);
+        var managerRequest=new PurchaseOrderManagerSearchRequest{CustomerCode=f.Head.CustomerCode,OnlyWithUnlinkedQuantity=true};Assert.AreEqual(lifecycle==0?1:0,(await manager.SearchAsync(managerRequest)).TotalCount);
+        await f.Execute("UPDATE public.purchase_order_line SET unlinked_qty=0 WHERE uid=@Uid",f.Line.Uid);Assert.AreEqual(0,(await manager.SearchAsync(managerRequest)).TotalCount);
     });
 
     /// <summary>OrderDate自然日包含，计划/完成原DateTime闭区间；不套进度页次日排他。</summary>
@@ -189,7 +192,7 @@ public sealed partial class PostgreSqlPurchaseOrderManagerMigrationTests
     /// <summary>本测试独占合法随机实体，直接元数据INSERT保留NULL/软删/版本，不通过业务API制造额外事实。</summary>
     private sealed class ManagerFixture
     {
-        public DbSession Session{get;} public IDbTransaction? Transaction{get;} public PostgreSqlPurchaseOrderManagerQueryRepository Repository{get;}
+        public DbSession Session{get;} public IDbTransaction? Transaction{get;} public TrackingRepository Repository{get;}
         public DateTime Today{get;}=TimeZoneInfo.ConvertTimeBySystemTimeZoneId(DateTimeOffset.UtcNow,"China Standard Time").Date;
         public PurchaseOrderHead Head{get;} public PurchaseOrderLine Line{get;}
         /// <summary>随机客户编码限定本例工作集，客户/供应商仅逻辑身份。</summary>
@@ -205,9 +208,9 @@ public sealed partial class PostgreSqlPurchaseOrderManagerMigrationTests
         /// <summary>头先于行插入，未初始化其他模块。</summary>
         public async Task Seed(){await Add(Head);await Add(Line);}
         /// <summary>只限定本例客户编码；可选真实商业状态筛选。</summary>
-        public PurchaseOrderManagerSearchRequest Request(int? readyStatus=null,int? receiptStatus=null)=>new(){CustomerCode=Head.CustomerCode!,PageSize=200,ReadyStatuses=readyStatus.HasValue?[(PurchaseReadyStatusEnum)readyStatus.Value]:[],ReceiptStatuses=receiptStatus.HasValue?[(PurchaseReceiptStatusEnum)receiptStatus.Value]:[]};
+        public PurchaseOrderTrackingSearchRequest Request(int? readyStatus=null,int? receiptStatus=null)=>new(){CustomerCodes=[Head.CustomerCode!],PageSize=200,ReadyStatuses=readyStatus.HasValue?[(PurchaseReadyStatusEnum)readyStatus.Value]:[],ReceiptStatuses=receiptStatus.HasValue?[(PurchaseReceiptStatusEnum)receiptStatus.Value]:[]};
         /// <summary>读本例全工作集，不C#模拟数量算法。</summary>
-        public async Task<List<PurchaseOrderManagerListItemDto>> Search()=> (await Repository.SearchAsync(Request())).Items;
+        public async Task<List<PurchaseOrderTrackingItemDto>> Search()=> (await Repository.SearchAsync(Request())).Items;
         /// <summary>唯一序号及命令的整行报告；软删样本仍遵守索引。</summary>
         public Task Report(PurchaseOrderLine line,decimal? ready,int sequence,DateTime? expected=null,bool deleted=false)=>Add(new SupplierProgressReport{PurchaseOrderLineId=line.Uid,ReadyQty=ready,Sequence=sequence,SupplierReportedDate=Today,ExpectedReadyDate=expected,CommandId=Guid.NewGuid(),CreatedBy="反馈人",IsDeleted=deleted});
         /// <summary>正式正数入库，可选合法成对反向流水；坏证明只省略证明，不绕CHECK。</summary>
