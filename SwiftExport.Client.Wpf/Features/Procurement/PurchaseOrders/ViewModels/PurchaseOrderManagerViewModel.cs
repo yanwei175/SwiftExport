@@ -69,8 +69,6 @@ public sealed partial class PurchaseOrderManagerViewModel : ViewModelBaseEx, IAs
         RegisterBusyAwareCommand(ClearFiltersCommand); RegisterBusyAwareCommand(BatchConfirmCommand);
         RegisterBusyAwareCommand(OpenDetailCommand); RegisterBusyAwareCommand(CreateIndependentCommand);
         RegisterBusyAwareCommand(GetFromNetDemandCommand); RegisterBusyAwareCommand(PageChangeCommand);
-        RegisterBusyAwareCommand(OpenFollowUpCommand);
-        RegisterBusyAwareCommand(OpenTraceCommand);
         RegisterBusyAwareCommand(ConfirmCommand); RegisterBusyAwareCommand(CancelConfirmationCommand);
         RegisterBusyAwareCommand(RetryPendingCommand);
         RegisterBusyAwareCommand(DeleteDraftCommand);
@@ -82,18 +80,9 @@ public sealed partial class PurchaseOrderManagerViewModel : ViewModelBaseEx, IAs
     public static IReadOnlyList<ConfirmationStatusEnum> ConfirmationStatuses { get; } = Array.AsReadOnly(Enum.GetValues<ConfirmationStatusEnum>());
     /// <summary>生命周期多选候选，避免在页面模型中重复维护中文描述。</summary>
     public static IReadOnlyList<PurchaseOrderLifecycleStatusEnum> LifecycleStatuses { get; } = Array.AsReadOnly(Enum.GetValues<PurchaseOrderLifecycleStatusEnum>());
-    /// <summary>服务端计算的整单货好状态候选。</summary>
-    public static IReadOnlyList<PurchaseReadyStatusEnum> ReadyStatuses { get; } = Array.AsReadOnly(Enum.GetValues<PurchaseReadyStatusEnum>());
-    /// <summary>服务端计算的整单正式收货状态候选。</summary>
-    public static IReadOnlyList<PurchaseReceiptStatusEnum> ReceiptStatuses { get; } = Array.AsReadOnly(Enum.GetValues<PurchaseReceiptStatusEnum>());
-    /// <summary>采购行计划交期风险单选候选。</summary>
-    public static IReadOnlyList<PurchaseDueViewEnum> DueViews { get; } = Array.AsReadOnly(Enum.GetValues<PurchaseDueViewEnum>());
     /// <summary>首次打开默认待确认；清空集合表示不限制确认状态。</summary>
     public ObservableCollection<ConfirmationStatusEnum> SelectedConfirmationStatuses { get; } = [ConfirmationStatusEnum.待确认];
     public ObservableCollection<PurchaseOrderLifecycleStatusEnum> SelectedLifecycleStatuses { get; } = [];
-    public ObservableCollection<PurchaseReadyStatusEnum> SelectedReadyStatuses { get; } = [];
-    public ObservableCollection<PurchaseReceiptStatusEnum> SelectedReceiptStatuses { get; } = [];
-    [ObservableProperty] public partial PurchaseDueViewEnum SelectedDueView { get; set; } = PurchaseDueViewEnum.All;
     /// <summary>直接提供完整客户缓存，不按是否存在采购裁剪。</summary>
     public ReadOnlyObservableCollection<CustomerDto>? CustomerOptions => _referenceDataCache?.Customers;
     /// <summary>直接提供完整供应商缓存，不按当前筛选或采购历史裁剪。</summary>
@@ -121,15 +110,12 @@ public sealed partial class PurchaseOrderManagerViewModel : ViewModelBaseEx, IAs
     [ObservableProperty] public partial DateTime? OrderDateTo { get; set; }
     [ObservableProperty] public partial DateTime? PlannedDeliveryDateFrom { get; set; }
     [ObservableProperty] public partial DateTime? PlannedDeliveryDateTo { get; set; }
-    [ObservableProperty] public partial DateTime? ExpectedCompletionDateFrom { get; set; }
-    [ObservableProperty] public partial DateTime? ExpectedCompletionDateTo { get; set; }
     [ObservableProperty]
     [NotifyCanExecuteChangedFor(nameof(OpenDetailCommand))]
     [NotifyCanExecuteChangedFor(nameof(ConfirmCommand))]
     [NotifyCanExecuteChangedFor(nameof(CancelConfirmationCommand))]
     [NotifyCanExecuteChangedFor(nameof(VoidOrderCommand))]
     [NotifyCanExecuteChangedFor(nameof(RetryReversalCommand))]
-    [NotifyCanExecuteChangedFor(nameof(OpenTraceCommand))]
     [NotifyCanExecuteChangedFor(nameof(RetryPendingCommand))]
     [NotifyCanExecuteChangedFor(nameof(DeleteDraftCommand))]
     public partial PurchaseOrderManagementRowModel? SelectedOrder { get; set; }
@@ -182,8 +168,7 @@ public sealed partial class PurchaseOrderManagerViewModel : ViewModelBaseEx, IAs
         OrderDateFrom = OrderDateTo = null;
         SelectedConfirmationStatuses.Clear();
         SelectedLifecycleStatuses.Clear();
-        SelectedReadyStatuses.Clear(); SelectedReceiptStatuses.Clear(); SelectedDueView = PurchaseDueViewEnum.All;
-        PlannedDeliveryDateFrom = PlannedDeliveryDateTo = ExpectedCompletionDateFrom = ExpectedCompletionDateTo = null;
+        PlannedDeliveryDateFrom = PlannedDeliveryDateTo = null;
         return LoadPageAsync(CaptureQuery(), 1, PageSize);
     }
     [RelayCommand(CanExecute = nameof(CanQuery))] private Task PageChangeAsync(PageChangeRequest? request) => !CanQuery() || request is null ? Task.CompletedTask : LoadPageAsync(_appliedQuery, request.NewIndex, request.NewSize);
@@ -192,7 +177,7 @@ public sealed partial class PurchaseOrderManagerViewModel : ViewModelBaseEx, IAs
     [RelayCommand(CanExecute = nameof(CanQuery))]
     private async Task ApplyMoreFiltersAsync() { IsMoreFiltersOpen = false; await SearchAsync(); }
     /// <summary>仅清除更多日期输入，点击应用后才改变当前事实。</summary>
-    [RelayCommand] private void ClearMoreFilters() => OrderDateFrom = OrderDateTo = PlannedDeliveryDateFrom = PlannedDeliveryDateTo = ExpectedCompletionDateFrom = ExpectedCompletionDateTo = null;
+    [RelayCommand] private void ClearMoreFilters() => OrderDateFrom = OrderDateTo = PlannedDeliveryDateFrom = PlannedDeliveryDateTo = null;
     /// <summary>收起浮层保留输入。</summary>
     [RelayCommand] private void CollapseMoreFilters() => IsMoreFiltersOpen = false;
     [RelayCommand(CanExecute = nameof(CanOpenDetail))]
@@ -374,12 +359,6 @@ public sealed partial class PurchaseOrderManagerViewModel : ViewModelBaseEx, IAs
     [RelayCommand(CanExecute = nameof(CanCreateIndependent))]
     private Task CreateIndependentAsync() => _navigation.OpenDocumentAsync(PurchaseOrderDetailViewModel.RouteKey,
         $"purchase-order:new:{Guid.NewGuid():N}", new PurchaseOrderDocumentOpenRequest());
-    [RelayCommand] private Task OpenFollowUpAsync() => _navigation.OpenAsync(PurchaseOrderProgressWorkspaceViewModel.RouteKey);
-    /// <summary>以采购单稳定身份打开只读追溯页签，重复打开激活同一页签。</summary>
-    [RelayCommand(CanExecute = nameof(CanOpenDetail))]
-    private Task OpenTraceAsync() => _navigation.OpenDocumentAsync(PurchaseOrderTraceViewModel.RouteKey,
-        $"purchase-order-trace:{SelectedOrder!.PurchaseOrderId:N}",
-        new PurchaseOrderTraceOpenRequest { PurchaseOrderId = SelectedOrder.PurchaseOrderId, PurchaseOrderLineId = SelectedLine?.PurchaseOrderLineId });
     [RelayCommand(CanExecute = nameof(CanCreateIndependent))]
     private async Task GetFromNetDemandAsync()
     {
@@ -405,8 +384,7 @@ public sealed partial class PurchaseOrderManagerViewModel : ViewModelBaseEx, IAs
         if (_reversalDisposed || !HasReadPermission) return false;
         query ??= _appliedQuery ?? CaptureQuery();
         var request = query.ForPage(page ?? PageIndex, size ?? PageSize);
-        if (request.OrderDateFrom > request.OrderDateTo || request.PlannedDeliveryDateFrom > request.PlannedDeliveryDateTo
-            || request.ExpectedCompletionDateFrom > request.ExpectedCompletionDateTo)
+        if (request.OrderDateFrom > request.OrderDateTo || request.PlannedDeliveryDateFrom > request.PlannedDeliveryDateTo)
         { ResultSummary = "日期起点不能晚于终点。"; return false; }
         _queryCancellation?.Cancel();
         var cts = new CancellationTokenSource();
@@ -483,9 +461,7 @@ public sealed partial class PurchaseOrderManagerViewModel : ViewModelBaseEx, IAs
         SupplierIds = SelectedSuppliers.Select(x => x.Uid).Distinct().ToList(),
         OrderDateFrom = OrderDateFrom, OrderDateTo = OrderDateTo,
         ConfirmationStatuses = SelectedConfirmationStatuses.ToList(), LifecycleStatuses = SelectedLifecycleStatuses.ToList(),
-        ReadyStatuses = SelectedReadyStatuses.ToList(), ReceiptStatuses = SelectedReceiptStatuses.ToList(), DueView = SelectedDueView,
-        PlannedDeliveryDateFrom = PlannedDeliveryDateFrom, PlannedDeliveryDateTo = PlannedDeliveryDateTo,
-        ExpectedCompletionDateFrom = ExpectedCompletionDateFrom, ExpectedCompletionDateTo = ExpectedCompletionDateTo
+        PlannedDeliveryDateFrom = PlannedDeliveryDateFrom, PlannedDeliveryDateTo = PlannedDeliveryDateTo
     });
 
     private bool CanOpenDetail() => HasReadPermission && IsNotBusy && SelectedOrder is not null;

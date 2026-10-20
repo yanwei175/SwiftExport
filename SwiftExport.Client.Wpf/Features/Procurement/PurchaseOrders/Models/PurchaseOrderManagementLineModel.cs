@@ -26,9 +26,6 @@ public sealed partial class PurchaseOrderManagementLineModel
     public decimal? TaxAmount { get; set; }
     public decimal? UnitPrice { get; set; }
     public decimal? UnitAmount { get; set; }
-    public decimal? UnreceivedQty { get; set; }
-    /// <summary>正式净收货数量，无法核实时保持空。</summary>
-    public decimal? ReceivedQty { get; set; }
     /// <summary>可信有效贡献数量。</summary>
     public decimal? LinkedDemandQty { get; set; }
     /// <summary>尚未关联需求数量，不适用或无法核实时为空。</summary>
@@ -45,17 +42,9 @@ public sealed partial class PurchaseOrderManagementLineModel
     public SwiftExport.Contracts.SysEnums.PurchaseDemandAssociationStatusEnum AssociationStatus { get; set; }
     /// <summary>关联异常说明。</summary>
     public string AssociationReviewReason { get; set; } = string.Empty;
-    /// <summary>收货异常说明。</summary>
-    public string ReceiptReviewReason { get; set; } = string.Empty;
-    /// <summary>合并两类核实提示；作废行明确数量不再适用。</summary>
-    public string ReviewText => string.Join("；", new[] { ReceiptReviewReason,
-        AssociationStatus == SwiftExport.Contracts.SysEnums.PurchaseDemandAssociationStatusEnum.NotApplicable
-            ? "采购已作废，当前关联数量不适用；请查看历史贡献。" : AssociationReviewReason }
-        .Where(x => !string.IsNullOrWhiteSpace(x)).Distinct());
-    public string LatestReadyQtyText { get; set; } = string.Empty;
-    public string ExpectedCompletionDateText { get; set; } = string.Empty;
-    public string LatestFollowUpDateText { get; set; } = string.Empty;
-    public string LatestFollowUpUserText { get; set; } = string.Empty;
+    /// <summary>仅解释需求关联核实边界；作废行明确当前关联不再适用。</summary>
+    public string ReviewText => AssociationStatus == SwiftExport.Contracts.SysEnums.PurchaseDemandAssociationStatusEnum.NotApplicable
+        ? "采购已作废，当前关联数量不适用；请查看历史贡献。" : AssociationReviewReason;
     public string SourceSummary { get; set; } = string.Empty;
     public string SubNote { get; set; } = string.Empty;
 }

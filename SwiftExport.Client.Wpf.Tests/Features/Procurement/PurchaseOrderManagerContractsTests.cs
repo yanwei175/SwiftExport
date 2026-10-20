@@ -15,19 +15,19 @@ public sealed class PurchaseOrderManagerContractsTests
     {
         var view = Read("SwiftExport.Client.Wpf", "Features", "Procurement", "PurchaseOrders", "Views", "PurchaseOrderManagerView.xaml");
         foreach (var token in new[] { "WrapPanel", "ItemsSource=\"{Binding Orders}\"", "ItemsSource=\"{Binding Lines}\"",
-                     "GridSplitter", "SwiftExportGridSplitterHorizontal", "PageNavigator", "新建无关联采购", "采购跟进" })
+                     "GridSplitter", "SwiftExportGridSplitterHorizontal", "PageNavigator", "新建无关联采购" })
             StringAssert.Contains(view, token);
         Assert.IsFalse(view.Contains("RightDrawerHost", StringComparison.Ordinal));
     }
 
-    /// <summary>四类状态使用当前枚举集合，管理页不承接旧编辑与反馈写入。</summary>
+    /// <summary>管理页只筛选采购事实及生命周期，跟踪状态与反馈写入由各自页面负责。</summary>
     [TestMethod]
     public void ManagerMustUseCurrentChainAndExposeDocumentAndTrackingStatusFilters()
     {
         var view = Read("SwiftExport.Client.Wpf", "Features", "Procurement", "PurchaseOrders", "Views", "PurchaseOrderManagerView.xaml");
         var source = Read("SwiftExport.Client.Wpf", "Features", "Procurement", "PurchaseOrders", "ViewModels", "PurchaseOrderManagerViewModel.cs");
         var document = System.Xml.Linq.XDocument.Parse(view);
-        Assert.AreEqual(4, document.Descendants().Count(x => x.Name.LocalName == "MultiSelectLookupButton"
+        Assert.AreEqual(2, document.Descendants().Count(x => x.Name.LocalName == "MultiSelectLookupButton"
             && ((string?)x.Attribute("ItemsSource"))?.Contains("Statuses", StringComparison.Ordinal) == true));
         StringAssert.Contains(view, "SelectedConfirmationStatuses");
         StringAssert.Contains(view, "SelectedLifecycleStatuses");
@@ -36,7 +36,7 @@ public sealed class PurchaseOrderManagerContractsTests
             Assert.IsFalse(view.Contains(forbidden, StringComparison.Ordinal));
             Assert.IsFalse(source.Contains(forbidden, StringComparison.Ordinal));
         }
-        foreach (var forbidden in new[] { "SaveDraftCommand", "PrepareCancelConfirmationCommand", "ReportProgressCommand" })
+        foreach (var forbidden in new[] { "SaveDraftCommand", "PrepareCancelConfirmationCommand", "ReportProgressCommand", "SelectedReadyStatuses", "SelectedReceiptStatuses", "SelectedDueView", "ExpectedCompletionDate", "OpenTraceCommand", "OpenFollowUpCommand" })
             Assert.IsFalse(view.Contains(forbidden, StringComparison.Ordinal));
         StringAssert.Contains(source, "IPurchaseOrderManagerApi");
         StringAssert.Contains(source, "PurchaseOrderManagerSearchRequest");
@@ -45,8 +45,6 @@ public sealed class PurchaseOrderManagerContractsTests
         Assert.IsFalse(source.Contains("_orderApi.CancelConfirmationAsync", StringComparison.Ordinal));
         StringAssert.Contains(source, "HandleCommandFailureAsync");
         Assert.IsFalse(source.Contains("ProcurementOrderSearchRequest", StringComparison.Ordinal));
-        StringAssert.Contains(view, "SelectedReadyStatuses");
-        StringAssert.Contains(view, "SelectedReceiptStatuses");
         StringAssert.Contains(source, "ConfirmationStatuses = SelectedConfirmationStatuses.ToList()");
         StringAssert.Contains(source, "LifecycleStatuses = SelectedLifecycleStatuses.ToList()");
     }
@@ -78,12 +76,10 @@ public sealed class PurchaseOrderManagerContractsTests
         var view = Read("SwiftExport.Client.Wpf", "Features", "Procurement", "PurchaseOrders", "Views", "PurchaseOrderManagerView.xaml");
         AssertOrdered(view, "Header=\"单据状态\"", "Header=\"采购单号\"", "Header=\"自定义采购单号\"", "Header=\"客户代码\"",
             "Header=\"供应商\"", "Header=\"确认状态\"", "Header=\"采购日期\"", "Header=\"预计交期\"", "Header=\"回复交期\"",
-            "Header=\"行数\"", "Header=\"已知已备好合计\"", "Header=\"总数量\"", "Header=\"收货进度\"", "Header=\"含税总金额\"",
-            "Header=\"已反馈行数\"", "Header=\"预计完成\"");
+            "Header=\"行数\"", "Header=\"总数量\"", "Header=\"含税总金额\"");
         AssertOrdered(view, "Header=\"行\"", "Header=\"图片\"", "Header=\"客户型号\"", "Header=\"物料编号\"", "Header=\"AQ/关联型号\"",
             "Header=\"供应商型号\"", "Header=\"中文描述\"", "Header=\"表面处理\"", "Header=\"配置\"", "Header=\"物料类型\"",
-            "Header=\"供货方式\"", "Header=\"数量\"", "Header=\"未收货\"", "Header=\"已备好\"", "Header=\"计划交期\"",
-            "Header=\"预计完成\"", "Header=\"最近跟进\"", "Header=\"跟进人\"", "Header=\"未税价\"", "Header=\"含税价\"",
+            "Header=\"供货方式\"", "Header=\"数量\"", "Header=\"计划交期\"", "Header=\"未税价\"", "Header=\"含税价\"",
             "Header=\"未税金额\"", "Header=\"含税金额\"", "Header=\"送至供应商\"", "Header=\"来源\"", "Header=\"行备注\"");
     }
 

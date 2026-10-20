@@ -8,14 +8,13 @@
     <Grid Margin="12,8" RowDefinitions="Auto,8,Auto,8,*">
         <DockPanel LastChildFill="True">
             <StackPanel>
-                <TextBlock Text="采购订单跟进" FontSize="16" FontWeight="SemiBold"/>
+                <TextBlock Text="供应商反馈录入" FontSize="16" FontWeight="SemiBold"/>
                 <TextBlock Text="独立登记累计已备好数量、预计交期和跟进备注" Foreground="Gray"/>
             </StackPanel>
             <WrapPanel HorizontalAlignment="Right" VerticalAlignment="Center">
                 
-                <Button Content="登记/查看跟进" Command="{Binding OpenDrawerCommand}" 
+                <Button Content="登记/查看反馈" Command="{Binding OpenDrawerCommand}"
                         />
-                <Button Content="采购追溯" Command="{Binding OpenTraceCommand}" Margin="4,0,0,0"/>
                 
                 <Button Margin="4,0,0,0" Content="刷新" 
                         Command="{Binding RefreshCommand}"/>
@@ -62,12 +61,6 @@
                 <DatePicker Grid.Column="2" SelectedDate="{Binding PlannedDeliveryDateTo}"
                             ToolTip="计划交期至"/>
                 
-                <DatePicker  Grid.Column="4" SelectedDate="{Binding ExpectedReadyDateFrom}"
-                            ToolTip="预计交期起"/>
-                
-                <DatePicker Grid.Column="6" SelectedDate="{Binding ExpectedReadyDateTo}"
-                            ToolTip="预计交期至"/>
-                
                 <TextBlock Grid.Column="7" Margin="16,0,0,0" VerticalAlignment="Center" Foreground="Gray"
                            Text="默认仅显示活动且已确认采购单；清除状态选择可查看只读历史。"/>
             </Grid>
@@ -106,12 +99,6 @@
                                     <TextBlock Grid.Column="2" Text="{Binding SelectedLine.Quantity,StringFormat={}{0:0.####}}"/>
                                     <TextBlock Grid.Column="4" Text="累计已备好" Foreground="Gray"/>
                                     <TextBlock Grid.Column="6" Text="{Binding SelectedLine.LatestReadyQtyText}"/>
-                                </Grid>
-                                <Grid Margin="0,4,0,0" ColumnDefinitions="Auto,8,*,16,Auto,8,*">
-                                    <TextBlock Text="货好状态" Foreground="Gray"/>
-                                    <TextBlock Grid.Column="2" Text="{Binding SelectedLine.ReadyStatusText}"/>
-                                    <TextBlock Grid.Column="4" Text="预计交期" Foreground="Gray"/>
-                                    <TextBlock Grid.Column="6" Text="{Binding SelectedLine.LatestExpectedReadyDateText}"/>
                                 </Grid>
                                 <Grid Margin="0,4,0,0" ColumnDefinitions="Auto,8,*,16,Auto,8,*">
                                     <TextBlock Text="最近跟进" Foreground="Gray"/>
@@ -190,6 +177,7 @@
                 <Grid RowDefinitions="4*,8,6*">
                     <Grid RowDefinitions="*,Auto">
                         <DataGrid ItemsSource="{Binding Orders}"
+                                  IsEnabled="{Binding CanChangeSelection}"
                                   SelectedItem="{Binding SelectedOrder}"
                                   SelectionChanged="OrdersGrid_OnSelectionChanged"
                                   AutoGenerateColumns="False"
@@ -221,51 +209,6 @@
                                 <DataGridTextColumn Header="订单条目" Binding="{Binding LineCount}" Width="70"
                                                     ElementStyle="{StaticResource SwiftExportDataGridNumberTextBlock}"/>
                                 
-                                <DataGridTextColumn Header="已跟进条目" Binding="{Binding ReportedLineCount}" Width="80"
-                                                    ElementStyle="{StaticResource SwiftExportDataGridNumberTextBlock}"/>                                
-                                
-                                <DataGridTextColumn Header="采购总数量" Binding="{Binding TotalQty,StringFormat={}{0:0.####}}" Width="105"
-                                                    ElementStyle="{StaticResource SwiftExportDataGridNumberTextBlock}"/>
-                                
-                                <DataGridTextColumn Header="数量尚未反馈行数" Binding="{Binding UnknownReadyQtyLineCount}" Width="130"/>
-                                <DataGridTemplateColumn ClipboardContentBinding="{Binding LatestReadyQty, Mode=OneWay}" Header="已知累计已备好合计" Width="145">
-                                    <DataGridTemplateColumn.CellTemplate>
-                                        <DataTemplate>
-                                            <TextBlock VerticalAlignment="Center">
-                                                <TextBlock.Style>
-                                                    <Style TargetType="TextBlock" BasedOn="{StaticResource SwiftExportDataGridNumberTextBlock}">
-                                                        <Setter Property="Text" Value="{Binding LatestReadyQty,StringFormat={}{0:0.####}}"/>
-                                                        <Style.Triggers>
-                                                            <DataTrigger Binding="{Binding ReportedLineCount}" Value="0">
-                                                                <Setter Property="Text" Value="尚未跟进"/>
-                                                            </DataTrigger>
-                                                        </Style.Triggers>
-                                                    </Style>
-                                                </TextBlock.Style>
-                                            </TextBlock>
-                                        </DataTemplate>
-                                    </DataGridTemplateColumn.CellTemplate>
-                                </DataGridTemplateColumn>
-                                
-                                <DataGridTemplateColumn ClipboardContentBinding="{Binding LatestExpectedReadyDate, Mode=OneWay}" Header="最新预计交期" Width="120">
-                                    <DataGridTemplateColumn.CellTemplate>
-                                        <DataTemplate>
-                                            <TextBlock VerticalAlignment="Center">
-                                                <TextBlock.Style>
-                                                    <Style TargetType="TextBlock" BasedOn="{StaticResource SwiftExportDataGridDateTextBlock}">
-                                                        <Setter Property="Text" Value="{Binding LatestExpectedReadyDate,StringFormat=yyyy-MM-dd}"/>
-                                                        <Style.Triggers>
-                                                            <DataTrigger Binding="{Binding ReportedLineCount}" Value="0">
-                                                                <Setter Property="Text" Value="尚未跟进"/>
-                                                            </DataTrigger>
-                                                        </Style.Triggers>
-                                                    </Style>
-                                                </TextBlock.Style>
-                                            </TextBlock>
-                                        </DataTemplate>
-                                    </DataGridTemplateColumn.CellTemplate>
-                                </DataGridTemplateColumn>
-                                
                                 <DataGridTextColumn Header="来源单号" Binding="{Binding DemandSourceNo}" Width="130"
                                             ElementStyle="{StaticResource SwiftExportDataGridWarpTextBlock}"/>
                                 
@@ -285,7 +228,7 @@
 
                     <Grid Grid.Row="2" RowDefinitions="Auto,4,*">
                         <DockPanel LastChildFill="True">
-                            <Button DockPanel.Dock="Right" Content="登记/查看跟进" Command="{Binding OpenDrawerCommand}"/>
+                            <Button DockPanel.Dock="Right" Content="登记/查看反馈" Command="{Binding OpenDrawerCommand}"/>
                             <StackPanel Orientation="Horizontal">
                                 <TextBlock Text="采购行跟进" FontWeight="SemiBold"/>
                                 <TextBlock Margin="12,0,0,0" Text="{Binding SelectedOrder.OrderNo}"/>
@@ -294,6 +237,7 @@
                         </DockPanel>
                         <DataGrid Grid.Row="2"
                                   ItemsSource="{Binding Lines}"
+                                  IsEnabled="{Binding CanChangeSelection}"
                                   SelectedItem="{Binding SelectedLine}"
                                   MouseDoubleClick="LinesGrid_OnMouseDoubleClick"
                                   AutoGenerateColumns="False"
@@ -332,14 +276,12 @@
                                 <DataGridTextColumn Header="采购数量" Binding="{Binding Quantity,StringFormat={}{0:0.####}}" Width="100"
                                                     ElementStyle="{StaticResource SwiftExportDataGridNumberTextBlock}"/>
 
-                                <DataGridTextColumn Header="未收货数量" Binding="{Binding UnreceivedQtyText}" Width="90"
-                                                    ElementStyle="{StaticResource SwiftExportDataGridNumberTextBlock}"/>
+
 
                                 <DataGridTextColumn Header="计划交期" Binding="{Binding PlannedDeliveryDate,StringFormat=yyyy-MM-dd}" Width="105"
                                                     ElementStyle="{StaticResource SwiftExportDataGridDateTextBlock}"/>
 
-                                <DataGridTextColumn Header="货好状态" Binding="{Binding ReadyStatusText}" Width="95"
-                                                    ElementStyle="{StaticResource SwiftExportDataGridWarpTextBlock}"/>
+
 
                                 <DataGridTextColumn Header="货好数量" Binding="{Binding LatestReadyQtyText}" Width="110"
                                                     ElementStyle="{StaticResource SwiftExportDataGridNumberTextBlock}"/>

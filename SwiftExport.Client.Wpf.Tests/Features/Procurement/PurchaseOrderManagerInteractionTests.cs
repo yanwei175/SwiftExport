@@ -24,13 +24,36 @@ namespace SwiftExport.Client.Wpf.Tests.Features.Procurement;
 [DoNotParallelize]
 public sealed partial class PurchaseOrderManagerBatchConfirmationTests
 {
+    /// <summary>窄窗口的管理从表默认只显示常用事实，查看菜单可恢复备注并滚动到最右列。</summary>
+    [TestMethod]
+    public void Manager_NarrowLinesCanScrollAndRestoreSecondaryColumns() => DatePickerAssistTests.RunWithApplication(async () =>
+    {
+        ApplicationResourceLoader.Load(); var f = CreateFixture(Order("PO-NARROW")); using var vm = f.ViewModel;
+        f.Manager.LinesHandler = (_, _) => Task.FromResult(ServiceResult<List<PurchaseOrderManagerLineDto>>.Ok([
+            new() { PurchaseOrderLineId = Guid.NewGuid(), Sku = "SKU-NARROW", CustomerSku = "C-SKU", DescriptionZh = "窄窗口滚动验证", Quantity = 10, UnitSnapshot = "PCS", SubNote = "已从查看菜单恢复最右备注列" }]));
+        await vm.InitializeAsync(); var view = new PurchaseOrderManagerView { DataContext = vm };
+        var window = new Window { Content = view, Width = 1000, Height = 900, Left = -5000, Top = -5000, ShowActivated = false, ShowInTaskbar = false };
+        try
+        {
+            window.Show(); await PurchaseIdle();
+            var lines = (DataGrid)view.FindName("LinesGrid");
+            CollectionAssert.AreEqual(new[] { "行", "图片", "客户型号", "物料编号", "供应商型号", "中文描述", "数量", "单位", "关联状态", "核实提示", "计划交期", "来源" },
+                lines.Columns.Where(x => x.Visibility == Visibility.Visible).Select(x => x.Header!.ToString()).ToArray());
+            await DataGridHorizontalAccessAssertions.ReachRightmostColumnAsync(lines, view.ActualWidth);
+            await DataGridHorizontalAccessAssertions.RestoreColumnFromMenuAsync(lines, "行备注");
+            await DataGridHorizontalAccessAssertions.ReachRightmostColumnAsync(lines, view.ActualWidth);
+            DataGridHorizontalAccessAssertions.SaveScreenshot(view, "purchase-manager-narrow-right.png");
+        }
+        finally { window.Close(); await PurchaseIdle(); }
+    });
+
     /// <summary>真实状态多选、更多条件锚定、主从筛选、可见勾选与原生多选菜单共同工作。</summary>
     [TestMethod]
     public void Manager_ActualMultiSelectPopupsAndMasterDetailFilters() => DatePickerAssistTests.RunWithApplication(async () =>
     {
         ApplicationResourceLoader.Load(); var fixture = CreateFixture(Order("PO-A"), Order("PO-B")); var vm = fixture.ViewModel;
         fixture.Manager.LinesHandler = (_, _) => Task.FromResult(ServiceResult<List<PurchaseOrderManagerLineDto>>.Ok([
-            new() { PurchaseOrderLineId = Guid.NewGuid(), Sku = "A", Quantity = 1.234567m, UnitSnapshot = "PCS", ReceivedQty = 0m },
+            new() { PurchaseOrderLineId = Guid.NewGuid(), Sku = "A", Quantity = 1.234567m, UnitSnapshot = "PCS" },
             new() { PurchaseOrderLineId = Guid.NewGuid(), Sku = "B", Quantity = 2m, UnitSnapshot = "PCS" }]));
         await vm.InitializeAsync(); using var held = vm; var view = new PurchaseOrderManagerView { DataContext = vm };
         var window = new Window { Width = 1500, Height = 1000, Content = view, ShowInTaskbar = false };
@@ -39,7 +62,9 @@ public sealed partial class PurchaseOrderManagerBatchConfirmationTests
             window.Show(); await PurchaseIdle(); var master = (DataGrid)view.FindName("OrdersGrid"); var lines = (DataGrid)view.FindName("LinesGrid");
             Assert.AreEqual(DataGridSelectionUnit.FullRow, master.SelectionUnit); Assert.AreEqual(DataGridSelectionUnit.FullRow, lines.SelectionUnit);
             Assert.IsTrue(master.EnableRowVirtualization); Assert.IsTrue(lines.EnableColumnVirtualization); Assert.IsTrue(master.GetIsAutoFilterEnabled()); Assert.IsTrue(lines.GetIsAutoFilterEnabled());
-            var selectors = PurchaseDescendants(view).OfType<MultiSelectLookupButton>().ToArray(); Assert.AreEqual(6, selectors.Length);
+            var selectors = PurchaseDescendants(view).OfType<MultiSelectLookupButton>().ToArray(); Assert.AreEqual(4, selectors.Length);
+            foreach (var grid in new[] { master, lines })
+                Assert.IsFalse(grid.Columns.Any(x => new[] { "货好状态", "收货状态", "收货进度", "预计完成", "已收货", "未收货" }.Contains(x.Header?.ToString())));
             vm.SelectedConfirmationStatuses.Clear(); var status = selectors.Single(x => x.Header == "确认状态");
             PurchaseToggle((ToggleButton)status.FindName("PART_Button")); await PurchaseIdle(); var choicePopup = (Popup)status.FindName("PART_Popup");
             foreach (var option in PurchaseDescendants(choicePopup.Child).OfType<ToggleButton>()) PurchaseToggle(option);

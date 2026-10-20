@@ -68,14 +68,8 @@
         Content="核实/刷新"
         Command="{Binding RefreshCommand}"
         Margin="0,0,8,4" />
-      <Button
-        Content="采购跟进"
-        Command="{Binding OpenFollowUpCommand}"
-        Margin="0,0,8,4" />
-      <Button
-        Content="采购追溯"
-        Command="{Binding OpenTraceCommand}"
-        Margin="0,0,8,4" />
+
+
     </WrapPanel>
     <StackPanel
       Grid.Row="1"
@@ -131,29 +125,9 @@
           SelectedItems="{Binding SelectedLifecycleStatuses, Mode=OneWay}"
           MinWidth="112"
           Margin="0,0,8,4" />
-        <lookup:MultiSelectLookupButton
-          Header="货好状态"
-          Placeholder="货好状态"
-          ItemTemplate="{StaticResource PurchaseStateChoice}"
-          ItemsSource="{x:Static vm:PurchaseOrderManagerViewModel.ReadyStatuses}"
-          SelectedItems="{Binding SelectedReadyStatuses, Mode=OneWay}"
-          MinWidth="112"
-          Margin="0,0,8,4" />
-        <lookup:MultiSelectLookupButton
-          Header="收货状态"
-          Placeholder="收货状态"
-          ItemTemplate="{StaticResource PurchaseStateChoice}"
-          ItemsSource="{x:Static vm:PurchaseOrderManagerViewModel.ReceiptStatuses}"
-          SelectedItems="{Binding SelectedReceiptStatuses, Mode=OneWay}"
-          MinWidth="112"
-          Margin="0,0,8,4" />
-        <ComboBox
-          Width="140"
-          ItemsSource="{x:Static vm:PurchaseOrderManagerViewModel.DueViews}"
-          SelectedItem="{Binding SelectedDueView}"
-          ItemTemplate="{StaticResource PurchaseStateChoice}"
-          AutomationProperties.Name="采购交期风险"
-          Margin="0,0,8,4" />
+
+
+
         <ToggleButton
           x:Name="OptionsToggleButton"
           Content="更多条件"
@@ -188,7 +162,7 @@
               Margin="0,0,0,8" />
             <Grid
               ColumnDefinitions="Auto,136,Auto,136"
-              RowDefinitions="Auto,Auto,Auto">
+              RowDefinitions="Auto,Auto">
               <TextBlock
                 Text="订单日期起"
                 Margin="0,0,8,8" />
@@ -222,25 +196,6 @@
                 Grid.Row="1"
                 Grid.Column="3"
                 SelectedDate="{Binding PlannedDeliveryDateTo}"
-                Margin="0,0,0,8" />
-              <TextBlock
-                Grid.Row="2"
-                Text="预计完成起"
-                Margin="0,0,8,8" />
-              <DatePicker
-                Grid.Row="2"
-                Grid.Column="1"
-                SelectedDate="{Binding ExpectedCompletionDateFrom}"
-                Margin="0,0,8,8" />
-              <TextBlock
-                Grid.Row="2"
-                Grid.Column="2"
-                Text="至"
-                Margin="0,0,8,8" />
-              <DatePicker
-                Grid.Row="2"
-                Grid.Column="3"
-                SelectedDate="{Binding ExpectedCompletionDateTo}"
                 Margin="0,0,0,8" />
             </Grid>
             <WrapPanel>
@@ -285,6 +240,7 @@
           SelectionMode="Extended"
           EnableRowVirtualization="True"
           EnableColumnVirtualization="True"
+          ScrollViewer.HorizontalScrollBarVisibility="Auto"
           ColumnHeaderStyle="{StaticResource SwiftExportFilterColumnHeader}"
           dgx:DataGridFilter.IsAutoFilterEnabled="True"
           PreviewMouseRightButtonDown="OnGridRightClick"
@@ -300,9 +256,7 @@
               <MenuItem
                 Header="打开采购详情"
                 Command="{Binding OpenDetailCommand}" />
-              <MenuItem
-                Header="采购追溯"
-                Command="{Binding OpenTraceCommand}" />
+
               <MenuItem
                 Header="确认采购"
                 Command="{Binding ConfirmCommand}" />
@@ -406,25 +360,9 @@
               Binding="{Binding LineCount}"
               Width="96"
               dgx:DataGridFilterColumn.Template="{StaticResource SwiftExportColumnFilter}" />
-            <DataGridTextColumn
-              ElementStyle="{StaticResource SwiftExportDataGridWarpTextBlock}"
-              Header="货好状态"
-              Binding="{Binding ReadyStatus,Converter={StaticResource EnumDescriptionConverter}}"
-              Width="105"
-              dgx:DataGridFilterColumn.Template="{StaticResource SwiftExportColumnFilter}" />
-            <DataGridTextColumn
-              ElementStyle="{StaticResource SwiftExportDataGridWarpTextBlock}"
-              Header="收货状态"
-              Binding="{Binding ReceiptStatus,Converter={StaticResource EnumDescriptionConverter}}"
-              Width="95"
-              dgx:DataGridFilterColumn.Template="{StaticResource SwiftExportColumnFilter}" />
-            <DataGridTextColumn
-              ElementStyle="{StaticResource SwiftExportDataGridNumberTextBlock}"
-              Header="已知已备好合计"
-              Binding="{Binding LatestReadyQty,StringFormat={}{0:0.####}}"
-              Width="120"
-              dgx:DataGridFilterColumn.Template="{StaticResource SwiftExportColumnFilter}"
-              Visibility="Collapsed" />
+
+
+
             <DataGridTextColumn
               ElementStyle="{StaticResource SwiftExportDataGridNumberTextBlock}"
               Header="总数量"
@@ -437,55 +375,19 @@
               Binding="{Binding UnitSnapshot}"
               Width="96"
               dgx:DataGridFilterColumn.Template="{StaticResource SwiftExportColumnFilter}" />
-            <DataGridTextColumn
-              ElementStyle="{StaticResource SwiftExportDataGridWarpTextBlock}"
-              Header="收货进度"
-              Binding="{Binding ReceiptProgress}"
-              Width="100"
-              dgx:DataGridFilterColumn.Template="{StaticResource SwiftExportColumnFilter}" />
-            <DataGridTextColumn
-              ElementStyle="{StaticResource SwiftExportDataGridNumberTextBlock}"
-              Header="交期命中行"
-              Binding="{Binding DueHitLineCount}"
-              Width="95"
-              dgx:DataGridFilterColumn.Template="{StaticResource SwiftExportColumnFilter}" />
-            <DataGridTextColumn
-              ElementStyle="{StaticResource SwiftExportDataGridWarpTextBlock}"
-              Header="最早命中交期"
-              Binding="{Binding EarliestDueHitDate,StringFormat=yyyy-MM-dd}"
-              Width="110"
-              dgx:DataGridFilterColumn.Template="{StaticResource SwiftExportColumnFilter}" />
-            <DataGridTextColumn
-              Header="未确认货好风险"
-              Binding="{Binding ReadyRiskText}"
-              Width="160"
-              dgx:DataGridFilterColumn.Template="{StaticResource SwiftExportColumnFilter}" />
-            <DataGridTextColumn
-              ElementStyle="{StaticResource SwiftExportDataGridWarpTextBlock}"
-              Header="核实提示"
-              Binding="{Binding ReviewReason}"
-              Width="220"
-              dgx:DataGridFilterColumn.Template="{StaticResource SwiftExportColumnFilter}" />
+
+
+
+
+
             <DataGridTextColumn
               ElementStyle="{StaticResource SwiftExportDataGridNumberTextBlock}"
               Header="含税总金额"
               Binding="{Binding TaxTotalAmount,StringFormat=N2}"
               Width="110"
               dgx:DataGridFilterColumn.Template="{StaticResource SwiftExportColumnFilter}" />
-            <DataGridTextColumn
-              ElementStyle="{StaticResource SwiftExportDataGridNumberTextBlock}"
-              Header="已反馈行数"
-              Binding="{Binding ReportedLineCount}"
-              Width="90"
-              dgx:DataGridFilterColumn.Template="{StaticResource SwiftExportColumnFilter}"
-              Visibility="Collapsed" />
-            <DataGridTextColumn
-              ElementStyle="{StaticResource SwiftExportDataGridWarpTextBlock}"
-              Header="预计完成"
-              Binding="{Binding ExpectedCompletionDate,StringFormat=yyyy-MM-dd}"
-              Width="105"
-              dgx:DataGridFilterColumn.Template="{StaticResource SwiftExportColumnFilter}"
-              Visibility="Collapsed" />
+
+
           </DataGrid.Columns>
         </DataGrid>
         <Grid
@@ -545,10 +447,13 @@
           FontSize="{StaticResource SwiftExportDefaltFontSize}"
           Style="{StaticResource SwiftExportDataGrid}"
           x:Name="LinesGrid"
+          Loaded="OnLinesLoaded"
+          Unloaded="OnLinesUnloaded"
           SelectionUnit="FullRow"
           SelectionMode="Extended"
           EnableRowVirtualization="True"
           EnableColumnVirtualization="True"
+          ScrollViewer.HorizontalScrollBarVisibility="Auto"
           ColumnHeaderStyle="{StaticResource SwiftExportFilterColumnHeader}"
           dgx:DataGridFilter.IsAutoFilterEnabled="True"
           PreviewMouseRightButtonDown="OnGridRightClick"
@@ -559,9 +464,7 @@
           <DataGrid.ContextMenu>
             <ContextMenu
               DataContext="{Binding PlacementTarget.Tag, RelativeSource={RelativeSource Self}}">
-              <MenuItem
-                Header="查看采购及贡献追溯"
-                Command="{Binding OpenTraceCommand}" />
+
               <MenuItem
                 Header="复制所选行"
                 Command="{x:Static ApplicationCommands.Copy}"
@@ -608,6 +511,7 @@
             <DataGridTextColumn
               ElementStyle="{StaticResource SwiftExportDataGridWarpTextBlock}"
               Header="AQ/关联型号"
+              Visibility="Collapsed"
               Binding="{Binding LinkSku}"
               Width="115"
               dgx:DataGridFilterColumn.Template="{StaticResource SwiftExportColumnFilter}" />
@@ -626,24 +530,28 @@
             <DataGridTextColumn
               ElementStyle="{StaticResource SwiftExportDataGridWarpTextBlock}"
               Header="表面处理"
+              Visibility="Collapsed"
               Binding="{Binding FinishZh}"
               Width="110"
               dgx:DataGridFilterColumn.Template="{StaticResource SwiftExportColumnFilter}" />
             <DataGridTextColumn
               ElementStyle="{StaticResource SwiftExportDataGridWarpTextBlock}"
               Header="配置"
+              Visibility="Collapsed"
               Binding="{Binding FeaturesZh}"
               Width="130"
               dgx:DataGridFilterColumn.Template="{StaticResource SwiftExportColumnFilter}" />
             <DataGridTextColumn
               ElementStyle="{StaticResource SwiftExportDataGridWarpTextBlock}"
               Header="物料类型"
+              Visibility="Collapsed"
               Binding="{Binding MaterialType}"
               Width="96"
               dgx:DataGridFilterColumn.Template="{StaticResource SwiftExportColumnFilter}" />
             <DataGridTextColumn
               ElementStyle="{StaticResource SwiftExportDataGridWarpTextBlock}"
               Header="供货方式"
+              Visibility="Collapsed"
               Binding="{Binding SupplyType}"
               Width="96"
               dgx:DataGridFilterColumn.Template="{StaticResource SwiftExportColumnFilter}" />
@@ -659,20 +567,17 @@
               Binding="{Binding UnitSnapshot}"
               Width="96"
               dgx:DataGridFilterColumn.Template="{StaticResource SwiftExportColumnFilter}" />
-            <DataGridTextColumn
-              Header="已收货"
-              Binding="{Binding ReceivedQty, StringFormat=0.####, TargetNullValue=需核实}"
-              Width="100"
-              ElementStyle="{StaticResource SwiftExportDataGridNumberTextBlock}"
-              dgx:DataGridFilterColumn.Template="{StaticResource SwiftExportColumnFilter}" />
+
             <DataGridTextColumn
               Header="已关联量"
+              Visibility="Collapsed"
               Binding="{Binding LinkedDemandQtyText}"
               Width="108"
               ElementStyle="{StaticResource SwiftExportDataGridNumberTextBlock}"
               dgx:DataGridFilterColumn.Template="{StaticResource SwiftExportColumnFilter}" />
             <DataGridTextColumn
               Header="未关联量"
+              Visibility="Collapsed"
               Binding="{Binding UnlinkedQtyText}"
               Width="108"
               ElementStyle="{StaticResource SwiftExportDataGridNumberTextBlock}"
@@ -689,73 +594,49 @@
               Width="260"
               ElementStyle="{StaticResource SwiftExportDataGridWarpTextBlock}"
               dgx:DataGridFilterColumn.Template="{StaticResource SwiftExportColumnFilter}" />
-            <DataGridTextColumn
-              ElementStyle="{StaticResource SwiftExportDataGridNumberTextBlock}"
-              Header="未收货"
-              Binding="{Binding UnreceivedQty,StringFormat=0.####, TargetNullValue=需核实}"
-              Width="96"
-              dgx:DataGridFilterColumn.Template="{StaticResource SwiftExportColumnFilter}" />
-            <DataGridTextColumn
-              ElementStyle="{StaticResource SwiftExportDataGridNumberTextBlock}"
-              Header="已备好"
-              Binding="{Binding LatestReadyQtyText}"
-              Width="105"
-              dgx:DataGridFilterColumn.Template="{StaticResource SwiftExportColumnFilter}"
-              Visibility="Collapsed" />
+
+
             <DataGridTextColumn
               ElementStyle="{StaticResource SwiftExportDataGridWarpTextBlock}"
               Header="计划交期"
               Binding="{Binding PlannedDeliveryDate,StringFormat=yyyy-MM-dd}"
               Width="105"
               dgx:DataGridFilterColumn.Template="{StaticResource SwiftExportColumnFilter}" />
-            <DataGridTextColumn
-              ElementStyle="{StaticResource SwiftExportDataGridWarpTextBlock}"
-              Header="预计完成"
-              Binding="{Binding ExpectedCompletionDateText}"
-              Width="110"
-              dgx:DataGridFilterColumn.Template="{StaticResource SwiftExportColumnFilter}"
-              Visibility="Collapsed" />
-            <DataGridTextColumn
-              ElementStyle="{StaticResource SwiftExportDataGridWarpTextBlock}"
-              Header="最近跟进"
-              Binding="{Binding LatestFollowUpDateText}"
-              Width="130"
-              dgx:DataGridFilterColumn.Template="{StaticResource SwiftExportColumnFilter}"
-              Visibility="Collapsed" />
-            <DataGridTextColumn
-              ElementStyle="{StaticResource SwiftExportDataGridWarpTextBlock}"
-              Header="跟进人"
-              Binding="{Binding LatestFollowUpUserText}"
-              Width="95"
-              dgx:DataGridFilterColumn.Template="{StaticResource SwiftExportColumnFilter}"
-              Visibility="Collapsed" />
+
+
+
             <DataGridTextColumn
               ElementStyle="{StaticResource SwiftExportDataGridNumberTextBlock}"
               Header="未税价"
+              Visibility="Collapsed"
               Binding="{Binding UnitPrice,StringFormat=N4}"
               Width="96"
               dgx:DataGridFilterColumn.Template="{StaticResource SwiftExportColumnFilter}" />
             <DataGridTextColumn
               ElementStyle="{StaticResource SwiftExportDataGridNumberTextBlock}"
               Header="含税价"
+              Visibility="Collapsed"
               Binding="{Binding TaxPrice,StringFormat=N4}"
               Width="96"
               dgx:DataGridFilterColumn.Template="{StaticResource SwiftExportColumnFilter}" />
             <DataGridTextColumn
               ElementStyle="{StaticResource SwiftExportDataGridNumberTextBlock}"
               Header="未税金额"
+              Visibility="Collapsed"
               Binding="{Binding UnitAmount,StringFormat=N2}"
               Width="95"
               dgx:DataGridFilterColumn.Template="{StaticResource SwiftExportColumnFilter}" />
             <DataGridTextColumn
               ElementStyle="{StaticResource SwiftExportDataGridNumberTextBlock}"
               Header="含税金额"
+              Visibility="Collapsed"
               Binding="{Binding TaxAmount,StringFormat=N2}"
               Width="95"
               dgx:DataGridFilterColumn.Template="{StaticResource SwiftExportColumnFilter}" />
             <DataGridTextColumn
               ElementStyle="{StaticResource SwiftExportDataGridWarpTextBlock}"
               Header="送至供应商"
+              Visibility="Collapsed"
               Binding="{Binding DeliverySupplierName}"
               Width="150"
               dgx:DataGridFilterColumn.Template="{StaticResource SwiftExportColumnFilter}" />
@@ -768,6 +649,7 @@
             <DataGridTextColumn
               ElementStyle="{StaticResource SwiftExportDataGridWarpTextBlock}"
               Header="行备注"
+              Visibility="Collapsed"
               Binding="{Binding SubNote}"
               Width="180"
               dgx:DataGridFilterColumn.Template="{StaticResource SwiftExportColumnFilter}" />
