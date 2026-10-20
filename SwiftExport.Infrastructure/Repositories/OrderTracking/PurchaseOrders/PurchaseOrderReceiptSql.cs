@@ -1,9 +1,9 @@
 using SwiftExport.Infrastructure.Repositories.Inventory.Inbounds;
 
-namespace SwiftExport.Infrastructure.Repositories.Procurement.PurchaseOrders.Query;
+namespace SwiftExport.Infrastructure.Repositories.OrderTracking.PurchaseOrders;
 
-/// <summary>采购管理按相关采购行局部核实正式收货；复用整入库头反向证明，不让无关历史阻断列表。</summary>
-internal static class PurchaseOrderManagerReceiptSql
+/// <summary>采购跟踪按相关采购行局部核实正式收货；复用整入库头反向证明，不让无关历史阻断列表。</summary>
+internal static class PurchaseOrderReceiptSql
 {
     /// <summary>仅接收源码范围谓词，返回每条采购行的已知数量及异常原因；不拼接用户输入。</summary>
     internal static string Ctes(string headScope)=>$"""

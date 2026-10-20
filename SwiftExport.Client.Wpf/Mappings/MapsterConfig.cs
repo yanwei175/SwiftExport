@@ -375,19 +375,11 @@ public sealed class MapsterConfig : IRegister
         config.NewConfig<SupplierProductLineModel, SupplierProductDto>()
             .Map(dest => dest.IsDeleted, src => src.PersistedIsDeleted);
 
-        config.NewConfig<PurchaseOrderManagerListItemDto, PurchaseOrderManagementRowModel>()
-            .Map(dest => dest.LatestReadyQty, src => src.ReadyQty)
-            .Map(dest => dest.ReceiptProgress, src => src.ReceiptProgress.HasValue ? src.ReceiptProgress.Value.ToString("P0") : "需核实");
+        config.NewConfig<PurchaseOrderManagerListItemDto, PurchaseOrderManagementRowModel>();
 
         config.NewConfig<PurchaseOrderManagerLineDto, PurchaseOrderManagementLineModel>()
-            // 查询快照中的未知数量保留“尚未反馈”，不把空值格式化成零。
-            .Map(dest => dest.LatestReadyQtyText, src => src.ReadyQty.HasValue ? src.ReadyQty.Value.ToString("#,##0.####") : "尚未反馈")
-            .Map(dest => dest.ExpectedCompletionDateText, src => src.ExpectedCompletionDate.HasValue ? src.ExpectedCompletionDate.Value.ToString("yyyy-MM-dd") : string.Empty)
-            .Map(dest => dest.LatestFollowUpDateText, src => src.LatestFollowUpDate.HasValue ? src.LatestFollowUpDate.Value.ToString("yyyy-MM-dd HH:mm") : string.Empty)
-            .Map(dest => dest.LatestFollowUpUserText, src => src.FollowUpUserName ?? string.Empty)
             .Map(dest => dest.SourceSummary, src => src.SourceSummary ?? string.Empty)
-            .Map(dest => dest.AssociationReviewReason, src => src.AssociationReviewReason ?? string.Empty)
-            .Map(dest => dest.ReceiptReviewReason, src => src.ReceiptReviewReason ?? string.Empty);
+            .Map(dest => dest.AssociationReviewReason, src => src.AssociationReviewReason ?? string.Empty);
 
         config.NewConfig<PurchaseOrderLineDetailDto, PurchaseOrderLineEditModel>()
             .IgnoreNullValues(true)

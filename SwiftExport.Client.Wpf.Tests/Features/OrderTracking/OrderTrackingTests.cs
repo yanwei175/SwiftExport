@@ -239,7 +239,11 @@ public sealed partial class OrderTrackingTests
     {
         using var f = new Fixture(); var registry = new NavigationRouteRegistry(); var access = new NavigationAccessService(registry, f.User);
         Assert.IsTrue(access.CanAccess(OrderTrackingOverviewViewModel.RouteKey)); Assert.IsTrue(access.CanAccess(DemandTrackingDetailViewModel.RouteKey)); Assert.IsFalse(access.CanAccess("sales-orders")); Assert.IsFalse(access.CanAccess("customers"));
-        var menu = registry.MenuItems.Single(x => x.RouteKey == NavigationModuleKeys.OrderTracking); Assert.AreEqual(1, menu.Children.Count); Assert.AreEqual(OrderTrackingOverviewViewModel.RouteKey, menu.Children[0].RouteKey);
+        var purchaseKey = SwiftExportClient.Features.OrderTracking.PurchaseOrders.ViewModels.PurchaseOrderTrackingViewModel.RouteKey;
+        var menu = registry.MenuItems.Single(x => x.RouteKey == NavigationModuleKeys.OrderTracking); Assert.AreEqual(2, menu.Children.Count); Assert.AreEqual(OrderTrackingOverviewViewModel.RouteKey, menu.Children[0].RouteKey);
+        Assert.AreEqual(purchaseKey, menu.Children[1].RouteKey); Assert.IsFalse(access.CanAccess(purchaseKey));
+        f.User.SetCurrentUser(new MeDto { UserId = "u", Permissions = [PermissionKeys.ProcurementOrderRead] }); Assert.IsFalse(access.CanAccess(purchaseKey));
+        f.User.SetCurrentUser(new MeDto { UserId = "u", Permissions = [PermissionKeys.OrderTrackingView, PermissionKeys.ProcurementOrderRead] }); Assert.IsTrue(access.CanAccess(purchaseKey));
         f.User.SetCurrentUser(new MeDto { UserId = "u", Permissions = [PermissionKeys.SalesOrderView, PermissionKeys.DemandPlanningSourceView] });
         await f.Navigation.OpenAsync(OrderTrackingOverviewViewModel.RouteKey); await f.Navigation.OpenDocumentAsync(DemandTrackingDetailViewModel.RouteKey, "denied", Guid.NewGuid());
         Assert.AreEqual(0, f.Navigation.OpenTabs.Count); await f.Overview.InitializeAsync(); Assert.AreEqual(0, f.Api.SourceRequests.Count);
@@ -502,6 +506,10 @@ public sealed partial class OrderTrackingTests
     /// <summary>记录真实请求粒度和取消令牌，允许模拟忽略取消的响应。</summary>
     private sealed class ApiStub : IOrderTrackingApi
     {
+        public Task<ServiceResult<PagedResponseBase<SwiftExport.Contracts.DTOs.OrderTracking.PurchaseOrders.PurchaseOrderTrackingItemDto>>> SearchPurchaseOrdersAsync(SwiftExport.Contracts.DTOs.OrderTracking.PurchaseOrders.PurchaseOrderTrackingSearchRequest request, CancellationToken cancellationToken = default) => throw new NotSupportedException();
+        public Task<ServiceResult<List<SwiftExport.Contracts.DTOs.OrderTracking.PurchaseOrders.PurchaseOrderTrackingLineDto>>> GetPurchaseOrderLinesAsync(Guid purchaseOrderId, CancellationToken cancellationToken = default) => throw new NotSupportedException();
+        public Task<ServiceResult<SwiftExport.Contracts.DTOs.OrderTracking.PurchaseOrders.PurchaseOrderTrackingReceiptsDto>> GetPurchaseOrderReceiptsAsync(Guid purchaseOrderId, CancellationToken cancellationToken = default) => throw new NotSupportedException();
+        public Task<ServiceResult<List<SwiftExport.Contracts.DTOs.Procurement.PurchaseOrderProgress.SupplierProgressReportDto>>> GetPurchaseOrderReportsAsync(Guid purchaseOrderId, CancellationToken cancellationToken = default) => throw new NotSupportedException();
         public readonly List<(string SourceType, Guid SourceGroupId)> Requests = []; public readonly List<CancellationToken> Tokens = [];
         public readonly List<OrderTrackingSourceSearchRequest> SourceRequests = []; public readonly List<CancellationToken> SourceTokens = [];
         public readonly List<CancellationToken> CustomerTokens = []; public readonly List<Guid> HeaderIds = []; public readonly List<CancellationToken> HeaderTokens = [];

@@ -8,6 +8,7 @@ using SwiftExportClient.Features.Home;
 using SwiftExportClient.Features.OrderTracking.Overview.ViewModels;
 using SwiftExportClient.Features.OrderTracking.DemandDetail.ViewModels;
 using SwiftExportClient.Features.OrderTracking.MaterialDetail.ViewModels;
+using SwiftExportClient.Features.OrderTracking.PurchaseOrders.ViewModels;
 using SwiftExportClient.Features.Inventory.Balances.ViewModels;
 using SwiftExportClient.Features.Inventory.Inbounds.ViewModels;
 using SwiftExportClient.Features.Inventory.Ledger.ViewModels;
@@ -89,6 +90,7 @@ public sealed class NavigationRouteRegistry : INavigationRouteRegistry
         new(SalesOrderManagerViewModel.DetailRouteKey, "销售订单", "Workspace", typeof(SalesOrderDetailViewModel), NavigationModuleKeys.Sales, "Sales.Order.View"),
 
         new(OrderTrackingOverviewViewModel.RouteKey, "跟踪总览", "Workspace", typeof(OrderTrackingOverviewViewModel), NavigationModuleKeys.OrderTracking, PermissionKeys.OrderTrackingView, DiscardOnAccessRevoked: true),
+        new(PurchaseOrderTrackingViewModel.RouteKey, "采购订单跟踪", "Workspace", typeof(PurchaseOrderTrackingViewModel), NavigationModuleKeys.OrderTracking, PermissionKeys.OrderTrackingView, AnyRequiredPermissions: [PermissionKeys.ProcurementOrderRead], DiscardOnAccessRevoked: true),
         new(DemandTrackingDetailViewModel.RouteKey, "成品需求跟踪明细", "Detail", typeof(DemandTrackingDetailViewModel), NavigationModuleKeys.OrderTracking, PermissionKeys.OrderTrackingView, DiscardOnAccessRevoked: true),
         new(MaterialTrackingDetailViewModel.RouteKey, "物料跟踪详情", "Detail", typeof(MaterialTrackingDetailViewModel), NavigationModuleKeys.OrderTracking, PermissionKeys.OrderTrackingView, AnyRequiredPermissions: [PermissionKeys.DemandPlanningMaterialView], DiscardOnAccessRevoked: true),
 
@@ -102,7 +104,7 @@ public sealed class NavigationRouteRegistry : INavigationRouteRegistry
         new(PurchaseDemandAssociationViewModel.RouteKey, "关联物料需求", "Workspace", typeof(PurchaseDemandAssociationViewModel), NavigationModuleKeys.Procurement, "Procurement.Order.Edit", AnyRequiredPermissions: [PermissionKeys.ProcurementOrderRead]),
         new(PurchaseOrderTraceViewModel.RouteKey, "采购追溯", "Detail", typeof(PurchaseOrderTraceViewModel), NavigationModuleKeys.Procurement, "Procurement.Order.Read"),
 
-        new(PurchaseOrderProgressWorkspaceViewModel.RouteKey, "采购订单跟进", "Workspace", typeof(PurchaseOrderProgressWorkspaceViewModel), NavigationModuleKeys.Procurement, "Procurement.Progress.View"),
+        new(PurchaseOrderProgressWorkspaceViewModel.RouteKey, "供应商反馈录入", "Workspace", typeof(PurchaseOrderProgressWorkspaceViewModel), NavigationModuleKeys.Procurement, "Procurement.Progress.View"),
 
         new(PurchaseOrderDetailViewModel.RouteKey, "采购单详情", "Workspace", typeof(PurchaseOrderDetailViewModel), NavigationModuleKeys.Procurement, "Procurement.Order.Read"),
 
@@ -196,7 +198,7 @@ public sealed class NavigationRouteRegistry : INavigationRouteRegistry
                 "Workspace",
                 "DataTrending24",
                 IsExpanded: false,
-                Children: [new(OrderTrackingOverviewViewModel.RouteKey, "跟踪总览", "Workspace", "DocumentTable24")]),
+                Children: [new(OrderTrackingOverviewViewModel.RouteKey, "跟踪总览", "Workspace", "DocumentTable24"), new(PurchaseOrderTrackingViewModel.RouteKey, "采购订单跟踪", "Workspace", "ClipboardTaskListLtr24")]),
             new(
                 "demand-planning",
                 "需求计划",
@@ -218,7 +220,7 @@ public sealed class NavigationRouteRegistry : INavigationRouteRegistry
                 [
                     new(PurchaseOrderManagerViewModel.RouteKey, "采购订单", "Workspace", "DocumentBulletList24"),
                     new(PurchaseDemandAssociationViewModel.RouteKey, "关联物料需求", "Workspace", "Branch24"),
-                    new(PurchaseOrderProgressWorkspaceViewModel.RouteKey, "采购跟进", "Workspace", "ClipboardTaskListLtr24"),
+                    new(PurchaseOrderProgressWorkspaceViewModel.RouteKey, "供应商反馈录入", "Workspace", "ClipboardTaskListLtr24"),
                 ]),
             new(
                 NavigationModuleKeys.QualityControl,

@@ -24,7 +24,7 @@ namespace SwiftExport.Contracts.SysEnums
         [Description("需核实")] NeedsReview = 9
     }
 
-    /// <summary>采购管理页按尚未确认货好的采购行筛选交期风险。</summary>
+    /// <summary>采购跟踪按尚未确认货好的采购行筛选交期风险，不改变订单保存的交期。</summary>
     public enum PurchaseDueViewEnum
     {
         [Description("全部")] All = 0,

@@ -61,13 +61,12 @@ public sealed partial class PurchaseOrderManagerBatchConfirmationTests
     public void LineSummary_NullZeroAndNotApplicableRemainDistinct()
     {
         var unknown = new PurchaseOrderManagerLineDto { AssociationStatus = PurchaseDemandAssociationStatusEnum.NeedsReview,
-            AssociationReviewReason = "贡献不守恒", ReceiptReviewReason = "收货需核实", SourceSummary = "2条成品需求 · 多来源", ReceivedQty = null };
-        var row = unknown.Adapt<PurchaseOrderManagementLineModel>(); Assert.IsNull(row.ReceivedQty); Assert.AreEqual("需核实", row.LinkedDemandQtyText);
-        Assert.AreEqual("尚未反馈", row.LatestReadyQtyText); Assert.AreEqual(unknown.SourceSummary, row.SourceSummary); StringAssert.Contains(row.ReviewText, "贡献不守恒");
-        var zero = new PurchaseOrderManagerLineDto { LinkedDemandQty = 0m, UnlinkedQty = 2m, ReceivedQty = 0m, AssociationStatus = PurchaseDemandAssociationStatusEnum.Unassociated }.Adapt<PurchaseOrderManagementLineModel>();
-        Assert.AreEqual("0", zero.LinkedDemandQtyText); Assert.AreEqual(0m, zero.ReceivedQty);
-        var inactive = new PurchaseOrderManagerLineDto { AssociationStatus = PurchaseDemandAssociationStatusEnum.NotApplicable, ReceiptReviewReason = "历史收货异常" }.Adapt<PurchaseOrderManagementLineModel>();
+            AssociationReviewReason = "贡献不守恒", SourceSummary = "2条成品需求 · 多来源" };
+        var row = unknown.Adapt<PurchaseOrderManagementLineModel>(); Assert.AreEqual("需核实", row.LinkedDemandQtyText);
+        Assert.AreEqual(unknown.SourceSummary, row.SourceSummary); StringAssert.Contains(row.ReviewText, "贡献不守恒");
+        var zero = new PurchaseOrderManagerLineDto { LinkedDemandQty = 0m, UnlinkedQty = 2m, AssociationStatus = PurchaseDemandAssociationStatusEnum.Unassociated }.Adapt<PurchaseOrderManagementLineModel>();
+        Assert.AreEqual("0", zero.LinkedDemandQtyText);
+        var inactive = new PurchaseOrderManagerLineDto { AssociationStatus = PurchaseDemandAssociationStatusEnum.NotApplicable }.Adapt<PurchaseOrderManagementLineModel>();
         Assert.AreEqual("不适用", inactive.LinkedDemandQtyText); Assert.AreEqual("不适用", inactive.UnlinkedQtyText); StringAssert.Contains(inactive.ReviewText, "采购已作废");
-        StringAssert.Contains(inactive.ReviewText, "历史收货异常");
     }
 }

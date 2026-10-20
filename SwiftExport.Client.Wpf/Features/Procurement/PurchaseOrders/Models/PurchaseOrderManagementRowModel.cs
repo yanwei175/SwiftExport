@@ -31,19 +31,7 @@ public sealed partial class PurchaseOrderManagementRowModel : ObservableObject
     public int? LineCount { get; set; }
     public decimal? TotalQty { get; set; }
     public decimal? TaxTotalAmount { get; set; }
-    public string ReceiptProgress { get; set; } = string.Empty;
-    public int? ReportedLineCount { get; set; }
-    public decimal? LatestReadyQty { get; set; }
     public string UnitSnapshot { get; set; } = string.Empty;
-    public PurchaseReadyStatusEnum ReadyStatus { get; set; }
-    public PurchaseReceiptStatusEnum ReceiptStatus { get; set; }
-    public int DueHitLineCount { get; set; }
-    public DateTime? EarliestDueHitDate { get; set; }
-    public bool HasUnconfirmedReadyRisk { get; set; }
-    /// <summary>风险使用可读文字，不只依赖勾选或颜色。</summary>
-    public string ReadyRiskText => HasUnconfirmedReadyRisk ? "货好但采购未确认" : string.Empty;
-    public string ReviewReason { get; set; } = string.Empty;
-    public DateTime? ExpectedCompletionDate { get; set; }
     public int Version { get; set; }
     public bool CanConfirm { get; set; }
     public bool CanCancelConfirmation { get; set; }

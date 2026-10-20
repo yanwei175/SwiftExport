@@ -2,7 +2,10 @@
     xmlns:overviewVm="clr-namespace:SwiftExportClient.Features.OrderTracking.Overview.ViewModels"
     xmlns:overview="clr-namespace:SwiftExportClient.Features.OrderTracking.Overview.Views"
     xmlns:detailVm="clr-namespace:SwiftExportClient.Features.OrderTracking.DemandDetail.ViewModels"
-    xmlns:detail="clr-namespace:SwiftExportClient.Features.OrderTracking.DemandDetail.Views" xmlns:materialVm="clr-namespace:SwiftExportClient.Features.OrderTracking.MaterialDetail.ViewModels" xmlns:material="clr-namespace:SwiftExportClient.Features.OrderTracking.MaterialDetail.Views">
+    xmlns:detail="clr-namespace:SwiftExportClient.Features.OrderTracking.DemandDetail.Views" xmlns:materialVm="clr-namespace:SwiftExportClient.Features.OrderTracking.MaterialDetail.ViewModels" xmlns:material="clr-namespace:SwiftExportClient.Features.OrderTracking.MaterialDetail.Views"
+    xmlns:purchaseVm="clr-namespace:SwiftExportClient.Features.OrderTracking.PurchaseOrders.ViewModels"
+    xmlns:purchase="clr-namespace:SwiftExportClient.Features.OrderTracking.PurchaseOrders.Views">
     <DataTemplate DataType="{x:Type overviewVm:OrderTrackingOverviewViewModel}"><overview:OrderTrackingOverviewView/></DataTemplate>
     <DataTemplate DataType="{x:Type detailVm:DemandTrackingDetailViewModel}"><detail:DemandTrackingDetailView/></DataTemplate>
-<DataTemplate DataType="{x:Type materialVm:MaterialTrackingDetailViewModel}"><material:MaterialTrackingDetailView/></DataTemplate></ResourceDictionary>
+<DataTemplate DataType="{x:Type materialVm:MaterialTrackingDetailViewModel}"><material:MaterialTrackingDetailView/></DataTemplate>
+<DataTemplate DataType="{x:Type purchaseVm:PurchaseOrderTrackingViewModel}"><purchase:PurchaseOrderTrackingView/></DataTemplate></ResourceDictionary>
