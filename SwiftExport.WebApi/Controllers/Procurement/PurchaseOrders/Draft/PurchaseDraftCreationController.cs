@@ -12,7 +12,7 @@ namespace SwiftExport.WebApi.Controllers.Procurement.PurchaseOrders.Draft;
 [Route("api/procurement/purchase-drafts")]
 public sealed class PurchaseDraftCreationController(IPurchaseDraftCreationService creation) : ControllerBase
 {
-    /// <summary>按有效预览创建或追加采购草稿。</summary>
+    /// <summary>按需求身份、版本和用户输入创建或追加采购草稿；锁后重验容量，不依赖预览Token。</summary>
     [HttpPost("create")]
     public Task<ServiceResult<CreatePurchaseDraftsResult>> CreateAsync([FromBody] CreatePurchaseDraftsCommand command, CancellationToken cancellationToken)
         => creation.CreateAsync(command, cancellationToken);

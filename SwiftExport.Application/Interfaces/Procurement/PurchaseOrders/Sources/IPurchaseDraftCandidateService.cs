@@ -6,6 +6,8 @@ namespace SwiftExport.Application.Interfaces.Procurement;
 /// <summary>需求转采购候选来源与待采购物料的只读边界。</summary>
 public interface IPurchaseDraftCandidateService
 {
+    /// <summary>查询同来源和实际供应商下仍可安全追加的草稿，不占用容量。</summary>
+    Task<ServiceResult<List<SafePurchaseDraftCandidateDto>>> GetAppendCandidatesAsync(string sourceType,Guid sourceUid,Guid supplierId,CancellationToken cancellationToken=default);
     /// <summary>查询全部仍含待采购物料的来源分组。</summary>
     Task<ServiceResult<List<PurchaseDraftCandidateSourceGroupDto>>> GetCandidateSourceGroupsAsync(CancellationToken cancellationToken = default);
     /// <summary>按稳定来源身份或全部来源完整查询待采购物料。</summary>

@@ -52,14 +52,14 @@ public sealed class PurchaseDemandAssociationViewModelTests
         f.Vm.AllocationQuantity = 7; f.Vm.AddAllocationCommand.Execute(null);
         Assert.HasCount(1, f.Vm.Plan); Assert.AreEqual(7m, f.Vm.Plan.Single().Quantity);
         await f.SelectAsync(1); f.Vm.AllocationQuantity = 9; f.Vm.AddAllocationCommand.Execute(null);
-        Assert.HasCount(1, f.Vm.Plan); StringAssert.Contains(f.Vm.StatusText, "物料需求可分配");
+        Assert.HasCount(1, f.Vm.Plan); StringAssert.Contains(f.Vm.StatusText, "物料需求可创建");
         f.Vm.AllocationQuantity = 8; f.Vm.AddAllocationCommand.Execute(null);
         Assert.HasCount(2, f.Vm.Plan);
         await f.Vm.PreviewCommand.ExecuteAsync(null); Assert.IsNotNull(f.Vm.Preview);
         f.Vm.Plan[0].Quantity = 8;
         Assert.IsNull(f.Vm.Preview);
         await f.Vm.PreviewCommand.ExecuteAsync(null);
-        Assert.HasCount(1, f.Previews); StringAssert.Contains(f.Vm.StatusText, "物料需求可分配");
+        Assert.HasCount(1, f.Previews); StringAssert.Contains(f.Vm.StatusText, "物料需求可创建");
     }
 
     /// <summary>非标必须明确认可，未知单位及其他来源不进入可提交清单。</summary>
@@ -212,7 +212,7 @@ public sealed class PurchaseDemandAssociationViewModelTests
                 Lines = Enumerable.Range(1, 2).Select(i => new ProcurementDemandAssociationLineDto { PurchaseOrderLineId = Guid.NewGuid(), Version = 1,
                     LineNumber = i, ProductId = product, Sku = "P1", Unit = "PCS", Quantity = 10, UnlinkedQty = 10 }).ToList() };
             Demand = new() { NetDemandId = Guid.NewGuid(), Version = 1, SourceDemandVersion = 3, ProductId = product,
-                SourceUid = Guid.NewGuid(), SourceType = "SalesOrder", SourceNo = "SO-1", Sku = "P1", Unit = "PCS", NetQty = 20, LinkedQty = 5, RemainingQty = 15 };
+                SourceUid = Guid.NewGuid(), SourceType = "SalesOrder", SourceNo = "SO-1", Sku = "P1", Unit = "PCS", NetQty = 20, LinkedQty = 5, RemainingQty = 15, PurchasedQty = 5, DraftOccupiedQty = 0, CreatableQty = 15, UnpurchasedQty = 15 };
             User.SetCurrentUser(new() { UserId = "association-test", Permissions = [PermissionKeys.ProcurementOrderRead, PermissionKeys.ProcurementOrderEdit] });
             var api = DispatchProxy.Create<IProcurementOrderApi, ApiProxy>();
             ((ApiProxy)(object)api).Call = (method, args) => method switch
@@ -259,7 +259,7 @@ public sealed class PurchaseDemandAssociationViewModelTests
             // 写入替身推进权威版本及余额；重读返回新的快照，不能靠旧版上下文使客户端验收通过。
             Context.Version = command.ExpectedVersion + 1;
             Context.SourceType = Demand.SourceType; Context.SourceUid = Demand.SourceUid; Context.SourceNo = Demand.SourceNo;
-            Demand.Version++; Demand.RemainingQty -= command.Items.Sum(x => x.Quantity); Demand.LinkedQty += command.Items.Sum(x => x.Quantity);
+            Demand.Version++; Demand.RemainingQty -= command.Items.Sum(x => x.Quantity); Demand.CreatableQty -= command.Items.Sum(x => x.Quantity); Demand.LinkedQty += command.Items.Sum(x => x.Quantity);
             foreach (var group in command.Items.GroupBy(x => x.PurchaseOrderLineId))
             {
                 var line = Context.Lines.Single(x => x.PurchaseOrderLineId == group.Key);

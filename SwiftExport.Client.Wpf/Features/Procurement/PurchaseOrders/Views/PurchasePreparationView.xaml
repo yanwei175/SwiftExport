@@ -1,114 +1,154 @@
-<UserControl x:Class="SwiftExportClient.Features.Procurement.PurchaseOrders.Views.PurchasePreparationView"
-             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
-             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
-             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
-             xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
-             xmlns:views="clr-namespace:SwiftExportClient.Features.Procurement.PurchaseOrders.Views"
-             xmlns:viewModels="clr-namespace:SwiftExportClient.Features.Procurement.PurchaseOrders.ViewModels"
-             mc:Ignorable="d"
-             d:DataContext="{d:DesignInstance viewModels:PurchaseCandidateSelectionViewModel}"
-             d:Width="1400" d:Height="820">
-    <UserControl.Resources>
-        <BooleanToVisibilityConverter x:Key="BooleanToVisibilityConverter" />
-    </UserControl.Resources>
-    <Grid Margin="4" RowDefinitions="Auto,8,Auto,8,*">
-        <Grid ColumnDefinitions="*,Auto,8,Auto,8,Auto,8,Auto">
-            <StackPanel>
-                <TextBlock FontWeight="SemiBold" Text="采购准备" />
-                <TextBlock Text="完成采购输入和校验后，再进入只读单据审核。"
-                           Style="{StaticResource CaptionTextBlock}"
-                           Foreground="{DynamicResource UserTextFillColorSecondaryBrush}" />
-            </StackPanel>
-
-            <TextBlock Grid.Column="1" Text="{Binding SelectionValidationText}"
-                       VerticalAlignment="Bottom"
-                       Foreground="{DynamicResource UserBusinessTextWarningBrush}"
-                       TextWrapping="Wrap" />
-            
-            <Button Grid.Column="3"
-                    Content="刷新待采购数据"
-                    Command="{Binding RefreshCandidateDataCommand}"
-                    AutomationProperties.Name="刷新当前来源待采购数据" />
-            <ui:Button Grid.Column="5"
-                       Appearance="Info"
-                       Content="{Binding ValidationActionText}"
-                       Command="{Binding ValidateSelectionCommand}"
-                       AutomationProperties.Name="校验所选物料" />
-            <ui:Button Grid.Column="7"
-                       Appearance="Primary"
-                       Content="进入采购审核"
-                       Command="{Binding EnterPreviewCommand}" />
-        </Grid>
-       
-        <Border Grid.Row="2" 
-                Padding="8"
-                CornerRadius="4"
-                Background="{DynamicResource UserBusinessBackgroundWarningBrush}"
-                Visibility="{Binding IsSourceSwitchPending, Converter={StaticResource BooleanToVisibilityConverter}}">
-            <Grid ColumnDefinitions="24,8,*,Auto,8,Auto">
-                <ui:SymbolIcon Symbol="Info24" 
-                               FontSize="24" 
-                               Filled="True" 
-                               Foreground="{DynamicResource UserSystemFillColorCautionBrush}"/>
-                <TextBlock Grid.Column="2" Text="{Binding SourceSwitchPrompt}" TextWrapping="Wrap" VerticalAlignment="Center" />
-                <Button Grid.Column="3" Content="继续切换" Command="{Binding ConfirmSourceSwitchCommand}" />
-                <Button Grid.Column="5" Content="保留当前选择" Command="{Binding CancelSourceSwitchCommand}" />
-            </Grid>
-        </Border>
-
-        <Grid Grid.Row="4" RowDefinitions="Auto,8,*,8,Auto">
-            <Grid ColumnDefinitions="*,Auto">
-                <TextBlock Text="验证覆盖全部已选行，包括筛选隐藏的行；修改输入或行模式会撤销旧验证。"
-                           Style="{StaticResource CaptionTextBlock}"
-                           Foreground="{DynamicResource UserTextFillColorSecondaryBrush}"
-                           VerticalAlignment="Bottom" />
-                
-                <StackPanel Grid.Column="1" Orientation="Horizontal">
-                    <TextBlock Text="采购行生成方式:" Margin="0,0,6,0"
-                               VerticalAlignment="Center"
-                               Style="{StaticResource CaptionTextBlock}" />
-                    
-                    <ComboBox ItemsSource="{Binding Workflow.LineModeOptions}"
-                              DisplayMemberPath="DisplayText"
-                              SelectedValuePath="Value"
-                              SelectedValue="{Binding Workflow.LineMode, Mode=TwoWay}" />
-                </StackPanel>
-            </Grid>
-            
-            <views:PurchaseCandidateSelectionView Grid.Row="2" />
-            
-            <ItemsControl Grid.Row="4" ItemsSource="{Binding Workflow.Warnings}">
-                <ItemsControl.ItemTemplate>
-                    <DataTemplate>
-                        <Border Margin="6,2" Padding="8"
-                                BorderThickness="1"
-                                CornerRadius="4"
-                                BorderBrush="{DynamicResource UserControlStrokeColorDefaultBrush}">
-                            <Grid ColumnDefinitions="Auto,8,*">
-                                <CheckBox IsChecked="{Binding IsConfirmed, Mode=TwoWay}"
-                                          IsEnabled="{Binding RequiresConfirmation}"
-                                          Visibility="{Binding RequiresConfirmation, Converter={StaticResource BooleanToVisibilityConverter}}" />
-                                
-                                <StackPanel Grid.Column="2">
-                                    <TextBlock Text="{Binding Message}" 
-                                               Foreground="{DynamicResource UserBusinessTextWarningBrush}"
-                                               TextWrapping="Wrap" />
-                                    <TextBlock Text="{Binding ActionText}" 
-                                               TextWrapping="Wrap" 
-                                               Foreground="{DynamicResource UserSystemFillColorCautionBrush}"
-                                               Style="{StaticResource CaptionTextBlock}" />
-                                    <TextBlock Text="{Binding AffectedObjectText}"
-                                               TextWrapping="Wrap"
-                                               Visibility="{Binding HasAffectedObjects, Converter={StaticResource BooleanToVisibilityConverter}}"
-                                               Foreground="{DynamicResource UserTextFillColorSecondaryBrush}"
-                                               Style="{StaticResource CaptionTextBlock}" />
-                                </StackPanel>
-                            </Grid>
-                        </Border>
-                    </DataTemplate>
-                </ItemsControl.ItemTemplate>
-            </ItemsControl>
-        </Grid>
+<UserControl
+  x:Class="SwiftExportClient.Features.Procurement.PurchaseOrders.Views.PurchasePreparationView"
+  xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+  xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+  xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+  xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+  xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
+  xmlns:views="clr-namespace:SwiftExportClient.Features.Procurement.PurchaseOrders.Views"
+  xmlns:viewModels="clr-namespace:SwiftExportClient.Features.Procurement.PurchaseOrders.ViewModels"
+  mc:Ignorable="d"
+  d:DataContext="{d:DesignInstance viewModels:PurchaseCandidateSelectionViewModel}"
+  d:Width="1400"
+  d:Height="820">
+  <UserControl.Resources>
+    <BooleanToVisibilityConverter
+      x:Key="BooleanToVisibilityConverter" />
+  </UserControl.Resources>
+  <Grid
+    Margin="4"
+    RowDefinitions="Auto,8,Auto,8,Auto,8,*">
+    <Grid
+      ColumnDefinitions="*,Auto,8,Auto,8,Auto,8,Auto">
+      <StackPanel>
+        <TextBlock
+          FontWeight="SemiBold"
+          Text="采购准备" />
+        <TextBlock
+          Text="完成本地校验后直接创建草稿；缺少供应商产品关系仍可建草稿，请在采购详情补齐后再确认。"
+          Style="{StaticResource CaptionTextBlock}"
+          Foreground="{DynamicResource UserTextFillColorSecondaryBrush}" />
+      </StackPanel>
+      <TextBlock
+        Grid.Column="1"
+        Text="{Binding SelectionValidationText}"
+        VerticalAlignment="Bottom"
+        Foreground="{DynamicResource UserBusinessTextWarningBrush}"
+        TextWrapping="Wrap" />
+      <Button
+        Grid.Column="3"
+        Content="刷新待采购数据"
+        Command="{Binding RefreshCandidateDataCommand}"
+        AutomationProperties.Name="刷新当前来源待采购数据" />
+      <ui:Button
+        Grid.Column="5"
+        Appearance="Info"
+        Content="{Binding ValidationActionText}"
+        Command="{Binding ValidateSelectionCommand}"
+        AutomationProperties.Name="校验所选物料" />
+      <ui:Button
+        Grid.Column="7"
+        Appearance="Primary"
+        Content="创建采购草稿"
+        Command="{Binding CreateDraftsCommand}" />
     </Grid>
+    <Border Grid.Row="2" Padding="8" CornerRadius="4" Background="{DynamicResource UserBusinessBackgroundWarningBrush}">
+      <StackPanel>
+        <TextBlock Text="{Binding Workflow.StatusText}" TextWrapping="Wrap" FontWeight="SemiBold" AutomationProperties.Name="采购创建当前状态" />
+        <TextBlock Text="{Binding Workflow.AttemptText}" TextWrapping="Wrap" AutomationProperties.Name="原采购请求重试记录" />
+        <TextBlock Text="{Binding Workflow.RequestIdentityText}" TextWrapping="Wrap" />
+        <TextBlock Text="{Binding Workflow.RecoveryHint}" TextWrapping="Wrap" AutomationProperties.Name="保留关闭与恢复说明" />
+        <WrapPanel Margin="0,8,0,0">
+          <Button Content="重试原提交" Command="{Binding Workflow.CreateCommand}" Visibility="{Binding Workflow.HasUnknownCreateResult, Converter={StaticResource BooleanToVisibilityConverter}}" AutomationProperties.Name="重试待核实的原采购提交" />
+        </WrapPanel>
+      </StackPanel>
+    </Border>
+    <Border
+      Grid.Row="4"
+      Padding="8"
+      CornerRadius="4"
+      Background="{DynamicResource UserBusinessBackgroundWarningBrush}"
+      Visibility="{Binding IsSourceSwitchPending, Converter={StaticResource BooleanToVisibilityConverter}}">
+      <Grid
+        ColumnDefinitions="24,8,*,Auto,8,Auto">
+        <ui:SymbolIcon
+          Symbol="Info24"
+          FontSize="24"
+          Filled="True"
+          Foreground="{DynamicResource UserSystemFillColorCautionBrush}" />
+        <TextBlock
+          Grid.Column="2"
+          Text="{Binding SourceSwitchPrompt}"
+          TextWrapping="Wrap"
+          VerticalAlignment="Center" />
+        <Button
+          Grid.Column="3"
+          Content="继续切换"
+          Command="{Binding ConfirmSourceSwitchCommand}" />
+        <Button
+          Grid.Column="5"
+          Content="保留当前选择"
+          Command="{Binding CancelSourceSwitchCommand}" />
+      </Grid>
+    </Border>
+    <Grid
+      Grid.Row="6"
+      RowDefinitions="Auto,8,*,8,Auto,8,Auto">
+      <Grid
+        ColumnDefinitions="*,Auto">
+        <TextBlock
+          Text="验证覆盖全部已选行，包括筛选隐藏的行；修改输入或行模式会撤销旧验证。"
+          Style="{StaticResource CaptionTextBlock}"
+          Foreground="{DynamicResource UserTextFillColorSecondaryBrush}"
+          VerticalAlignment="Bottom" />
+        <StackPanel
+          Grid.Column="1"
+          Orientation="Horizontal">
+          <TextBlock
+            Text="采购行生成方式:"
+            Margin="0,0,6,0"
+            VerticalAlignment="Center"
+            Style="{StaticResource CaptionTextBlock}" />
+          <ComboBox
+            IsEnabled="{Binding Workflow.CanEditInputs}"
+            ItemsSource="{Binding Workflow.LineModeOptions}"
+            DisplayMemberPath="DisplayText"
+            SelectedValuePath="Value"
+            SelectedValue="{Binding Workflow.LineMode, Mode=TwoWay}" />
+        </StackPanel>
+      </Grid>
+      <views:PurchaseCandidateSelectionView
+        Grid.Row="2" />
+      <TextBlock
+        Grid.Row="4"
+        Text="{Binding Workflow.ResultSummary}"
+        TextWrapping="Wrap"
+        AutomationProperties.Name="采购草稿逐来源创建结果" />
+      <ItemsControl
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        Grid.Row="6"
+        ItemsSource="{Binding Workflow.Targets}"
+        IsEnabled="{Binding Workflow.CanEditInputs}">
+        <ItemsControl.ItemTemplate>
+          <DataTemplate>
+            <WrapPanel
+              Margin="0,4">
+              <TextBlock
+                Text="{Binding SourceNo}"
+                Margin="0,0,8,0" />
+              <TextBlock
+                Text="{Binding SupplierName}"
+                Margin="0,0,8,0" />
+              <ComboBox
+                Width="280"
+                ItemsSource="{Binding Choices}"
+                SelectedItem="{Binding SelectedChoice}"
+                DisplayMemberPath="DisplayText"
+                AutomationProperties.Name="新建或追加采购草稿" />
+            </WrapPanel>
+          </DataTemplate>
+        </ItemsControl.ItemTemplate>
+      </ItemsControl>
+    </Grid>
+  </Grid>
 </UserControl>

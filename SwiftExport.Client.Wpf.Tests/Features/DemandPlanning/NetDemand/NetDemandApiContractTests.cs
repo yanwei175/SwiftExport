@@ -117,7 +117,8 @@ public sealed class NetDemandApiContractTests
     {
         AssertRoute<IPurchaseDraftApi>(nameof(IPurchaseDraftApi.GetCandidateSourceGroupsAsync), typeof(GetAttribute), "/candidates/source-groups");
         AssertRoute<IPurchaseDraftApi>(nameof(IPurchaseDraftApi.GetCandidatesAsync), typeof(PostAttribute), "/candidates", 0);
-        AssertRoute<IPurchaseDraftApi>(nameof(IPurchaseDraftApi.PreviewAsync), typeof(PostAttribute), "/preview", 0);
+        AssertRoute<IPurchaseDraftApi>(nameof(IPurchaseDraftApi.GetAppendCandidatesAsync), typeof(GetAttribute), "/append-candidates");
+        Assert.IsNull(typeof(IPurchaseDraftApi).GetMethod("PreviewAsync"));
         AssertRoute<IPurchaseDraftApi>(nameof(IPurchaseDraftApi.CreateAsync), typeof(PostAttribute), "/create", 0);
         Assert.IsNull(typeof(IPurchaseDraftApi).GetMethod("CancelAsync"));
         Assert.IsNull(typeof(IPurchaseDraftApi).GetMethod("PreviewReleaseAsync"));

@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Threading;
 using System.Threading.Tasks;
 using Refit;
@@ -55,6 +55,12 @@ namespace SwiftExport.Contracts.Apis.Procurement
         /// <summary>预览删除选定草稿行及需求释放影响。</summary>
         [Post("/{uid}/delete-lines-preview")]
         Task<ServiceResult<ProcurementReversalPreviewDto>> PreviewDeleteLinesAsync(Guid uid, [Body] ProcurementReversalPreviewRequest request, CancellationToken cancellationToken = default);
+        /// <summary>只读核验整单草稿删除资格及释放范围，提交仍需重验全量头行版本。</summary>
+        [Post("/{uid}/delete-draft-preview")]
+        Task<ServiceResult<ProcurementReversalPreviewDto>> PreviewDeleteDraftAsync(Guid uid, [Body] ProcurementReversalPreviewRequest request, CancellationToken cancellationToken = default);
+        /// <summary>逻辑删除从未确认的整张草稿，并原子释放来源占用；未知结果重试沿用原命令。</summary>
+        [Post("/{uid}/delete-draft")]
+        Task<ServiceResult<ProcurementOrderCommandResult>> DeleteDraftAsync(Guid uid, [Body] DeleteProcurementDraftCommand request, CancellationToken cancellationToken = default);
         /// <summary>立即软删除选定草稿行，不接收其他商务修改。</summary>
         [Post("/{uid}/delete-lines")]
         Task<ServiceResult<ProcurementOrderCommandResult>> DeleteLinesAsync(Guid uid, [Body] DeleteProcurementDraftLinesCommand request, CancellationToken cancellationToken = default);

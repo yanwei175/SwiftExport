@@ -94,7 +94,7 @@
                             <DataGridTextColumn Header="描述" Binding="{Binding Description}" Width="*"/>
                             <DataGridTextColumn Header="单位" Binding="{Binding Unit}" Width="60"/>
                             <DataGridTextColumn Header="已关联" Binding="{Binding LinkedQty,StringFormat=0.####}" Width="80"/>
-                            <DataGridTextColumn Header="可分配" Binding="{Binding RemainingQty,StringFormat=0.####}" Width="80"/>
+                            <DataGridTextColumn Header="可创建" Binding="{Binding CreatableQty,StringFormat=0.####,TargetNullValue=需核实}" Width="80"/>
                         </DataGrid.Columns>
                     </DataGrid>
                     <WrapPanel Grid.Row="4">

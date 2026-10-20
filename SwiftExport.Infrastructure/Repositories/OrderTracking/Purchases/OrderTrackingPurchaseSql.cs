@@ -1,17 +1,14 @@
+using SwiftExport.Infrastructure.Repositories.Procurement.PurchaseOrders.Query;
 namespace SwiftExport.Infrastructure.Repositories.OrderTracking.Purchases;
 /// <summary>关联明细和当前承接汇总共用同一目标、单位和修订核实条件。</summary>
 internal static class OrderTrackingPurchaseSql
 {
+    /// <summary>异常活动及未释放历史都须核实，正常全释放历史仅展示。</summary>
+    internal const string Current="(l.link_status=0 OR l.allocated_qty<>l.released_qty OR l.allocated_qty<=0 OR l.released_qty<0 OR l.link_status NOT IN(0,8,9))";
     internal static string Review=>$"""
-        CASE WHEN l.is_deleted OR l.link_status<>0 THEN '历史采购关联'
-                    WHEN l.allocated_qty<=0 OR l.released_qty<0 OR l.released_qty>l.allocated_qty THEN '采购贡献数量需核实'
-                    WHEN pol.uid IS NULL OR poh.uid IS NULL THEN '采购目标缺失或已删除'
-                    WHEN poh.lifecycle_status=9 THEN '采购已作废'
-                    WHEN poh.customer_id IS NULL OR g.customer_id IS NULL OR poh.customer_id<>g.customer_id THEN '客户归属需核实'
-                    WHEN pol.product_id IS DISTINCT FROM n.product_id THEN '采购与物料产品不一致'
-                    WHEN NULLIF(btrim(pol.unit_snapshot,' '),'') IS NULL OR NULLIF(btrim(n.unit_snapshot,' '),'') IS NULL
-                      OR btrim(pol.unit_snapshot,' ') COLLATE public.erp_dictionary_ci<>btrim(n.unit_snapshot,' ') COLLATE public.erp_dictionary_ci THEN '采购与物料单位需核实'
-                    ELSE {OrderTrackingEvidenceSql.MaterialReview} END
+        CASE WHEN NOT {Current} THEN '历史采购关联'
+            ELSE COALESCE((SELECT evidence.review_reason FROM ({PurchaseDemandCommitmentSql.Evidence("n.uid")}) evidence
+                WHERE evidence.uid=l.uid),'采购贡献需核实') END
         """;
     internal const string From="""
         FROM public.net_demand n LEFT JOIN public.gross_demand g ON g.uid=n.gross_demand_id

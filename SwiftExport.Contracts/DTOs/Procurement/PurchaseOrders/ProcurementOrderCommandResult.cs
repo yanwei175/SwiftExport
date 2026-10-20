@@ -11,6 +11,8 @@ namespace SwiftExport.Contracts.DTOs.Procurement.OrderManagement
         public Guid PurchaseOrderId { get; set; }
         public string OrderNo { get; set; }
         public int Version { get; set; }
+        /// <summary>命令完成时采购头是否已逻辑删除；删除回执仍保留全量已删除行的版本。</summary>
+        public bool IsDeleted { get; set; }
         public ConfirmationStatusEnum ConfirmationStatus { get; set; }
         public PurchaseOrderLifecycleStatusEnum LifecycleStatus { get; set; }
         public Guid? ConfirmationId { get; set; }

@@ -111,9 +111,9 @@ public sealed partial class PurchaseOrderManagerBatchConfirmationTests
         await fixture.Session.SendAsync("u", id, fixture.Orders, new ApiCallRunnerStub()); Assert.AreEqual("original", fixture.Orders.ConfirmCalls.Single().Command.ContextFingerprint);
     }
 
-    private static PurchaseOrderDetailViewModel CreateDetail(Fixture fixture) => new(fixture.Orders,
+    private static PurchaseOrderDetailViewModel CreateDetail(Fixture fixture, IProcurementReversalDialogService? reversalDialogs = null) => new(fixture.Orders,
         DispatchProxy.Create<IProcurementMasterDataQueryApi, UnexpectedApiProxy>(), fixture.Dialogs, new MessageStub(), new NavigationStub(),
-        new CurrentUserStub([PermissionKeys.ProcurementOrderRead, PermissionKeys.ProcurementOrderEdit, PermissionKeys.ProcurementOrderConfirm, PermissionKeys.ProcurementOrderCreate]), commandSession: fixture.Session, apiCallRunner: new ApiCallRunnerStub());
+        new CurrentUserStub([PermissionKeys.ProcurementOrderRead, PermissionKeys.ProcurementOrderEdit, PermissionKeys.ProcurementOrderConfirm, PermissionKeys.ProcurementOrderCreate]), reversalDialogs: reversalDialogs, commandSession: fixture.Session, apiCallRunner: new ApiCallRunnerStub());
 
     private static ProcurementOrderCommandResult Receipt(Guid uid, int expectedVersion, bool confirmed = true) => new()
     {

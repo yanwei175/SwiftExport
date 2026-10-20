@@ -39,8 +39,8 @@
     <TextBlock Text="本物料采购承接与活动、历史关联；采购整行数量不等于本物料份额。" TextWrapping="Wrap" Margin="0,0,0,8"/>
     <ContentControl Grid.Row="1" Content="{Binding Purchases}" ContentTemplate="{StaticResource SectionFeedback}"/>
     <WrapPanel Grid.Row="2" Margin="0,0,0,8" Visibility="{Binding Purchases.IsLoaded, Converter={StaticResource BooleanToVisibilityConverter}}">
-     <TextBlock Text="物料需求量："/><TextBlock Text="{Binding Purchases.Data.NetQty, StringFormat=N2}"/><TextBlock Text="　可信承接量："/><TextBlock Text="{Binding Purchases.Data.AssociatedPurchaseQty, StringFormat=N2, TargetNullValue=待核实}"/>
-     <TextBlock Text="　待承接量："/><TextBlock Text="{Binding Purchases.Data.RemainingToPurchaseQty, StringFormat=N2, TargetNullValue=待核实}"/><TextBlock Text="{Binding Purchases.Data.Unit}" Margin="8,0,0,0"/>
+     <TextBlock Text="物料需求量："/><TextBlock Text="{Binding Purchases.Data.NetQty, StringFormat=N2}"/><TextBlock Text="　已采购："/><TextBlock Text="{Binding Purchases.Data.PurchasedQty, StringFormat=N2, TargetNullValue=待核实}"/><TextBlock Text="　草稿占用："/><TextBlock Text="{Binding Purchases.Data.DraftOccupiedQty, StringFormat=N2, TargetNullValue=待核实}"/>
+     <TextBlock Text="　未采购："/><TextBlock Text="{Binding Purchases.Data.UnpurchasedQty, StringFormat=N2, TargetNullValue=待核实}"/><TextBlock Text="　可创建："/><TextBlock Text="{Binding Purchases.Data.CreatableQty, StringFormat=N2, TargetNullValue=待核实}"/><TextBlock Text="{Binding Purchases.Data.Unit}" Margin="8,0,0,0"/>
     </WrapPanel>
     <DataGrid x:Name="PurchasesGrid" Grid.Row="3" ItemsSource="{Binding Purchases.Data.Items, NotifyOnTargetUpdated=True}" IsEnabled="{Binding Purchases.CanRead}" Style="{StaticResource TrackingSectionGrid}" AutomationProperties.Name="本物料采购承接关联">
      <i:Interaction.Behaviors><behaviors:DataGridColumnVisibilityBehavior/></i:Interaction.Behaviors>
@@ -49,7 +49,9 @@
 <DataGridTextColumn ElementStyle="{StaticResource SwiftExportDataGridNumberTextBlock}" dgx:DataGridFilterColumn.Template="{StaticResource SwiftExportColumnFilter}" Header="行号" Binding="{Binding PurchaseLineNumber}" Width="80"/>
 <DataGridTextColumn ElementStyle="{StaticResource SwiftExportDataGridWarpTextBlock}" dgx:DataGridFilterColumn.Template="{StaticResource SwiftExportColumnFilter}" Header="供应商" Binding="{Binding SupplierName}" Width="120"/>
 <DataGridTextColumn ElementStyle="{StaticResource SwiftExportDataGridWarpTextBlock}" dgx:DataGridFilterColumn.Template="{StaticResource SwiftExportColumnFilter}" Header="型号" Binding="{Binding Sku}" Width="110"/>
-<DataGridTextColumn ElementStyle="{StaticResource SwiftExportDataGridNumberTextBlock}" dgx:DataGridFilterColumn.Template="{StaticResource SwiftExportColumnFilter}" Header="关联净贡献" Binding="{Binding LinkedQty, StringFormat=N2}" Width="110"/>
+<DataGridTextColumn ElementStyle="{StaticResource SwiftExportDataGridNumberTextBlock}" dgx:DataGridFilterColumn.Template="{StaticResource SwiftExportColumnFilter}" Header="采购总占用" Binding="{Binding LinkedQty, StringFormat=N2}" Width="110"/>
+<DataGridTextColumn ElementStyle="{StaticResource SwiftExportDataGridNumberTextBlock}" Header="已采购" Binding="{Binding PurchasedQty, StringFormat=N2}" Width="110"/>
+<DataGridTextColumn ElementStyle="{StaticResource SwiftExportDataGridNumberTextBlock}" Header="草稿占用" Binding="{Binding DraftOccupiedQty, StringFormat=N2}" Width="110"/>
 <DataGridTextColumn ElementStyle="{StaticResource SwiftExportDataGridWarpTextBlock}" dgx:DataGridFilterColumn.Template="{StaticResource SwiftExportColumnFilter}" Header="单位" Binding="{Binding Unit}" Width="80"/>
 <DataGridTextColumn ElementStyle="{StaticResource SwiftExportDataGridNumberTextBlock}" dgx:DataGridFilterColumn.Template="{StaticResource SwiftExportColumnFilter}" Header="采购整行数量" Binding="{Binding PurchaseLineQty, StringFormat=N2, TargetNullValue=待核实}" Width="140"/>
 <DataGridTextColumn ElementStyle="{StaticResource SwiftExportDataGridWarpTextBlock}" dgx:DataGridFilterColumn.Template="{StaticResource SwiftExportColumnFilter}" Header="确认状态" Binding="{Binding Converter={StaticResource TrackingEvidenceTextConverter}, ConverterParameter=PurchaseConfirmation}" Width="110"/>

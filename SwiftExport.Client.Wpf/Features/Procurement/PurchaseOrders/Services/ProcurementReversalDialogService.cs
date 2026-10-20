@@ -10,7 +10,7 @@ public sealed class ProcurementReversalDialogService(IDialogService dialogs) : I
     /// <inheritdoc/>
     public async Task<string?> ConfirmAsync(ProcurementReversalPreviewDto preview, CancellationToken ct = default)
     {
-        var title = preview.Operation switch { ProcurementReversalOperation.CancelConfirmation => "取消采购确认", ProcurementReversalOperation.DeleteLines => "删除采购草稿行", _ => "整单作废" };
+        var title = preview.Operation switch { ProcurementReversalOperation.CancelConfirmation => "取消采购确认", ProcurementReversalOperation.DeleteLines => "删除采购草稿行", ProcurementReversalOperation.DeleteDraft => "删除整张采购草稿", _ => "整单作废" };
         var model = new ProcurementReversalPreviewViewModel(preview);
         var result = await dialogs.ShowAsync(new ProcurementReversalPreviewView { DataContext = model },
             new DialogOptions(title) { PrimaryButtonText = title, CloseButtonText = "取消", Width = 840 }, model, ct);

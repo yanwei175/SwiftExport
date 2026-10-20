@@ -11,9 +11,20 @@ namespace SwiftExport.Application.Services.Procurement.PurchaseOrders.Sources;
 /// <summary>只读取采购候选来源与物料需求，不承担预览或写入。</summary>
 public sealed class PurchaseDraftCandidateService(
     ServiceBaseContext context,
-    IMaterialDemandSourceRepository materialDemandFacts) : IPurchaseDraftCandidateService
+    IMaterialDemandSourceRepository materialDemandFacts,
+    SwiftExport.Core.Interfaces.Procurement.IPurchaseOrderDraftRepository drafts,
+    ProcurementOrderReadSupport reads) : IPurchaseDraftCandidateService
 {
     private readonly ILogger<PurchaseDraftCandidateService> _logger = context.LoggerFactory.CreateLogger<PurchaseDraftCandidateService>();
+
+    /// <inheritdoc/>
+    public Task<ServiceResult<List<SafePurchaseDraftCandidateDto>>> GetAppendCandidatesAsync(string sourceType,Guid sourceUid,Guid supplierId,CancellationToken cancellationToken=default)
+        => reads.ReadAsync("Read",async()=>
+        {
+            if(string.IsNullOrWhiteSpace(sourceType) || sourceType.Length>20 || sourceUid==Guid.Empty || supplierId==Guid.Empty)
+                throw new InvalidOperationException("安全追加查询必须指定有效来源及实际采购供应商。");
+            return (await drafts.GetSafeAppendCandidatesAsync(sourceType.Trim(),sourceUid,[supplierId],cancellationToken)).ToList();
+        },cancellationToken);
 
     /// <inheritdoc/>
     public async Task<ServiceResult<List<PurchaseDraftCandidateSourceGroupDto>>> GetCandidateSourceGroupsAsync(CancellationToken cancellationToken = default)

@@ -70,6 +70,7 @@ public sealed partial class PurchaseOrderDetailViewModel : ViewModelBaseEx, IDoc
         RegisterBusyAwareCommand(RefreshCommand); RegisterBusyAwareCommand(CloseDocumentCommand);
         RegisterBusyAwareCommand(ReorderLineCommand);
         RegisterBusyAwareCommand(RetryPendingCommand);
+        RegisterBusyAwareCommand(DeleteDraftCommand);
     }
 
     public PurchaseOrderHeaderEditorModel Header { get; } = new();
@@ -112,6 +113,12 @@ public sealed partial class PurchaseOrderDetailViewModel : ViewModelBaseEx, IDoc
     [ObservableProperty] public partial string CancellationReason { get; set; } = string.Empty;
     [ObservableProperty] public partial string StatusText { get; set; } = "正在初始化采购详情...";
     [ObservableProperty] public partial int SelectedDetailTabIndex { get; set; }
+    /// <summary>后端判定整张从未确认草稿的删除资格。</summary>
+    [ObservableProperty] public partial bool ServerCanDeleteDraft { get; private set; }
+    /// <summary>整张草稿不能删除的业务原因。</summary>
+    [ObservableProperty] public partial string DeleteDraftBlockReason { get; private set; } = string.Empty;
+    /// <summary>已确认删除的详情只展示结果，不重读不存在的详情。</summary>
+    [ObservableProperty] public partial bool IsDeleted { get; private set; }
 
     /// <summary>根据文档参数进入创建或新链详情，不再在详情页切换旧链。</summary>
     public async Task InitializeDocumentAsync(object? parameter, CancellationToken cancellationToken)
@@ -366,7 +373,7 @@ public sealed partial class PurchaseOrderDetailViewModel : ViewModelBaseEx, IDoc
 
     [RelayCommand] private async Task RefreshAsync()
     {
-        if (_reversalDisposed || PurchaseOrderId == Guid.Empty || IsBusy) return;
+        if (_reversalDisposed || IsDeleted || PurchaseOrderId == Guid.Empty || IsBusy) return;
         if (_commandSession.Find(ReversalUser, WriteIdentity) is { Kind: not ProcurementCommandKind.Confirm })
         { StatusText = "保存或创建结果未知，只能重试冻结原命令，不能刷新覆盖原输入。"; return; }
         if (!HasPendingWrite && HasUnsavedChanges && !await _dialogs.ConfirmAsync("刷新采购", "放弃未保存修改并重新加载？", "放弃并刷新")) return;
@@ -400,6 +407,7 @@ public sealed partial class PurchaseOrderDetailViewModel : ViewModelBaseEx, IDoc
             _hadPendingWrite = HasPendingWrite;
             IsReadOnly = false;
             Version = dto.Version; ConfirmationStatus = dto.ConfirmationStatus; LifecycleStatus = dto.LifecycleStatus;
+            ServerCanDeleteDraft = dto.CanDeleteDraft; DeleteDraftBlockReason = dto.DeleteDraftBlockReason ?? string.Empty;
             Header.Load(dto); Lines.LoadFromDtos(dto.Lines);
             CustomerLookupText = Header.CustomerDisplay; SupplierLookupText = Header.SupplierDisplay;
             SelectedDetailTabIndex = 0; HeaderHasChanges = false;
@@ -446,6 +454,7 @@ public sealed partial class PurchaseOrderDetailViewModel : ViewModelBaseEx, IDoc
         OnPropertyChanged(nameof(CanInteractWithDocument));
         OnPropertyChanged(nameof(HasPendingWrite)); RetryPendingCommand.NotifyCanExecuteChanged();
         VoidOrderCommand.NotifyCanExecuteChanged(); DeleteDraftLinesCommand.NotifyCanExecuteChanged(); RetryReversalCommand.NotifyCanExecuteChanged();
+        DeleteDraftCommand.NotifyCanExecuteChanged();
     }
     public void Dispose()
     {

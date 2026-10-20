@@ -104,6 +104,16 @@ public sealed partial class MaterialDemandManagerRowModel : ObservableObject
     public DateTime? DemandRequiredDate { get; init; }
     /// <summary>有效采购 Link 的净关联数量。</summary>
     public decimal? AssociatedPurchaseQty { get; init; }
+    /// <summary>已确认的实际采购贡献。</summary>
+    public decimal? PurchasedQty { get; init; }
+    /// <summary>尚未确认但占用来源的草稿贡献。</summary>
+    public decimal? DraftOccupiedQty { get; init; }
+    /// <summary>需求扣除已确认采购，草稿仍属未采购。</summary>
+    public decimal? UnpurchasedQty { get; init; }
+    /// <summary>扣除已采购和草稿占用后的可创建量。</summary>
+    public decimal? CreatableQty { get; init; }
+    /// <summary>需采购读取权限的具体草稿引用。</summary>
+    public List<SwiftExport.Contracts.DTOs.Procurement.PurchaseDrafts.PurchaseDraftReferenceDto> DraftOrders { get; init; } = [];
     /// <summary>实际采购供应商摘要，区别于本行推荐供应商。</summary>
     public string ActualPurchaseSuppliers { get; init; } = string.Empty;
     /// <summary>有效采购承接进度。</summary>

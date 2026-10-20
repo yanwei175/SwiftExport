@@ -2,7 +2,6 @@ using Microsoft.AspNetCore.Mvc;
 using SwiftExport.Application.Interfaces.DemandPlanning.Materials.SupplierSuggestion;
 using SwiftExport.Contracts.DTOs.DemandPlanning.NetDemand;
 using SwiftExport.Contracts.Wrappers;
-using SwiftExport.WebApi.RequestProtection;
 
 namespace SwiftExport.WebApi.Controllers.DemandPlanning.Materials.SupplierSuggestion;
 
@@ -12,9 +11,8 @@ namespace SwiftExport.WebApi.Controllers.DemandPlanning.Materials.SupplierSugges
 public sealed class MaterialDemandSupplierSuggestionController(
     IMaterialDemandSupplierSuggestionService suggestionService) : ControllerBase
 {
-    /// <summary>保存推荐采购供应商，不修改既有采购与送达事实。</summary>
+    /// <summary>逐行保存推荐采购供应商，以命令回执和版本防重；不使用接口级冷却阻断同批其他物料行。</summary>
     [HttpPost("suggested-purchase-supplier")]
-    [PreventDuplicateRequest(WindowSeconds = 3)]
     public Task<ServiceResult<UpdateSuggestedPurchaseSupplierResult>> UpdateSuggestedPurchaseSupplierAsync(
         [FromBody] UpdateSuggestedPurchaseSupplierCommand command,
         CancellationToken cancellationToken)

@@ -15,11 +15,16 @@ public sealed partial class PurchaseOrderDetailViewModel
     private bool _reversalDisposed;
     private string ReversalUser => _currentUser.CurrentUser?.UserId ?? string.Empty;
     /// <summary>未决反向命令存在时冻结本单编辑，但允许刷新和原命令重试。</summary>
-    public bool CanInteractWithDocument => !_reversalDisposed && IsNotBusy && !IsReadOnly && !HasPendingWrite && _reversalSession.Find(ReversalUser, PurchaseOrderId) is null;
+    public bool CanInteractWithDocument => !_reversalDisposed && !IsDeleted && IsNotBusy && !IsReadOnly && !HasPendingWrite && _reversalSession.Find(ReversalUser, PurchaseOrderId) is null;
     private bool CanVoidOrder() => IsNotBusy && CanInteractWithDocument && !IsCreateMode && !HasUnsavedChanges
         && _currentUser.HasPermission(PermissionKeys.ProcurementOrderVoid) && LifecycleStatus == PurchaseOrderLifecycleStatusEnum.Active;
     private bool CanDeleteDraftLines() => IsNotBusy && CanEdit && !HasUnsavedChanges && Lines.Items.Count > 0;
     private bool CanRetryReversal() => IsNotBusy && _reversalSession.Find(ReversalUser, PurchaseOrderId) is not null;
+    private bool CanDeleteWholeDraft() => CanInteractWithDocument && !IsCreateMode && !HasUnsavedChanges && ServerCanDeleteDraft
+        && _currentUser.HasPermission(PermissionKeys.ProcurementOrderEdit);
+    /// <summary>删除整张从未确认草稿，最终头行和下游资格由后端复核。</summary>
+    [RelayCommand(CanExecute = nameof(CanDeleteWholeDraft))]
+    private Task DeleteDraftAsync() => CanDeleteWholeDraft() ? StartReversalAsync(ProcurementReversalOperation.DeleteDraft) : Task.CompletedTask;
 
     [RelayCommand(CanExecute = nameof(CanVoidOrder))]
     private Task VoidOrderAsync() => StartReversalAsync(ProcurementReversalOperation.Void);
@@ -36,7 +41,10 @@ public sealed partial class PurchaseOrderDetailViewModel
         if (operation == ProcurementReversalOperation.CancelConfirmation && !CanCancelCommand()
             || operation == ProcurementReversalOperation.Void && !CanVoidOrder()
             || operation == ProcurementReversalOperation.DeleteLines && !CanDeleteDraftLines()) return;
+        if (operation == ProcurementReversalOperation.DeleteDraft && !CanDeleteWholeDraft()) return;
         var requested = new List<ProcurementLineVersionDto>();
+        if (operation == ProcurementReversalOperation.DeleteDraft)
+            requested = Lines.Items.Select(x => new ProcurementLineVersionDto { PurchaseOrderLineId = x.Uid, Version = x.Version }).ToList();
         if (operation == ProcurementReversalOperation.DeleteLines)
         {
             var selected = Lines.Items.Where(x => x.IsChecked).ToList();
@@ -53,12 +61,16 @@ public sealed partial class PurchaseOrderDetailViewModel
             {
                 ProcurementReversalOperation.CancelConfirmation => await _api.PreviewCancelConfirmationAsync(uid, request),
                 ProcurementReversalOperation.Void => await _api.PreviewVoidAsync(uid, request),
+                ProcurementReversalOperation.DeleteDraft => await _api.PreviewDeleteDraftAsync(uid, request),
                 _ => await _api.PreviewDeleteLinesAsync(uid, request)
             };
             if (_reversalDisposed) return;
             if (!result.Success || result.Data is null) { _messages.ShowWarning("预览未通过", result.Message); return; }
             var preview = result.Data;
             if (preview.PurchaseOrderId != uid || preview.Version != version || preview.Operation != operation) { _messages.ShowWarning("预览已失效", "采购身份或版本不匹配，请刷新。"); return; }
+            if (operation == ProcurementReversalOperation.DeleteDraft && (preview.Lines.Count != requested.Count
+                || requested.Any(line => !preview.Lines.Any(x => x.PurchaseOrderLineId == line.PurchaseOrderLineId && x.Version == line.Version))))
+            { _messages.ShowWarning("预览已失效", "整张草稿的行版本不完整，请刷新。"); return; }
             var reason = await _reversalDialogs.ConfirmAsync(preview);
             if (_reversalDisposed || reason is null || HasUnsavedChanges || HasPendingWrite || PurchaseOrderId != uid || Version != version) return;
             if (!_reversalSession.Freeze(ReversalUser, preview, reason)) return;
@@ -70,6 +82,7 @@ public sealed partial class PurchaseOrderDetailViewModel
     private async Task CompleteReversalAsync()
     {
         var uid = PurchaseOrderId;
+        var pending = _reversalSession.Find(ReversalUser, uid);
         try
         {
             var result = await _reversalSession.SendAsync(ReversalUser, uid, _api);
@@ -79,6 +92,8 @@ public sealed partial class PurchaseOrderDetailViewModel
             Version = result.Data!.Version; ConfirmationStatus = result.Data.ConfirmationStatus;
             LifecycleStatus = result.Data.LifecycleStatus;
             IsReadOnly = true;
+            if (pending?.Operation == ProcurementReversalOperation.DeleteDraft)
+            { IsDeleted = true; Lines.Clear(); HeaderHasChanges = false; StatusText = "采购草稿已删除，来源草稿占用已释放；该采购不再可编辑。"; return; }
             await LoadAsync(uid, CancellationToken.None);
             _messages.ShowSuccess("采购操作完成", "需求回退仍需在物料需求页面单独操作。");
         }

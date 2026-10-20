@@ -24,12 +24,17 @@ public sealed class ProcurementReversalSession
         reason = reason?.Trim() ?? "";
         if (string.IsNullOrWhiteSpace(user) || !preview.CanExecute || preview.Blockers.Count > 0
             || preview.PurchaseOrderId == Guid.Empty || preview.Version <= 0 || reason.Length is < 1 or > 500) return false;
+        if (preview.Operation is ProcurementReversalOperation.DeleteDraft or ProcurementReversalOperation.DeleteLines
+            && (preview.Lines is null || preview.Lines.Count == 0 || preview.Lines.Any(x => x is null || x.PurchaseOrderLineId == Guid.Empty || x.Version <= 0)
+                || preview.Lines.Select(x => x.PurchaseOrderLineId).Distinct().Count() != preview.Lines.Count)) return false;
         var commandId = Guid.NewGuid();
         var json = preview.Operation switch
         {
             ProcurementReversalOperation.CancelConfirmation => JsonSerializer.Serialize(new CancelProcurementOrderConfirmationCommand { CommandId = commandId, ExpectedVersion = preview.Version, Reason = reason }),
             ProcurementReversalOperation.Void => JsonSerializer.Serialize(new VoidProcurementOrderCommand { CommandId = commandId, ExpectedVersion = preview.Version, Reason = reason }),
             ProcurementReversalOperation.DeleteLines => JsonSerializer.Serialize(new DeleteProcurementDraftLinesCommand { CommandId = commandId, ExpectedVersion = preview.Version, Reason = reason,
+                Lines = preview.Lines.Select(x => new ProcurementLineVersionDto { PurchaseOrderLineId = x.PurchaseOrderLineId, Version = x.Version }).ToList() }),
+            ProcurementReversalOperation.DeleteDraft => JsonSerializer.Serialize(new DeleteProcurementDraftCommand { CommandId = commandId, ExpectedVersion = preview.Version, Reason = reason,
                 Lines = preview.Lines.Select(x => new ProcurementLineVersionDto { PurchaseOrderLineId = x.PurchaseOrderLineId, Version = x.Version }).ToList() }),
             _ => throw new InvalidOperationException("未知采购反向操作。")
         };
@@ -49,6 +54,7 @@ public sealed class ProcurementReversalSession
             {
                 ProcurementReversalOperation.CancelConfirmation => await api.CancelConfirmationAsync(uid, JsonSerializer.Deserialize<CancelProcurementOrderConfirmationCommand>(pending.CommandJson)!),
                 ProcurementReversalOperation.Void => await api.VoidAsync(uid, JsonSerializer.Deserialize<VoidProcurementOrderCommand>(pending.CommandJson)!),
+                ProcurementReversalOperation.DeleteDraft => await api.DeleteDraftAsync(uid, JsonSerializer.Deserialize<DeleteProcurementDraftCommand>(pending.CommandJson)!),
                 _ => await api.DeleteLinesAsync(uid, JsonSerializer.Deserialize<DeleteProcurementDraftLinesCommand>(pending.CommandJson)!)
             };
             if (result.Success)
@@ -58,7 +64,8 @@ public sealed class ProcurementReversalSession
                     || result.Data.Lines.Any(x => x is null || x.PurchaseOrderLineId == Guid.Empty || x.Version <= 0)
                     || result.Data.Lines.Select(x => x.PurchaseOrderLineId).Distinct().Count() != result.Data.Lines.Count
                     || result.Data.LifecycleStatus != (pending.Operation == ProcurementReversalOperation.Void ? PurchaseOrderLifecycleStatusEnum.Voided : PurchaseOrderLifecycleStatusEnum.Active)
-                    || (pending.Operation == ProcurementReversalOperation.DeleteLines && result.Data.ConfirmationStatus != ConfirmationStatusEnum.待确认)
+                    || (pending.Operation is ProcurementReversalOperation.DeleteLines or ProcurementReversalOperation.DeleteDraft && result.Data.ConfirmationStatus != ConfirmationStatusEnum.待确认)
+                    || (pending.Operation == ProcurementReversalOperation.DeleteDraft && !result.Data.IsDeleted)
                     || (pending.Operation == ProcurementReversalOperation.CancelConfirmation && (result.Data.ConfirmationStatus != ConfirmationStatusEnum.待确认 || result.Data.ConfirmationId.HasValue)))
                     return ServiceResult<ProcurementOrderCommandResult>.Fail(ServiceErrorCodes.OutcomeUnknown, "响应不完整，请重试原命令确认结果。");
                 if (pending.Operation == ProcurementReversalOperation.DeleteLines)
@@ -66,6 +73,12 @@ public sealed class ProcurementReversalSession
                     var removed = JsonSerializer.Deserialize<DeleteProcurementDraftLinesCommand>(pending.CommandJson)!.Lines.Select(x => x.PurchaseOrderLineId).ToHashSet();
                     if (result.Data.Lines.Any(x => removed.Contains(x.PurchaseOrderLineId)))
                         return ServiceResult<ProcurementOrderCommandResult>.Fail(ServiceErrorCodes.OutcomeUnknown, "回执仍包含被删行，请重试原命令确认结果。");
+                }
+                if (pending.Operation == ProcurementReversalOperation.DeleteDraft)
+                {
+                    var deleted = JsonSerializer.Deserialize<DeleteProcurementDraftCommand>(pending.CommandJson)!.Lines;
+                    if (deleted.Count != result.Data.Lines.Count || deleted.Any(line => !result.Data.Lines.Any(x => x.PurchaseOrderLineId == line.PurchaseOrderLineId && x.Version == line.Version + 1)))
+                        return ServiceResult<ProcurementOrderCommandResult>.Fail(ServiceErrorCodes.OutcomeUnknown, "删除行回执不完整，请重试原提交确认结果。");
                 }
                 _pending.TryRemove(key, out _);
             }

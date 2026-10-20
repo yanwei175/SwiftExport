@@ -1,3 +1,4 @@
+using SwiftExport.Infrastructure.Repositories.Procurement.PurchaseOrders.Query;
 using Dapper;
 using SwiftExport.Contracts.DTOs.DemandPlanning.NetDemand;
 using SwiftExport.Contracts.DTOs.Procurement.PurchaseDrafts;
@@ -124,7 +125,12 @@ public sealed class PostgreSqlMaterialDemandSourceRepository(RepositoryBaseConte
                         ELSE NULL::text END AS "SuggestedDeliverySupplierHint",
                    supplierProduct.supplier_sku AS "SuggestedSupplierSku", supplierProduct.unit_price AS "SuggestedUnitPrice",
                    supplierProduct.tax_price AS "SuggestedTaxPrice", nd.gross_qty AS "GrossQty", nd.net_qty AS "NetQty",
-                   nd.required_date AS "DemandRequiredDate", COALESCE(purchaseFacts.associated_qty, 0) AS "AssociatedPurchaseQty",
+                   nd.required_date AS "DemandRequiredDate", CASE WHEN purchaseFacts.issue='' THEN purchaseFacts.associated_qty END AS "AssociatedPurchaseQty",
+                   CASE WHEN purchaseFacts.issue='' THEN purchaseFacts.purchased_qty END AS "PurchasedQty",
+                   CASE WHEN purchaseFacts.issue='' THEN purchaseFacts.draft_qty END AS "DraftOccupiedQty",
+                   CASE WHEN purchaseFacts.issue='' THEN nd.net_qty-purchaseFacts.associated_qty END AS "CreatableQty",
+                   CASE WHEN purchaseFacts.issue='' THEN nd.net_qty-purchaseFacts.purchased_qty END AS "UnpurchasedQty",
+                   purchaseFacts.issue AS "ReviewReason",purchaseFacts.draft_orders_json AS "DraftOrdersJson",
                    purchaseNumbers.order_nos AS "PurchaseOrderNos",
                    COALESCE(parentSuppliers.facts, '[]'::jsonb)::text AS "ParentActualPurchaseSuppliersJson"
             FROM "public"."net_demand" nd JOIN "public"."gross_demand" gd ON gd.uid = nd.gross_demand_id
@@ -191,22 +197,22 @@ public sealed class PostgreSqlMaterialDemandSourceRepository(RepositoryBaseConte
             """, parameters, cancellationToken));
         var result = rows.ToList();
         foreach (var row in result)
+        {
+            row.DraftOrders=JsonSerializer.Deserialize<List<PurchaseDraftReferenceDto>>(row.DraftOrdersJson) ?? [];
             row.ParentActualPurchaseSuppliers = JsonSerializer.Deserialize<List<PurchaseDraftActualSupplierFactDto>>(
                 row.ParentActualPurchaseSuppliersJson, new JsonSerializerOptions { PropertyNameCaseInsensitive = true }) ?? [];
+        }
         return result;
     }
 
     /// <summary>只计算原候选认可的有效目标采购贡献；不增加正剩余限制、客户或单位资格。</summary>
     private static string PurchaseFactsSql => $"""
-        LEFT JOIN LATERAL (
-            SELECT SUM(link.allocated_qty - link.released_qty) AS associated_qty FROM "public"."demand_execution_link" link
-            JOIN "public"."purchase_order_head" purchaseHead ON purchaseHead.uid = link.target_head_id
-                AND purchaseHead.lifecycle_status = 0 AND COALESCE(purchaseHead.is_deleted, FALSE) = FALSE
-            JOIN "public"."purchase_order_line" purchaseLine ON purchaseLine.uid = link.target_line_id
-                AND purchaseLine.purchase_order_id = purchaseHead.uid AND COALESCE(purchaseLine.is_deleted, FALSE) = FALSE
-            WHERE link.net_demand_id = nd.uid AND {TargetMatch("link")}
-                AND link.link_status = 0 AND COALESCE(link.is_deleted, FALSE) = FALSE
-        ) purchaseFacts ON TRUE
+        LEFT JOIN LATERAL ({PurchaseDemandCommitmentSql.Aggregate("nd.uid")}) rawPurchaseFacts ON TRUE
+        LEFT JOIN LATERAL (SELECT rawPurchaseFacts.*,
+            CASE WHEN NOT COALESCE({MaterialDemandBasisSql.IsApplicable("nd","gd")},FALSE)
+                    OR nd.net_qty<=0 OR NULLIF(btrim(nd.unit_snapshot,' '),'') IS NULL THEN '物料实物依据、数量或单位需核实'
+                WHEN rawPurchaseFacts.associated_qty>nd.net_qty THEN '采购占用超量需核实'
+                ELSE rawPurchaseFacts.review_reason END AS issue) purchaseFacts ON TRUE
         """;
 
     private const string EligibilitySql = """
@@ -214,7 +220,7 @@ public sealed class PostgreSqlMaterialDemandSourceRepository(RepositoryBaseConte
         AND gd.lifecycle_status = 0 AND COALESCE(gd.is_deleted, FALSE) = FALSE
         AND rtrim(nd.supply_type_snapshot, ' ') COLLATE public.erp_dictionary_ci
             = rtrim(@PurchaseSupplyType, ' ') COLLATE public.erp_dictionary_ci
-        AND nd.net_qty > COALESCE(purchaseFacts.associated_qty, 0)
+        AND (purchaseFacts.issue<>'' OR nd.net_qty>purchaseFacts.associated_qty OR purchaseFacts.draft_qty>0)
         """;
 
     /// <summary>保持目标类型尾 ASCII 空格与冻结 ICU 比较，不改写存储快照或扩大 Unicode 等价声明。</summary>
@@ -237,6 +243,7 @@ public sealed class PostgreSqlMaterialDemandSourceRepository(RepositoryBaseConte
     /// <summary>接收私有 JSON 列；解析后公共契约仅暴露结构化供应商事实。</summary>
     private sealed class PurchaseDraftCandidateQueryRow : PurchaseDraftCandidateDto
     {
+        public string DraftOrdersJson { get; set; } = "[]";
         public string ParentActualPurchaseSuppliersJson { get; set; } = "[]";
     }
 }

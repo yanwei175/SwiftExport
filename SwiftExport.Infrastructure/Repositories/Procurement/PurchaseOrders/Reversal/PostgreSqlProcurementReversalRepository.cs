@@ -11,6 +11,7 @@ using SwiftExport.Core.Models.Procurement;
 using SwiftExport.Infrastructure.Contexts;
 using SwiftExport.Infrastructure.DatabaseSchema;
 using SwiftExport.Infrastructure.Repositories.Base;
+using SwiftExport.Infrastructure.Repositories.Procurement.PurchaseOrders.Query;
 
 namespace SwiftExport.Infrastructure.Repositories.Procurement.PurchaseOrders.Reversal;
 
@@ -314,6 +315,10 @@ public sealed class PostgreSqlProcurementReversalRepository(RepositoryBaseContex
             .SetEquals(finalLinks.Select(link => (link.Uid, link.Version, link.NetDemandId, link.TargetLineId))))
             return (null, new ServiceErrorDto { Code = ServiceErrorCodes.ConcurrencyConflict, Message = "锁定过程中采购引用集合发生变化，请重新预览。", Field = "ExpectedVersion" });
         if (!includeDownstream) return (facts, null);
+        facts.HasConfirmationHistory = await context.Session.Connection.ExecuteScalarAsync<bool>(Command(
+            $"SELECT {PurchaseDraftDeletionSql.ConfirmationHistory("@uid")};",new {uid},ct));
+        facts.HasDownstreamHistory = await context.Session.Connection.ExecuteScalarAsync<bool>(Command(
+            $"SELECT {PurchaseDraftDeletionSql.DownstreamHistory("@uid")};",new {uid},ct));
 
         // 可空采购行侧在 LATERAL 内共享锁实际行，外层只锁非空头行；不对外连接或 EXISTS 结果直接加更新锁。
         facts.HasUnattributedInbound = await context.Session.Connection.ExecuteScalarAsync<bool>(Command("""
@@ -361,18 +366,21 @@ public sealed class PostgreSqlProcurementReversalRepository(RepositoryBaseContex
         var oldVersion = head.Version;
         context.AuditStamp.StampForUpdate(head);
         var cancel = operation == ProcurementReversalOperation.CancelConfirmation;
-        var delete = operation == ProcurementReversalOperation.DeleteLines;
+        var delete = operation is ProcurementReversalOperation.DeleteLines or ProcurementReversalOperation.DeleteDraft;
+        var deleteHead = operation == ProcurementReversalOperation.DeleteDraft;
         if (await context.Session.Connection.ExecuteAsync(Command("""
             UPDATE public.purchase_order_head SET lifecycle_status=CASE WHEN @Void THEN 9 ELSE lifecycle_status END,
+                is_deleted=CASE WHEN @DeleteDraft THEN TRUE ELSE is_deleted END,
                 confirmation_status=CASE WHEN @Cancel THEN 0 ELSE confirmation_status END,
                 active_confirmation_id=CASE WHEN @Cancel THEN NULL ELSE active_confirmation_id END,
                 confirmed_date=CASE WHEN @Cancel THEN NULL ELSE confirmed_date END,
                 confirmed_by=CASE WHEN @Cancel THEN NULL ELSE confirmed_by END,
                 updated_date=@UpdatedDate,updated_by=@UpdatedBy,version=version+1
             WHERE uid=@Uid AND version=@Version AND lifecycle_status=0 AND is_deleted=FALSE;
-            """, HeadParameters(head, cancel, operation == ProcurementReversalOperation.Void), ct)) != 1)
+            """, HeadParameters(head, cancel, operation == ProcurementReversalOperation.Void, deleteHead), ct)) != 1)
             return RepositoryWriteResult.Fail(head.Uid, head.Version, ServiceErrorCodes.ConcurrencyConflict, "采购状态已变化，反向操作未执行。");
         head.Version++;
+        if (deleteHead) head.IsDeleted=true;
         if (cancel)
         {
             head.ConfirmationStatus = ConfirmationStatusEnum.待确认;
@@ -437,11 +445,12 @@ public sealed class PostgreSqlProcurementReversalRepository(RepositoryBaseContex
     }
 
     /// <summary>绑定原头版本及审计与取消/作废布尔分支，不使用调用方期望版本覆盖实体版本。</summary>
-    private static PostgreSqlParameters HeadParameters(PurchaseOrderHead head, bool cancel, bool isVoid)
+    private static PostgreSqlParameters HeadParameters(PurchaseOrderHead head, bool cancel, bool isVoid, bool deleteDraft)
     {
         var parameters = Parameters(head, "Uid", "Version", "UpdatedDate", "UpdatedBy");
         parameters.Add("Cancel", cancel);
         parameters.Add("Void", isVoid);
+        parameters.Add("DeleteDraft",deleteDraft);
         return parameters;
     }
 

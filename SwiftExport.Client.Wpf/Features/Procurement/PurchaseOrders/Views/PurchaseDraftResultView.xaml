@@ -13,7 +13,7 @@
                 <TextBlock FontWeight="SemiBold" Text="创建结果" />
                 <TextBlock Text="{Binding Session.ResultSummary}" TextWrapping="Wrap" />
             </StackPanel>
-            <Button Grid.Column="1" Content="返回未完成项" Command="{Binding ReturnToPreviewCommand}" />
+            <Button Grid.Column="1" Content="返回未完成项" Command="{Binding ReturnToPreparationCommand}" />
         </Grid>
         <DataGrid Grid.Row="2"
                   FontSize="{DynamicResource SwiftExportDefaltFontSize}"
@@ -31,6 +31,14 @@
                 <DataGridTextColumn Header="说明" Width="*" ElementStyle="{StaticResource SwiftExportDataGridWarpTextBlock}"
                                     Binding="{Binding Message}" 
                                     />
+                <DataGridTextColumn Header="错误代码" Width="180" Binding="{Binding ErrorCode}" />
+                <DataGridTemplateColumn Header="打开草稿" Width="180">
+                    <DataGridTemplateColumn.CellTemplate><DataTemplate>
+                        <ItemsControl ItemsSource="{Binding PurchaseDrafts}"><ItemsControl.ItemTemplate><DataTemplate>
+                            <Button Content="{Binding OrderNo}" Command="{Binding DataContext.OpenPurchaseOrderCommand, RelativeSource={RelativeSource AncestorType=UserControl}}" CommandParameter="{Binding}" />
+                        </DataTemplate></ItemsControl.ItemTemplate></ItemsControl>
+                    </DataTemplate></DataGridTemplateColumn.CellTemplate>
+                </DataGridTemplateColumn>
             </DataGrid.Columns>
         </DataGrid>
     </Grid>

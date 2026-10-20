@@ -183,7 +183,9 @@ public sealed partial class PurchaseDemandAssociationViewModel : ViewModelBaseEx
         if (items.Select(x => (x.Demand.SourceType, x.Demand.SourceUid)).Distinct().Count() != 1
             || (Context?.SourceUid is { } uid && items.Any(x => x.Demand.SourceUid != uid || x.Demand.SourceType != Context.SourceType))) return "一张采购单只能关联同一张来源单。";
         if (items.GroupBy(x => x.Line.PurchaseOrderLineId).Any(g => g.Sum(x => x.Quantity) > (g.First().Line.UnlinkedQty ?? 0))) return "暂存分配合计超过采购行未关联数量。";
-        if (items.GroupBy(x => x.Demand.NetDemandId).Any(g => g.Sum(x => x.Quantity) > g.First().Demand.RemainingQty)) return "暂存分配合计超过物料需求可分配数量。";
+        if (items.FirstOrDefault(x => !x.Demand.CreatableQty.HasValue) is { } unknown)
+            return string.IsNullOrWhiteSpace(unknown.Demand.ReviewReason) ? "物料可创建数量待核实，请刷新候选。" : unknown.Demand.ReviewReason;
+        if (items.GroupBy(x => x.Demand.NetDemandId).Any(g => g.Sum(x => x.Quantity) > g.First().Demand.CreatableQty!.Value)) return "暂存分配合计超过物料需求可创建数量。";
         return null;
     }
     /// <summary>所有意图编辑撤销旧预览，不能继续提交旧数量或旧非标认可。</summary>

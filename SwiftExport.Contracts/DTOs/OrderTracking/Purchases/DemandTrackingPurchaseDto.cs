@@ -40,6 +40,10 @@ namespace SwiftExport.Contracts.DTOs.OrderTracking.Purchases
         public decimal ReleasedQty { get; set; }
         /// <summary>关联净贡献，AllocatedQty减ReleasedQty。</summary>
         public decimal LinkedQty { get; set; }
+        /// <summary>本关联计入已确认采购的数量；草稿为零，证据异常为空。</summary>
+        public decimal? PurchasedQty { get; set; }
+        /// <summary>本关联占用的草稿数量；已确认为零，证据异常为空。</summary>
+        public decimal? DraftOccupiedQty { get; set; }
         /// <summary>当前关联是否活动且未删除，不代替证据校验。</summary>
         public bool IsActiveLink { get; set; }
         /// <summary>采购整行数量，目标缺失为未知。</summary>

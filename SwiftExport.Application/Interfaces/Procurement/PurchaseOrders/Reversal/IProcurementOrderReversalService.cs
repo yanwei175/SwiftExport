@@ -13,4 +13,6 @@ public interface IProcurementOrderReversalService
     Task<ServiceResult<ProcurementOrderCommandResult>> VoidAsync(Guid uid, VoidProcurementOrderCommand command, CancellationToken ct = default);
     /// <summary>立即软删除选定草稿行并解除对应引用。</summary>
     Task<ServiceResult<ProcurementOrderCommandResult>> DeleteLinesAsync(Guid uid, DeleteProcurementDraftLinesCommand command, CancellationToken ct = default);
+    /// <summary>整单逻辑删除从未确认且没有下游历史的草稿，同事务释放全部活动引用。</summary>
+    Task<ServiceResult<ProcurementOrderCommandResult>> DeleteDraftAsync(Guid uid, DeleteProcurementDraftCommand command, CancellationToken ct = default);
 }

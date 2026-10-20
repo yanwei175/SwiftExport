@@ -28,6 +28,25 @@ namespace SwiftExport.Client.Wpf.Tests.Features.Procurement.PurchaseOrders;
 [DoNotParallelize]
 public sealed class PurchaseCandidateSelectionViewModelTests
 {
+    /// <summary>草稿占用不能显示为已采购；本地上限使用服务端可创建量，未知与真实零保持区别。</summary>
+    [TestMethod]
+    public void QuantityFacts_PreservePurchasedDraftUnpurchasedAndCreatableSeparately()
+    {
+        var dto = CreateCandidate(Guid.NewGuid(), "SO-QTY", 1);
+        dto.NetQty = 10; dto.PurchasedQty = 2; dto.DraftOccupiedQty = 5; dto.UnpurchasedQty = 8; dto.CreatableQty = 3;
+        var row = PurchaseCandidateItemModel.FromDto(dto);
+        Assert.AreEqual(2m, row.PurchasedQty); Assert.AreEqual(5m, row.DraftOccupiedQty);
+        Assert.AreEqual(8m, row.UnpurchasedQty); Assert.AreEqual(3m, row.CreatableQty);
+        Assert.AreEqual(3m, row.RemainingQty); Assert.AreEqual(3m, row.PurchaseQty);
+        dto.CreatableQty = null; dto.ReviewReason = "草稿占用事实不完整。";
+        var unknown = PurchaseCandidateItemModel.MergeRefreshed(dto, row);
+        Assert.IsNull(unknown.CreatableQty); Assert.IsFalse(unknown.IsAvailableForPurchase);
+        StringAssert.Contains(unknown.ValidationDisplayMessage, dto.ReviewReason);
+        var initialUnknown = PurchaseCandidateItemModel.FromDto(dto);
+        Assert.IsFalse(initialUnknown.IsAvailableForPurchase);
+        dto.CreatableQty = 0; var zero = PurchaseCandidateItemModel.FromDto(dto);
+        Assert.AreEqual(0m, zero.CreatableQty); Assert.AreEqual(string.Empty, zero.RecoveryValidationMessage);
+    }
     /// <summary>推荐、手动选择、复合填充和清空都必须维护同一组实际供应商事实。</summary>
     [TestMethod]
     public void SupplierFacts_ShouldRemainConsistentAcrossEveryInputPath()
@@ -44,7 +63,7 @@ public sealed class PurchaseCandidateSelectionViewModelTests
             SuggestedPurchaseSupplierId = recommendedId,
             SuggestedPurchaseSupplierCode = "SUP-A",
             SuggestedPurchaseSupplierName = "供应商甲",
-            NetQty = 1m,
+            NetQty = 1m, PurchasedQty = 0, DraftOccupiedQty = 0, UnpurchasedQty = 1m, CreatableQty = 1m,
         });
 
         Assert.AreEqual(recommendedId, row.SupplierId);
@@ -90,12 +109,12 @@ public sealed class PurchaseCandidateSelectionViewModelTests
         var standard = PurchaseCandidateItemModel.FromDto(new PurchaseDraftCandidateDto
         {
             Uid = Guid.NewGuid(), Version = 1, SourceType = "SO", SourceUid = Guid.NewGuid(),
-            SourceNo = "SO-1", SupplyType = SupplyTypeEnums.采购, NetQty = 1m,
+            SourceNo = "SO-1", SupplyType = SupplyTypeEnums.采购, NetQty = 1m, PurchasedQty = 0, DraftOccupiedQty = 0, UnpurchasedQty = 1m, CreatableQty = 1m,
         });
         var customerSupplied = PurchaseCandidateItemModel.FromDto(new PurchaseDraftCandidateDto
         {
             Uid = Guid.NewGuid(), Version = 1, SourceType = "SO", SourceUid = Guid.NewGuid(),
-            SourceNo = "SO-1", SupplyType = SupplyTypeEnums.采购, NetQty = 1m,
+            SourceNo = "SO-1", SupplyType = SupplyTypeEnums.采购, NetQty = 1m, PurchasedQty = 0, DraftOccupiedQty = 0, UnpurchasedQty = 1m, CreatableQty = 1m,
             IsCustomerSupplied = true,
         });
 
@@ -175,7 +194,7 @@ public sealed class PurchaseCandidateSelectionViewModelTests
         var row = PurchaseCandidateItemModel.FromDto(new PurchaseDraftCandidateDto
         {
             Uid = Guid.NewGuid(), Version = 1, SourceType = "SO", SourceUid = Guid.NewGuid(),
-            SourceNo = "SO-1", SupplyType = SupplyTypeEnums.采购, NetQty = 1m,
+            SourceNo = "SO-1", SupplyType = SupplyTypeEnums.采购, NetQty = 1m, PurchasedQty = 0, DraftOccupiedQty = 0, UnpurchasedQty = 1m, CreatableQty = 1m,
         });
         row.PurchaseQty = 0m;
 
@@ -196,7 +215,7 @@ public sealed class PurchaseCandidateSelectionViewModelTests
             var row = PurchaseCandidateItemModel.FromDto(new PurchaseDraftCandidateDto
             {
                 Uid = Guid.NewGuid(), Version = 1, SourceType = "SO", SourceUid = Guid.NewGuid(),
-                SourceNo = "SO-1", Sku = "SKU-1", SupplyType = SupplyTypeEnums.采购, NetQty = 1m,
+                SourceNo = "SO-1", Sku = "SKU-1", SupplyType = SupplyTypeEnums.采购, NetQty = 1m, PurchasedQty = 0, DraftOccupiedQty = 0, UnpurchasedQty = 1m, CreatableQty = 1m,
             });
             row.PurchaseQty = 0m;
             viewModel.Items.Add(row);
@@ -635,7 +654,7 @@ public sealed class PurchaseCandidateSelectionViewModelTests
             SourceNo = "SO-1",
             Sku = "SKU-1",
             SupplyType = SupplyTypeEnums.采购,
-            NetQty = 1m,
+            NetQty = 1m, PurchasedQty = 0, DraftOccupiedQty = 0, UnpurchasedQty = 1m, CreatableQty = 1m,
             SuggestedPurchaseSupplierId = supplier.Uid,
             SuggestedPurchaseSupplierCode = supplier.SupplierCode,
             SuggestedPurchaseSupplierName = supplier.SupplierName,
@@ -706,7 +725,7 @@ public sealed class PurchaseCandidateSelectionViewModelTests
         refreshed.Uid = original.Uid;
         refreshed.Version = 2;
         refreshed.NetQty = 6m;
-        refreshed.AssociatedPurchaseQty = 1m;
+        refreshed.AssociatedPurchaseQty = 1m; refreshed.PurchasedQty = 1m; refreshed.CreatableQty = 5m; refreshed.UnpurchasedQty = 5m;
         var refreshedUnchecked = CreateCandidate(api.FirstSourceUid, "SO-A", 2);
         refreshedUnchecked.Uid = originallyUnchecked.Uid;
         refreshedUnchecked.Version = 3;
@@ -889,7 +908,7 @@ public sealed class PurchaseCandidateSelectionViewModelTests
         SupplyType = SupplyTypeEnums.采购,
         SuggestedPurchaseSupplierName = supplierName ?? "测试供应商",
         NetQty = 10,
-        AssociatedPurchaseQty = 2,
+        AssociatedPurchaseQty = 2, PurchasedQty = 2, DraftOccupiedQty = 0, UnpurchasedQty = 8, CreatableQty = 8,
     };
 
     private sealed class CandidateApiStub : IPurchaseDraftApi
@@ -918,6 +937,7 @@ public sealed class PurchaseCandidateSelectionViewModelTests
             return Task.FromResult(ServiceResult<List<PurchaseDraftCandidateDto>>.Ok(rows));
         }
 
+        public Task<ServiceResult<List<SafePurchaseDraftCandidateDto>>> GetAppendCandidatesAsync(string sourceType, Guid sourceUid, Guid supplierId, CancellationToken cancellationToken = default) => Task.FromResult(ServiceResult<List<SafePurchaseDraftCandidateDto>>.Ok([]));
         public Task<ServiceResult<PurchaseDraftPreviewResponse>> PreviewAsync(PurchaseDraftPreviewRequest request, CancellationToken cancellationToken = default) => throw new NotSupportedException();
         public Task<ServiceResult<CreatePurchaseDraftsResult>> CreateAsync(CreatePurchaseDraftsCommand command, CancellationToken cancellationToken = default) => throw new NotSupportedException();
     }

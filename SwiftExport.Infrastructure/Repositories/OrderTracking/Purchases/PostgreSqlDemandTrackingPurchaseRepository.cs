@@ -1,3 +1,4 @@
+using SwiftExport.Infrastructure.Repositories.Procurement.PurchaseOrders.Query;
 using Dapper;
 using SwiftExport.Contracts.DTOs.OrderTracking.Purchases;
 using SwiftExport.Contracts.DTOs.OrderTracking.MaterialDetail;
@@ -15,25 +16,24 @@ public sealed class PostgreSqlDemandTrackingPurchaseRepository(RepositoryBaseCon
     public async Task<MaterialTrackingPurchaseSectionDto?> GetMaterialPurchasesAsync(Guid netDemandId,CancellationToken cancellationToken=default)
     {
         var result=await context.Session.Connection.QuerySingleOrDefaultAsync<MaterialTrackingPurchaseSectionDto>(new CommandDefinition($"""
-            WITH evidence AS (
-                SELECT l.link_status=0 AND NOT l.is_deleted
-                    AND (l.allocated_qty<>l.released_qty OR l.allocated_qty<=0 OR l.released_qty<0) AS is_current,
-                    l.allocated_qty-l.released_qty AS qty,{OrderTrackingPurchaseSql.Review} AS review_reason
-                {OrderTrackingPurchaseSql.From} WHERE n.uid=@NetDemandId
-            )
             SELECT n.uid AS "NetDemandId",n.gross_demand_id AS "GrossDemandId",n.net_qty AS "NetQty",n.unit_snapshot AS "Unit",
-                CASE WHEN ({OrderTrackingEvidenceSql.MaterialReview})=''
-                    AND NOT EXISTS(SELECT 1 FROM evidence WHERE is_current AND review_reason<>'')
-                    THEN COALESCE((SELECT sum(qty) FROM evidence WHERE is_current),0) END AS "AssociatedPurchaseQty",
-                concat_ws('；',NULLIF(({OrderTrackingEvidenceSql.MaterialReview}),''),
-                    (SELECT string_agg(DISTINCT review_reason,'；') FROM evidence WHERE is_current AND review_reason<>'')) AS "ReviewReason"
-            FROM public.net_demand n LEFT JOIN public.gross_demand g ON g.uid=n.gross_demand_id WHERE n.uid=@NetDemandId
+                CASE WHEN assessment.issue='' THEN used.associated_qty END AS "AssociatedPurchaseQty",
+                CASE WHEN assessment.issue='' THEN used.purchased_qty END AS "PurchasedQty",
+                CASE WHEN assessment.issue='' THEN used.draft_qty END AS "DraftOccupiedQty",
+                CASE WHEN assessment.issue='' THEN n.net_qty-used.associated_qty END AS "CreatableQty",
+                CASE WHEN assessment.issue='' THEN n.net_qty-used.purchased_qty END AS "UnpurchasedQty",
+                assessment.issue AS "ReviewReason"
+            FROM public.net_demand n LEFT JOIN public.gross_demand g ON g.uid=n.gross_demand_id
+            LEFT JOIN LATERAL ({PurchaseDemandCommitmentSql.Aggregate("n.uid")}) used ON TRUE
+            LEFT JOIN LATERAL (SELECT concat_ws('；',NULLIF(({OrderTrackingEvidenceSql.MaterialReview}),''),NULLIF(used.review_reason,''),
+                CASE WHEN used.associated_qty>n.net_qty THEN '采购占用超出物料需求量' END) AS issue) assessment ON TRUE
+            WHERE n.uid=@NetDemandId
             """,new{NetDemandId=netDemandId},context.Session.Transaction,cancellationToken:cancellationToken));
         if(result is null)return null;
         result.Items=await ReadItemsAsync(netDemandId,true,cancellationToken);
         if(result.AssociatedPurchaseQty.HasValue)
         {
-            result.RemainingToPurchaseQty=result.NetQty-result.AssociatedPurchaseQty;
+            result.RemainingToPurchaseQty=result.UnpurchasedQty;
             if(result.RemainingToPurchaseQty<0)result.ReviewReason=string.Join("；",new[]{result.ReviewReason,"采购承接超出物料需求量"}.Where(value=>!string.IsNullOrEmpty(value)));
         }
         return result;
@@ -51,6 +51,10 @@ public sealed class PostgreSqlDemandTrackingPurchaseRepository(RepositoryBaseCon
                 supplier.supplier_name AS "SupplierName",pol.sku AS "Sku",pol.unit_snapshot AS "Unit",
                 COALESCE(poh.confirmation_status,0) AS "ConfirmationStatus",COALESCE(poh.lifecycle_status,9) AS "LifecycleStatus",
                 l.allocated_qty AS "AllocatedQty",l.released_qty AS "ReleasedQty",l.allocated_qty-l.released_qty AS "LinkedQty",
+                CASE WHEN {OrderTrackingPurchaseSql.Current} AND ({OrderTrackingPurchaseSql.Review})='' AND poh.confirmation_status=1 THEN l.allocated_qty-l.released_qty
+                     WHEN {OrderTrackingPurchaseSql.Current} AND ({OrderTrackingPurchaseSql.Review})='' THEN 0 END AS "PurchasedQty",
+                CASE WHEN {OrderTrackingPurchaseSql.Current} AND ({OrderTrackingPurchaseSql.Review})='' AND poh.confirmation_status=0 THEN l.allocated_qty-l.released_qty
+                     WHEN {OrderTrackingPurchaseSql.Current} AND ({OrderTrackingPurchaseSql.Review})='' THEN 0 END AS "DraftOccupiedQty",
                 (l.link_status=0 AND NOT l.is_deleted AND l.allocated_qty>l.released_qty) AS "IsActiveLink",
                 CASE WHEN poh.uid IS NOT NULL AND pol.uid IS NOT NULL THEN pol.quantity END AS "PurchaseLineQty",
                 EXISTS(SELECT 1 FROM public.demand_execution_link other WHERE other.target_line_id=l.target_line_id

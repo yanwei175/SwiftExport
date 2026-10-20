@@ -39,7 +39,8 @@ public sealed class PurchaseDraftPreviewService(
     ISupplierRepository supplierRepository,
     ISupplierProductRepository supplierProductRepository,
     ISalesOrderHeadRepository salesOrderHeadRepository,
-    PurchaseDraftPreviewBuilder previewBuilder) : IPurchaseDraftPreviewService
+    PurchaseDraftPreviewBuilder previewBuilder,
+    IProcurementDemandAssociationRepository associationTargets)
 {
     private readonly ILogger<PurchaseDraftPreviewService> _logger =
         context.LoggerFactory.CreateLogger<PurchaseDraftPreviewService>();
@@ -242,6 +243,9 @@ public sealed class PurchaseDraftPreviewService(
         CancellationToken cancellationToken)
     {
         var itemByDemand = source.Items.ToDictionary(x => x.NetDemandId);
+        if(activeLinks.Any(link=>!string.IsNullOrEmpty(link.ReviewReason) || link.AllocatedQty<=0))
+            throw new PurchaseDraftException(PurchaseDraftErrorCodes.CorruptedState,
+                "现有采购占用需核实："+string.Join("；",activeLinks.Select(link=>link.ReviewReason).Where(reason=>!string.IsNullOrEmpty(reason)).Distinct()));
         var grossById = grossDemands.ToDictionary(x => x.Uid);
         var netById = netDemands.ToDictionary(x => x.Uid);
         var allocatedByDemand = activeLinks
@@ -294,6 +298,12 @@ public sealed class PurchaseDraftPreviewService(
             Product? product = null;
             if (net.ProductId.HasValue)
                 products.TryGetValue(net.ProductId.Value, out product);
+            var referenceIssue=ProcurementDemandReferencePolicy.ReferenceIssue(net,gross,
+                new PurchaseOrderHead{CustomerId=gross.CustomerId},new PurchaseOrderLine{ProductId=net.ProductId,
+                    MaterialType=net.MaterialTypeSnapshot,SupplyType=net.SupplyTypeSnapshot,UnitSnapshot=net.UnitSnapshot});
+            if(item is not null && (referenceIssue is not null || remainingQty<0))
+                throw new PurchaseDraftException(PurchaseDraftErrorCodes.CorruptedState,
+                    $"物料 {net.SkuSnapshot}（{net.Uid}）：{referenceIssue??"采购占用已超过当前需求量，请核实。"}");
             candidates.Add(new PurchaseDraftPreviewCandidate
             {
                 CommandItemId = item?.CommandItemId ?? Guid.Empty,
@@ -309,7 +319,7 @@ public sealed class PurchaseDraftPreviewService(
                 CustomerName = customer?.CustomerName ?? string.Empty,
                 IsSelected = item is not null,
                 IsCustomerSupplied = net.DeliveryMode == DemandDeliveryModeEnum.ParentExecutionSupplier,
-                IsPlanningFactValid = net.NetQty > 0 && remainingQty >= 0,
+                IsPlanningFactValid = referenceIssue is null && remainingQty >= 0,
                 ExecutionType = ResolveExecutionType(net.SupplyTypeSnapshot),
                 RemainingQty = remainingQty,
                 RequestedPurchaseQty = item?.PurchaseQty,
@@ -317,7 +327,8 @@ public sealed class PurchaseDraftPreviewService(
                 PlannedDeliveryDate = item is null ? net.RequiredDate : item.PlannedDeliveryDate,
                 ProductId = net.ProductId,
                 Sku = net.SkuSnapshot,
-                LinkSku = product is null ? gross.LinkSkuSnapshot ?? string.Empty : product.LinkSku ?? string.Empty,
+                // 与查询侧 COALESCE(product.link_sku, gross.link_sku_snapshot) 一致，避免空值回退差异使预览立即过期。
+                LinkSku = product?.LinkSku ?? gross.LinkSkuSnapshot ?? string.Empty,
                 CustomerSku = net.CustomerSkuSnapshot ?? string.Empty,
                 Description = net.DescriptionSnapshot ?? string.Empty,
                 Color = net.ColorSnapshot ?? string.Empty,
@@ -343,6 +354,25 @@ public sealed class PurchaseDraftPreviewService(
         }
 
         ValidateLockedItems(command.EntryMode, source, candidates);
+        // 与确认/补关联复用同树及父件实际供应商规则；来源锁保持到提交，不另取目标更新锁。
+        var relatedFacts=new SwiftExport.Core.Models.Procurement.ProcurementReversalFacts
+        {
+            Demands=netDemands.ToList(),Sources=grossDemands.ToList(),
+            Links=activeLinks.Select(link=>new DemandExecutionLink{NetDemandId=link.NetDemandId,TargetHeadId=link.TargetHeadId,
+                TargetLineId=link.TargetLineId,AllocatedQty=link.AllocatedQty}).ToList()
+        };
+        var targets=(await associationTargets.ReadTargetsAsync(activeLinks.Select(link=>link.TargetLineId).Distinct().ToArray(),cancellationToken)).ToList();
+        foreach(var item in source.Items)
+        {
+            var target=new SwiftExport.Core.Models.Procurement.ProcurementAssociationTarget{LineId=item.CommandItemId,
+                HeadId=command.ExecutionRequestId,ProductId=netById[item.NetDemandId].ProductId,SupplierId=item.SupplierId,
+                DeliveryTargetSupplierId=item.DeliveryTargetSupplierId};
+            targets.Add(target);
+            relatedFacts.Links.Add(new DemandExecutionLink{NetDemandId=item.NetDemandId,TargetHeadId=target.HeadId,
+                TargetLineId=target.LineId,AllocatedQty=item.PurchaseQty});
+        }
+        try { ProcurementDemandReferencePolicy.RequireDeliveryRelations(relatedFacts,targets,[]); }
+        catch(InvalidOperationException ex){throw new PurchaseDraftException(PurchaseDraftErrorCodes.CorruptedState,ex.Message);}
         var safeAppendRows = command.EntryMode == PurchaseDraftEntryModeEnum.SourceOneClick
             ? Array.Empty<SafePurchaseDraftCandidateDto>()
             : await purchaseDraftRepository.GetSafeAppendCandidatesAsync(
@@ -653,11 +683,10 @@ public sealed class PurchaseDraftPreviewService(
         {
             if (!candidateById.TryGetValue(item.NetDemandId, out var candidate))
                 throw new PurchaseDraftException(PurchaseDraftErrorCodes.NetDemandNotFound, "物料需求不属于当前活动来源单。");
-            if (candidate.NetDemandVersion != item.ExpectedVersion
-                || candidate.RemainingQty != item.ExpectedRemainingQty)
-                throw new PurchaseDraftException(PurchaseDraftErrorCodes.PreviewExpired, "计划版本或剩余数量已变化，请重新预览。");
+            if (candidate.NetDemandVersion != item.ExpectedVersion)
+                throw new PurchaseDraftException(SwiftExport.Contracts.DTOs.Errors.ServiceErrorCodes.VersionConflict, "物料需求版本已变化，请刷新后重试。");
             if (item.PurchaseQty <= 0 || item.PurchaseQty > candidate.RemainingQty)
-                throw new PurchaseDraftException(PurchaseDraftErrorCodes.InvalidPurchaseQuantity, "采购数量超出当前剩余量。");
+                throw new PurchaseDraftException(PurchaseDraftErrorCodes.InvalidPurchaseQuantity, $"物料 {candidate.Sku}（{candidate.NetDemandId}）采购数量 {item.PurchaseQty} 超出当前可创建量 {candidate.RemainingQty}。");
         }
 
         if (entryMode == PurchaseDraftEntryModeEnum.SourceOneClick)
@@ -667,7 +696,7 @@ public sealed class PurchaseDraftPreviewService(
                 .Select(x => x.NetDemandId)
                 .ToHashSet();
             if (!required.SetEquals(source.Items.Select(x => x.NetDemandId))
-                || source.Items.Any(x => x.PurchaseQty != x.ExpectedRemainingQty))
+                || source.Items.Any(x => x.PurchaseQty != candidateById[x.NetDemandId].RemainingQty))
                 throw new PurchaseDraftException(PurchaseDraftErrorCodes.OneClickRequiresAllRemaining,
                     "来源一键转采购必须包含全部采购型剩余计划并使用全部剩余量。");
         }
