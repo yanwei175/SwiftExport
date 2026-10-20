@@ -1,3 +1,5 @@
+using SwiftExport.Contracts.DTOs.OrderTracking.PurchaseOrders;
+using SwiftExport.Contracts.DTOs.Procurement.PurchaseOrderProgress;
 using System;
 using System.Collections.Generic;
 using System.Threading;
@@ -18,6 +20,23 @@ namespace SwiftExport.Contracts.Apis.OrderTracking
     /// <summary>订单跟踪独立只读查询；客户端 BaseAddress 为 api/order-tracking。</summary>
     public interface IOrderTrackingApi
     {
+        /// <summary>按采购单分页查询履约摘要，包含独立采购；无权维度为空且禁止对应筛选。</summary>
+        [Post("/purchase-orders/search")]
+        Task<ServiceResult<PagedResponseBase<PurchaseOrderTrackingItemDto>>> SearchPurchaseOrdersAsync([Body] PurchaseOrderTrackingSearchRequest request, CancellationToken cancellationToken = default(CancellationToken));
+
+        /// <summary>读取指定采购单全部有效行，不继承主表筛选或分页。</summary>
+        [Get("/purchase-orders/{purchaseOrderId}/lines")]
+        Task<ServiceResult<List<PurchaseOrderTrackingLineDto>>> GetPurchaseOrderLinesAsync(Guid purchaseOrderId, CancellationToken cancellationToken = default(CancellationToken));
+
+        /// <summary>读取采购整行正式收货证据，要求采购跟踪基础权限及入库查看权限。</summary>
+        [Get("/purchase-orders/{purchaseOrderId}/receipts")]
+        Task<ServiceResult<PurchaseOrderTrackingReceiptsDto>> GetPurchaseOrderReceiptsAsync(Guid purchaseOrderId, CancellationToken cancellationToken = default(CancellationToken));
+
+        /// <summary>读取指定采购单的完整追加式反馈历史，额外要求供应商反馈查看权限。</summary>
+        [Get("/purchase-orders/{purchaseOrderId}/reports")]
+        Task<ServiceResult<List<SupplierProgressReportDto>>> GetPurchaseOrderReportsAsync(Guid purchaseOrderId, CancellationToken cancellationToken = default(CancellationToken));
+
+
 
 
         /// <summary>批量读取当前页来源的活动需求摘要，按维度保护权限并保留失败状态。</summary>

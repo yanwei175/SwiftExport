@@ -655,3 +655,12 @@ Refit声明放[Contracts/Apis](../SwiftExport.Contracts/Apis)，用例DTO放[Con
 
 第5阶段新增独立摘要（工作树实现，尚未合并部署）：POST `api/order-tracking/sources/summaries` 使用 `OrderTrackingSourceSummaryRequest`，返回 `OrderTrackingSourceSummaryBatchDto`；GET `api/order-tracking/sources/{sourceType}/{sourceGroupId}/summaries` 返回 `OrderTrackingSourceDemandSummariesDto`，完整覆盖所选来源而不分页。摘要分维度授权及失败隔离，采购行收货在来源内去重，权限与数量边界见设计与交付文档第5阶段记录。
 订单跟踪总览体验调整（工作树已定向验收，未合并部署）：新增 POST api/order-tracking/sources/{sourceType}/{sourceGroupId}/matches，按已应用条件返回指定来源全部命中成品需求ID，不分页；基础OrderTracking.View及所选关注项权限与sources/search一致。GET demands全量子表保持不变。
+
+### 采购单视角订单跟踪（2026-10-20，本轮实施未提交合并）
+
+- POST `api/order-tracking/purchase-orders/search`：按采购单分页，包含独立采购。
+- GET `api/order-tracking/purchase-orders/{purchaseOrderId}/lines`：所选采购单全量有效行。
+- GET `api/order-tracking/purchase-orders/{purchaseOrderId}/reports`：完整供应商反馈事实。
+- GET `api/order-tracking/purchase-orders/{purchaseOrderId}/receipts`：采购整行正式收货证据。
+
+基础权限 `OrderTracking.View` + `Procurement.Order.Read`；反馈需 `Procurement.Progress.View`，收货需 `Inventory.Inbound.View`。摘要按维度权限返回可见性，缺权筛选拒绝；详见[采购模块能力地图](../.agents/references/模块能力地图/采购模块能力地图.md)。
