@@ -59,4 +59,4 @@
 - [x] 按 #23 第 1 批：抽取 `aspdotnet10` 中的业务规定迁入 `.agents/references`，技术/安全规定迁入 `backend`（文档窗口）
 - [x] 按 #23 第 2 批：AGENTS.md、`.agents/router.toml`、后端 agent/workflow 改为只指向 `backend`；补“代码不作样板”与旧模块修 Bug 规则（文档窗口）
 - [x] 按 #23 第 3 批：`aspdotnet10` 与旧后端工作流移入 `弃用资料/`，全仓检索残留引用并清除（文档窗口）
-- [ ] 按 #23 验收：新 Codex 会话询问“修改采购确认接口会读哪些文件”，确认不再命中旧 skill（文档窗口）
+- [x] 按 #23 验收：新 Codex 会话询问“修改采购确认接口会读哪些文件”，确认不再命中旧 skill（文档窗口）
