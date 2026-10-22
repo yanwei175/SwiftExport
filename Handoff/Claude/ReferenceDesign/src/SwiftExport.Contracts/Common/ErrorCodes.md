@@ -9,11 +9,11 @@ public static class ErrorCodes
 	public const string Validation           = "validation";             // 400
 	public const string NotFound             = "not_found";              // 404
 	public const string ConcurrencyConflict  = "concurrency_conflict";   // 409 重新加载后再操作
-	public const string CommandInFlight  = "command_in_flight";  // 409 同 CommandId 正在执行，稍后用同 CommandId 重试
-	public const string CommandIdReused = "command_id_reused";
-	public const string Transient            = "transient";              // 503 确定未生效，可重试
-	public const string OutcomeUnknown       = "outcome_unknown";        // 503 用同一 Key 重试
-	public const string Unexpected           = "unexpected";             // 500 已回滚
+	public const string CommandInFlight  = "command_in_flight";  // 409 同 CommandId 并发，后到者已回滚；用同 CommandId 重试
+	public const string CommandIdReused = "command_id_reused";    // 422
+	public const string Transient            = "transient";              // 503 仅限提交前失败：确定未生效，可重试
+	public const string OutcomeUnknown       = "outcome_unknown";        // 503 提交本身失败：用同一 CommandId 重试
+	public const string Unexpected           = "unexpected";             // 500 是否生效由事务阶段和回执判定（决策 #27）
 
 	// 业务规则（422），按 "模块.原因" 命名，由 BusinessRuleException 携带
 	public const string InvalidStatus        = "document.invalid_status";

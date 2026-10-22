@@ -209,30 +209,32 @@ HTTP 请求
 > https://datatracker.ietf.org/doc/draft-ietf-httpapi-idempotency-key-header/
 > https://docs.stripe.com/api/idempotent_requests
 
-### 6.3 公共组件：`ICommandExecutor`（全仓唯一）
+### 6.3 公共组件：`ICommandExecutor`（全仓唯一，决策 #28）
 ```csharp
 public interface ICommandExecutor
 {
-	// 普通写入：只有事务
-	Task<T> ExecuteAsync<T>(Func<CancellationToken, Task<T>> work, CancellationToken ct);
-	// 单据命令：事务 + 幂等
+	// 只用于正式单据命令：事务 + 幂等。普通写入直接用 IUnitOfWork.ExecuteAsync（第 15 节），不经过本组件。
 	Task<T> ExecuteIdempotentAsync<T>(Guid commandId, string commandType, Guid? targetId, object request,
 		Func<CancellationToken, Task<T>> work, CancellationToken ct);
 }
 ```
-内部行为（`ExecuteIdempotentAsync`）：
+内部行为（通过 `IUnitOfWork.ExecuteAsync` 开启事务，自身不直接开启/提交）：
 ```
 开事务(Read Committed)
-  查 command_receipt(command_id)
-	存在且 command_type/actor/target/fingerprint 相同 → 提交 → 返回存档结果
-	存在但任一不同     → 抛 CommandIdReusedException(422)
+  在事务内查 command_receipt(command_id)
+	存在 → 依次比对 FingerprintVersion、CommandType、ActorUid、RequestTargetUid、RequestFingerprint
+	  FingerprintVersion 或 ResultVersion 与当前不同 → 409 回执不可读，不重新执行
+	  其余任一不同                                 → 422 command_id_reused
+	  全部相同                                     → 返回存档结果（重放）
   result = work()
-  插入 command_receipt(command_id, command_type, actor_uid, request_target_uid, request_fingerprint, result_json)
-  提交
-  提交本身抛异常 → 抛 CommitOutcomeUnknownException(503，提示使用同一 CommandId 重试)
+  插入 command_receipt(...)；唯一索引冲突 → 409 command_in_flight
+  提交（由 IUnitOfWork 判定提交阶段，见 7.1）
 异常 → 回滚 → 原样抛出（不转换、不记日志）
 ```
-它**不做**：授权、输入校验、异常转 HTTP、写请求日志。
+- **指纹兼容**：沿用现有实现的规范化方式、算法与 `FingerprintVersion` 当前值；ReferenceDesign 中的 `SHA256(JSON)` 与 `=1` 仅为示意。验收须有用现有实现生成的回执样本做“同输入同指纹”的金样测试。
+- **同 CommandId 并发**：服务端不做特殊处理，不加锁、不改表、不回查。后到请求因回执唯一索引冲突（409 `command_in_flight`）或单据 Version 冲突（409）失败并整体回滚；客户端收到 409 或结果未知时，用**同一 CommandId** 重试，先到者已提交则得到重放结果。
+
+它**不做**：授权、输入校验、异常转 HTTP、写请求日志、普通写入的事务。
 
 ### 6.4 指纹/请求哈希只包含用户意图
 哈希字段：操作名、目标单据 ID、ExpectedVersion、用户提交的明细。**不要**把数据库实体整行序列化进哈希（无关字段变化会导致误判）。
@@ -256,9 +258,13 @@ public interface ICommandExecutor
 | `ConcurrencyException` | 409 | `concurrency_conflict` | 重新加载单据后再操作 |
 | `BusinessRuleException` | 422 | 具体业务码，如 `inbound.already_posted` | 显示消息 |
 | `CommandIdReusedException` | 422 | `command_id_reused` | 程序错误，生成新 CommandId |
-| 数据库序列化失败/死锁/锁超时 | 503 | `transient` | **确定未生效**，可自动重试 |
-| `CommitOutcomeUnknownException` | 503 | `outcome_unknown` | 用**同一个 CommandId** 重试 |
-| 其他 | 500 | `unexpected` | 已回滚，确定未生效 |
+| `CommandInFlightException` | 409 | `command_in_flight` | 用**同一个 CommandId** 重试 |
+| 回执版本不可读 | 409 | — | 不重新执行；联系开发者 |
+| 提交前的序列化失败/死锁/锁超时 | 503 | `transient` | **确定未生效**，可自动重试 |
+| `CommitOutcomeUnknownException`（提交本身失败） | 503 | `outcome_unknown` | 用**同一个 CommandId** 重试 |
+| 其他 | 500 | `unexpected` | 是否生效由事务阶段和回执判定：幂等命令用同一 CommandId 重试（已生效则重放回执）；普通写入重新加载数据后再决定 |
+
+“是否生效”的口径（决策 #27）：只有 `IUnitOfWork`/`CommandExecutor` 能判定事务阶段，不能只凭 HTTP 状态码推断。提交前抛出的异常 → 已回滚、确定未生效（含 400/404/409/422 和 `transient` 503）；提交本身失败 → 503 `outcome_unknown`；其余 500 不承诺未生效。
 
 ProblemDetails 中带上 `traceId`，用户报错时提供给开发者对日志。
 
@@ -283,7 +289,7 @@ ProblemDetails 中带上 `traceId`，用户报错时提供给开发者对日志�
 
 规则：
 - 用结构化日志（`{DocumentNo}` 占位符，不拼接字符串）。
-- 用 ASP.NET Core 自带的 `TraceIdentifier`/`Activity.TraceId` 作为关联 ID，不自写中间件。
+- 关联 ID（决策 #26）：使用 `Activity.Current.TraceId`（无 Activity 时用 `HttpContext.TraceIdentifier`），由 Serilog 记录并在 ProblemDetails `traceId` 返回；不自写 CorrelationId 中间件，客户端不发送自定义关联头。现有审计等表中的 CorrelationId 列结构不改，改为写入该 TraceId。
 - 不记录密码、Token。
 - 审计不能用日志代替：日志可丢、可轮转，审计是业务数据。
 
@@ -304,7 +310,7 @@ ProblemDetails 中带上 `traceId`，用户报错时提供给开发者对日志�
 ### 9.2 普通写入（草稿新建/保存）
 ```
 [HttpPost/PUT] [HasPermission(Edit)] → XxxService.SaveAsync(cmd)
-	→ executor.ExecuteAsync(加载 → 实体.Update(...) → repo.Update(version 条件) → 审计)
+	→ uow.ExecuteAsync(加载 → 实体.Update(...) → repo.Update(version 条件) → 审计)   // 不经过 CommandExecutor
 ```
 
 ### 9.3 单据命令（过账/确认/作废）
@@ -395,7 +401,7 @@ tests/
 
 1. Contracts：Request/Dto、权限码、Refit 方法。
 2. Domain：若有新状态流转，在实体加方法并写单元测试。
-3. Application：在 `XxxService` 加方法；正式命令用 `ExecuteIdempotentAsync`，普通写入用 `ExecuteAsync`。
+3. Application：在 `XxxService` 加方法；正式命令用 `ICommandExecutor.ExecuteIdempotentAsync`，普通写入用 `IUnitOfWork.ExecuteAsync`。
 4. Infrastructure：仓储方法与 SQL；UPDATE 带 `version` 条件。
 5. Api：Controller Action + `[HasPermission]`。
 6. 测试：领域单元测试 + 一个集成测试（未授权 403、成功、版本冲突、同 CommandId 重放）。
@@ -411,7 +417,7 @@ tests/
 | MediatR 及其替代品 | 见第 17 节 |
 | 自写 CommandPipeline 重复授权/日志 | ASP.NET Core 中间件与过滤器已提供 |
 | 每个模块一个 Support 包装 | 重复且细节不一致，异常处理应唯一 |
-| 事务外 advisory 锁、多重命令锁 | 幂等表主键 + 行锁 + Version 已覆盖 |
+| 事务外 advisory 锁、多重命令锁 | 由行锁 + 唯一约束 + Version 替代；删除前逐个调用点证明替代手段（决策 #29） |
 | 默认 Serializable | 无明确不变量需求时引入重试复杂度 |
 | HTTP 冷却/防连点过滤器 | 前端禁用按钮 + 幂等已覆盖 |
 | 资源级权限 | 业务不需要 |
@@ -428,6 +434,8 @@ tests/
 | 正常过账 | 200；库存余额、流水、单据状态、审计、幂等记录同时存在 |
 | 同 CommandId 重发 | 200，返回相同结果，流水不增加 |
 | 同 CommandId 不同内容 | 422 |
+| 同 CommandId 并发 | 一个 200；另一个 409（`command_in_flight` 或版本冲突）且无写入，用同 CommandId 重试得到重放 |
+| 回执 FingerprintVersion/ResultVersion 不同 | 409，不重新执行 |
 | 两个不同 CommandId 同时过账同一张单 | 一个 200，另一个 409 或 422（已过账） |
 | Version 过期 | 409 |
 | 写流水后故意抛错 | 500，所有表均无写入，日志仅一条堆栈 |
@@ -491,11 +499,11 @@ ExecuteAsync:
 ```
 
 - 仓储通过 `IDbSession` 拿 `Connection` 和 `Transaction` 传给 Dapper。
-- 业务代码只能通过 `IUnitOfWork.ExecuteAsync` 拿到事务，**物理上无法**在别处开启或回滚。
+- 业务代码只能通过 `IUnitOfWork.ExecuteAsync` 拿到事务。
 - 第 6.3 节的 `ICommandExecutor.ExecuteIdempotentAsync` 内部调用 `IUnitOfWork`，只多做幂等记录的读写。
 - 删除 `DbSession` 上的租约、Epoch 等字段（配合第 6 节删除 advisory 锁）。
 
-这比“不建 UnitOfWork”只多一个接口、一个方法，但把“谁拥有事务”从约定变成了编译期保证。
+这比“不建 UnitOfWork”只多一个接口、一个方法，使事务所有权在 API 层面唯一。但它**不是编译期保证**：`Connection.BeginTransaction()` 仍可被调用。因此由架构测试兜底（决策 #30）：除 `DbSession`（`IUnitOfWork` 实现）外，全仓禁止出现 `BeginTransaction`/`Commit`/`Rollback` 调用。
 
 > 参考：Martin Fowler《Unit of Work》 https://martinfowler.com/eaaCatalog/unitOfWork.html
 > Microsoft《Implement the infrastructure persistence layer with Entity Framework Core》（说明 DbContext 即 UoW）

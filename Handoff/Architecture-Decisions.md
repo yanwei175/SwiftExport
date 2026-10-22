@@ -71,6 +71,6 @@
 - [x] 按 #23 第 2 批：AGENTS.md、`.agents/router.toml`、后端 agent/workflow 改为只指向 `backend`；补“代码不作样板”与旧模块修 Bug 规则（文档窗口）
 - [x] 按 #23 第 3 批：`aspdotnet10` 与旧后端工作流移入 `弃用资料/`，全仓检索残留引用并清除（文档窗口）
 - [x] 按 #23 验收：新 Codex 会话询问“修改采购确认接口会读哪些文件”，确认不再命中旧 skill（文档窗口）
-- [ ] 按 #25–#30 修订 `Handoff/Refactor/00-Foundation.md`（错误通道三批、删除 CorrelationId 中间件、Executor 规则、锁替代清单验收、事务架构测试）；顺带按 #9 把其中 `RequirePermission`/`PermissionKeys` 改为 `HasPermission`/`Permissions`（文档窗口）
-- [ ] 按 #26–#28、#30 修订 `Backend-Architecture-Guide.md`（第 6.3、7.1、8、9.2、15 节）（文档窗口）
-- [ ] 按 #26、#28 修订 ReferenceDesign：`CommandExecutor.md`、`Program.md`、`Toolbox.md`、`Interfaces.md`、相关 Service 样板中的 `executor.ExecuteAsync`；同步 `backend` skill 与 `.agents/references` 中的对应表述（文档窗口）
+- [x] 按 #25–#30 修订 `Handoff/Refactor/00-Foundation.md`（错误通道三批、删除 CorrelationId 中间件、Executor 规则、锁替代清单验收、事务架构测试）；顺带按 #9 把其中 `RequirePermission`/`PermissionKeys` 改为 `HasPermission`/`Permissions`（文档窗口）
+- [x] 按 #26–#28、#30 修订 `Backend-Architecture-Guide.md`（第 6.3、7.1、8、9.2、15 节）（文档窗口）
+- [x] 按 #26、#28 修订 ReferenceDesign：`CommandExecutor.md`、`Program.md`、`Toolbox.md`、`Interfaces.md`、相关 Service 样板中的 `executor.ExecuteAsync`；同步 `backend` skill 与 `.agents/references` 中的对应表述（文档窗口）

@@ -34,3 +34,5 @@ app.Run();
 ```
 
 不出现：自写 CorrelationId 中间件、自写异常中间件、端点权限字典、防重复请求过滤器。
+
+关联 ID（决策 #26）：`Activity.Current.TraceId`（无 Activity 时 `HttpContext.TraceIdentifier`），由 `UseSerilogRequestLogging` 记录，`GlobalExceptionHandler` 写入 ProblemDetails `traceId`；审计表现有 CorrelationId 列写入该值。客户端不发送自定义关联头。

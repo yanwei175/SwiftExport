@@ -27,7 +27,7 @@
 | 当前时间 | `TimeProvider`（注入，测试可替换） | `DateTime.Now` 散落各处 |
 | 有序 GUID | `Guid.CreateVersion7()`（.NET 9+） | 自写 `GuidSequentialGenerator` |
 | 统一错误响应 | `IExceptionHandler` + `AddProblemDetails()` | 自写错误中间件、`ServiceResult` 包装 |
-| 关联 ID | `HttpContext.TraceIdentifier` / `Activity.Current.TraceId` | 自写 CorrelationId 中间件 |
+| 关联 ID | `Activity.Current.TraceId`（无 Activity 时 `HttpContext.TraceIdentifier`），ProblemDetails 返回 `traceId`（决策 #26） | 自写 CorrelationId 中间件、客户端自定义关联头 |
 | 缓存 | `IMemoryCache` | 自写字典缓存 |
 | 限流（如需） | `AddRateLimiter` | 自写冷却过滤器 |
 | 请求取消 | `CancellationToken` 一路透传 | 自写取消标志 |

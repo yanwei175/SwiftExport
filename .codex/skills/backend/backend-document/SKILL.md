@@ -25,8 +25,10 @@ description: SwiftExport 后端单据写入的技术形状。用于草稿保存/
 ## CommandId
 
 - 放在请求体，不用 HTTP Header；客户端每次操作新生成，重试复用。
-- 指纹只含用户意图，不含 `CommandId`、不含整个实体。
-- 重放返回首次结果，不执行业务。
+- 指纹只含用户意图，不含 `CommandId`、不含整个实体；沿用现有实现的规范化方式、算法与 `FingerprintVersion`（决策 #28d）。
+- 在事务内查回执；`FingerprintVersion`/`ResultVersion` 不同 → 409 不重新执行，其余字段不同 → 422 `command_id_reused`；全部相同则重放首次结果，不执行业务（决策 #28c）。
+- 同 CommandId 并发不加锁、不回查：后到者 409 并整体回滚，客户端用同一 CommandId 重试（决策 #28e）。
+- 失败是否生效只由事务阶段和回执判定，不凭 HTTP 状态码推断（决策 #27）。
 
 ## 预览 / 预检
 

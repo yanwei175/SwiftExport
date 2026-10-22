@@ -20,13 +20,13 @@ namespace SwiftExport.Infrastructure.Persistence;
 
 public sealed class CommandReceiptStore(IDbSession db) : ICommandReceiptStore
 {
-	// 回执已存在：读到后重放。
-	// 首次并发同 CommandId（回执尚不存在，FOR UPDATE 锁不住不存在的行）：两个请求都会进入业务，
-	// 但会在单据头 FOR UPDATE 处串行；后者因状态/版本已变得到 409/422，或在插入回执时撞唯一索引得到 409。
+	// 回执已存在：读到后重放。回执为追加只写，读取不加锁（决策 #28e）。
+	// 首次并发同 CommandId（回执尚不存在）：两个请求都会进入业务，在单据头 FOR UPDATE 处串行；
+	// 后者因 Version 已变得到 409，或在插入回执时撞唯一索引得到 409 command_in_flight，整体回滚。
 	// 客户端随后用同一 CommandId 重试即可读到前者的结果。
 	public Task<CommandReceipt?> FindAsync(Guid commandId, CancellationToken ct) =>
 		db.Connection.QuerySingleOrDefaultAsync<CommandReceipt>(new CommandDefinition(
-			"SELECT * FROM command_receipt WHERE command_id = @commandId FOR UPDATE",
+			"SELECT * FROM command_receipt WHERE command_id = @commandId",
 			new { commandId }, db.Transaction, cancellationToken: ct));
 
 	public async Task InsertAsync(CommandReceipt r, CancellationToken ct)
