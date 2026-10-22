@@ -10,7 +10,7 @@
 
 1. 公共启动和授权边界沿用 `AGENTS.md`，不重复展开已读入口。
 2. 从目标实现、直接调用方和相关测试确认必要的 Controller、Application、Contracts、Entity、Repository；先定位事实，再选择专项规则。
-3. 按 [后端技能入口](../../.codex/skills/backend/index/SKILL.md) 选择本次改动所需子技能与专项规定，修改前补齐技术约束；涉及 PostgreSQL 技术任务时按 [数据访问规定](../../.codex/skills/backend/index/references/数据访问规定.md#postgresql-插件技能) 接入 `postgres-skills`。现有代码只说明实现事实，不作样板；形状以 Guide 与 ReferenceDesign 为准。未治理旧模块修 Bug 只做最小修复，不顺手迁移（决策 #23）。
+3. 按 [后端技能入口](../../.codex/skills/backend/index/SKILL.md) 选择本次改动所需子技能与专项规定，修改前补齐技术约束；涉及 PostgreSQL 技术任务时按 [数据访问规定](../../.codex/skills/backend/index/references/数据访问规定.md#postgresql-插件技能) 接入 `postgres-skills`。现有代码只用于确认事实，不作样板；唯一结构样板是 ReferenceDesign/src（决策 #24）。未治理旧模块修 Bug 只做最小修复，不顺手迁移，新写代码不得使用已禁止模式（决策 #23）。
 4. 改变分层/公共依赖或当前边界不明时读取工程总纲相关章节；数据库、仓储、SQL、连接、结构及工具任务补齐当前 PostgreSQL 基线。单据状态、库存数量或需求交接实际变化时补读对应业务/模型章节，不展开无关总纲。
 5. 改变模块职责、API/DTO语义或跨域交接时按模块索引读取命中地图；只有新增或重构WPF页面纵向切片时读取切片教程。改变采购—入库—库存交接时核对三方契约；没有有效偏差ID时记录来源位置，不恢复旧表。
 6. 偏差按 `.agents/references/架构治理与路由判定规则.md` 分类；过期事实和无关历史偏差不阻断当前实现，需要改变有效目标、扩大授权或豁免门禁时才等待决定。

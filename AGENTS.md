@@ -60,7 +60,7 @@
 4. 当前桌面前端主线是 `.NET 10 WPF + CommunityToolkit MVVM`；Web 目标使用独立的 React Web 治理入口。任务即使引用 .NET 10 客户端作参考，也按实际修改目标选择角色，不把 WPF 实现规范套到 Web。
 5. 当前 .NET 10 WPF 的 MVVM 代码必须遵循 `.codex/skills/wpf-dotnet10-design/communitytoolkit-mvvm/SKILL.md`。
 6. 业务称呼统一使用“成品需求”，不再使用“来源需求”；相关界面文案、源码注释和开发文档保持一致。
-7. 后端现有代码只说明实现事实，不作样板；后端新代码形状以 `Handoff/Claude/Backend-Architecture-Guide.md` 与 `Handoff/Claude/ReferenceDesign` 为准。未治理旧模块修 Bug 同样读 `backend` skill，只做最小修复，不顺手迁移或重构（决策 #23）。
+7. 后端现有代码（`SwiftExport.*`）只用于确认事实，不作样板；唯一结构样板是 `Handoff/Claude/ReferenceDesign/src/**`（决策 #24）。未治理旧模块修 Bug 同样读 `backend` skill，只做最小修复、不顺手迁移或重构，新写代码不得使用已禁止模式（决策 #23）。
 
 ### 中文注释铁律
 
