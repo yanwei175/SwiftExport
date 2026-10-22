@@ -45,13 +45,15 @@
 21. 后端 skill 关系：`backend` 与旧 `aspdotnet10` 并存，维持 backend 入口现有过渡期说法（新增功能/正在治理模块用 backend；未治理旧模块只修 Bug 用 aspdotnet10、不顺手迁移；冲突时在已治理范围内以 backend 为准），不设退役时间。
 22. 权限特性统一命名为 `[HasPermission(Permissions.X)]`（`HasPermissionAttribute : AuthorizeAttribute`，权限码常量类 `Permissions` 放 Contracts），以 Guide 与 ReferenceDesign 为准；取代 #9 中 `RequirePermission`/`PermissionKeys` 的命名表述，#9 其余内容不变。
 23. 后端 skill 关系改为替换（取代 #21）：`backend` 成为唯一后端 skill，旧 `aspdotnet10` 及旧后端工作流整组移入 `弃用资料/`（不删除）。退役前先抽取：旧 skill 中的业务规定（库存流水不可变、反向引用原事实、库存过账守恒验收、确认/取消确认与下游关系、核心实体与追溯影响、主流程顺序）迁入 `.agents/references`；技术/安全规定（高风险命令细权限、生产禁止 DevUser 等）迁入 `backend`；废弃称呼“来源需求”不得带入。迁移后所有入口（AGENTS.md、router、agents、workflows）只指向 `backend`；新规则须写明“现有代码只确认事实，不作样板”及旧模块修 Bug 规则（最小修复、不迁移、新写代码不得使用已禁止模式）。
+24. 澄清 #23 “样板”含义：`Handoff/Claude/ReferenceDesign/src/**` 是唯一结构样板，照抄其分层、文件、命名、事务/幂等/错误/权限形状；其字段、状态、业务规则不作样板，按真实 Core 实体与 `.agents/references` 落地。仓库现有生产代码（`SwiftExport.*`）只用于确认字段、表、调用方等事实，不作结构样板。
+
 ## 待办
 
 - [ ] 执行 `00-Foundation.md`（执行窗口）
 - [x] 核对并重写/删除 `.agents/references` 中过期工程文档：`工程架构总纲.md`、`架构治理与路由判定规则.md`、`测试与验收总纲.md`（文档窗口）
 - [x] 去业务化 `Handoff/Claude/ReferenceDesign/DocumentLifecycle.md`（改为技术契约或删除）及 Guide 中的旧 Header 示例（文档窗口）
-- [ ] 新 backend skill 与旧 `.codex/skills/aspdotnet10` 的关系（架构窗口决定）
-- [ ] `.agents/skills/backend` 链接需管理员 PowerShell：`New-Item -ItemType SymbolicLink -Path .agents\skills\backend -Target .codex\skills\backend`
+- [x] 新 backend skill 与旧 `.codex/skills/aspdotnet10` 的关系（架构窗口决定）
+- [x] `.agents/skills/backend` 链接需管理员 PowerShell：`New-Item -ItemType SymbolicLink -Path .agents\skills\backend -Target .codex\skills\backend`
 - [ ] 采购模块任务书（Foundation 完成后，文档窗口）
 - [x] 按 #22 统一 Guide、ReferenceDesign、.agents/references 中的权限特性命名（文档窗口）
 - [ ] 按 #23 第 1 批：抽取 `aspdotnet10` 中的业务规定迁入 `.agents/references`，技术/安全规定迁入 `backend`（文档窗口）
