@@ -1,5 +1,6 @@
 using System.Text.Json;
 using System.Reflection;
+using System.Text.RegularExpressions;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
@@ -9,7 +10,6 @@ using SwiftExport.Contracts.Apis.ForExcel;
 using SwiftExport.Contracts.DTOs.ForExcel.PurchaseOrders;
 using SwiftExport.Contracts.DTOs.Procurement.OrderManagement;
 using SwiftExport.WebApi.Controllers.ForExcel;
-using SwiftExport.Infrastructure.DatabaseSchema;
 using SwiftExport.Infrastructure.Repositories.Base;
 using SwiftExport.Infrastructure.Repositories.Procurement.PurchaseOrders.Draft;
 namespace SwiftExport.Application.Tests.ForExcel;
@@ -73,29 +73,33 @@ public sealed class ForExcelPurchaseOrderContractTests
         Assert.IsFalse(query.Contains("TOP(1)"));Assert.IsFalse(query.Contains("LIMIT 1",StringComparison.OrdinalIgnoreCase));
         Assert.IsFalse(query.Contains("NOLOCK"));Assert.IsFalse(query.Contains("SELECT *"));
         Assert.IsFalse(query.Contains("INSERT "));Assert.IsFalse(query.Contains("UPDATE "));Assert.IsFalse(query.Contains("DELETE "));
-        var write=File.ReadAllText(Path.Combine(root,"SwiftExport.Infrastructure/Repositories/Procurement/PurchaseOrders/Draft/PostgreSqlProcurementOrderDocumentRepository.cs"));
-        StringAssert.Contains(write,"InsertSql(Head, HeadInsertFields, [\"DemandSourceType\", \"DemandSourceUid\", \"DemandSourceNo\"])");
-        StringAssert.Contains(write,"InsertSql(Line, LineInsertFields, [\"SourceType\", \"SourceNo\"])");
         AssertInsertSnapshot("Head",["DemandSourceType","DemandSourceUid","DemandSourceNo"],
             ["BoNo","CustomerPoNo","ReplyDate","SoPerson","PoPerson","InletrHoseType","IMType","ZheKouBeiZhu"]);
         AssertInsertSnapshot("Line",["SourceType","SourceNo"],["CustomerSku","LinkSku","FinishZh","FeaturesZh"]);
     }
 
-    /// <summary>运行仓储实际插入 SQL 生成方法，检查原白名单字段同时具有 PG 列和绑定参数；无需连接数据库。</summary>
+    /// <summary>核对仓储实际插入 SQL 的列值配对；商业快照必须绑定对应参数，独立采购来源必须强制写空。</summary>
     private static void AssertInsertSnapshot(string part,string[] nullFields,string[] requiredFields)
     {
         var type=typeof(PostgreSqlProcurementOrderDocumentRepository);
         const BindingFlags flags=BindingFlags.NonPublic|BindingFlags.Static;
         var map=(EntityMetadata)type.GetField(part,flags)!.GetValue(null)!;
-        var fields=(string[])type.GetField(part+"InsertFields",flags)!.GetValue(null)!;
-        var sql=(string)type.GetMethod("InsertSql",flags)!.Invoke(null,[map,fields,nullFields])!;
+        var sql=(string)type.GetField(part+"InsertSql",flags)!.GetRawConstantValue()!;
         StringAssert.Contains(sql,$"INSERT INTO \"{map.SchemaName}\".\"{map.TableName}\"");
+        var insert=Regex.Match(sql,@"\((?<columns>.*?)\)\s*VALUES\s*\((?<values>.*?)\)\s*;",RegexOptions.Singleline|RegexOptions.IgnoreCase);
+        Assert.IsTrue(insert.Success,"插入语句必须提供明确的列和对应值。");
+        var columns=insert.Groups["columns"].Value.Split(',').Select(value=>value.Trim().Trim('"')).ToArray();
+        var values=insert.Groups["values"].Value.Split(',').Select(value=>value.Trim()).ToArray();
+        Assert.AreEqual(columns.Length,values.Length,"每个插入列必须恰好对应一个值。");
+        var bindings=columns.Zip(values).ToDictionary(pair=>pair.First,pair=>pair.Second,StringComparer.Ordinal);
         foreach(var name in requiredFields)
         {
-            CollectionAssert.Contains(fields,name);
-            StringAssert.Contains(sql,PostgreSqlNames.Quote(map.GetProperty(name).ColumnName));
-            StringAssert.Contains(sql,"@"+map.GetProperty(name).ParameterName);
+            var column=map.GetProperty(name);
+            Assert.IsTrue(bindings.TryGetValue(column.ColumnName,out var value),name+"必须写入快照列。");
+            Assert.AreEqual("@"+column.ParameterName,value,name+"必须绑定对应快照参数。");
         }
+        foreach(var name in nullFields)
+            Assert.AreEqual("NULL",bindings[map.GetProperty(name).ColumnName].ToUpperInvariant(),name+"不能从输入伪造独立采购来源。");
     }
 
     /// <summary>只定位当前仓库根，不读取运行配置或连接字符串。</summary>

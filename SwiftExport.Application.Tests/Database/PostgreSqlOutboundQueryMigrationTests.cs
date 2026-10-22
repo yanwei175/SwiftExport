@@ -43,19 +43,19 @@ public sealed class PostgreSqlOutboundQueryMigrationTests
         using var f=new Fixture(transaction);SearchResults(f);using var c=new CancellationTokenSource();var q=new OutboundManagerSearchRequest{PageIndex=4,PageSize=20};
         var d=await f.Repository.SearchAsync(q,c.Token);Assert.AreEqual(9,d.TotalCount);Assert.HasCount(1,d.Items);Assert.AreEqual(4,d.PageIndex);Assert.AreEqual(20,d.PageSize);Assert.AreEqual(2,f.Connection.NextResults);Assert.AreEqual(1,f.Connection.Disposals);
         var cmd=f.Connection.Commands.Single();Assert.AreSame(f.Session.Transaction,cmd.Transaction);Assert.AreEqual(c.Token,f.Connection.LastToken);Assert.AreEqual(60L,cmd.Values["Skip"]);Assert.AreEqual(NpgsqlDbType.Bigint,cmd.Types["Skip"]);Assert.AreEqual(20,cmd.Values["Take"]);Assert.AreEqual(NpgsqlDbType.Integer,cmd.Types["Take"]);
-        foreach(var key in new[]{"DocumentType","PostingStatus"}){Assert.AreEqual(DBNull.Value,cmd.Values[key]);Assert.AreEqual(NpgsqlDbType.Integer,cmd.Types[key]);}
+        foreach(var key in new[]{"DocumentTypes","PostingStatuses"}){Assert.IsEmpty((int[])cmd.Values[key]!);Assert.AreEqual(NpgsqlDbType.Array|NpgsqlDbType.Integer,cmd.Types[key]);}
         Assert.AreEqual(DBNull.Value,cmd.Values["Keyword"]);Assert.AreEqual(NpgsqlDbType.Text,cmd.Types["Keyword"]);
         Assert.AreEqual("",d.Items[0].Remark);Assert.AreEqual("",d.Items[0].IssueReason);Assert.AreEqual(3,d.Items[0].LineCount);Assert.AreEqual(4.5m,d.Items[0].TotalQuantity);
         Assert.AreEqual(transaction?1:0,f.Connection.Begins);Assert.AreEqual(0,f.Connection.Commits);Assert.AreEqual(0,f.Connection.Rollbacks);
     }
 
-    /// <summary>原.NETTrim和字面转义按同序执行，nullable与枚举筛选按整数透传。</summary>
+    /// <summary>原.NETTrim和字面转义按同序执行，旧单值枚举兼容为整数数组。</summary>
     [TestMethod]
     [DataRow(null,null)] [DataRow(" \u3000",null)] [DataRow("  %_[~  ","%~%~_~[~~%")] [DataRow(" AbC ","%AbC%")]
     public async Task LiteralKeyword(string? keyword,string? expected)
     {
         using var f=new Fixture(false);SearchResults(f);await f.Repository.SearchAsync(new(){Keyword=keyword!,DocumentType=OutboundDocumentTypeEnum.StockIssue,PostingStatus=OutboundPostingStatusEnum.Reversed},default);
-        var cmd=f.Connection.Commands.Single();Assert.AreEqual(expected is null?DBNull.Value:expected,cmd.Values["Keyword"]);Assert.AreEqual(22,cmd.Values["DocumentType"]);Assert.AreEqual(8,cmd.Values["PostingStatus"]);
+        var cmd=f.Connection.Commands.Single();Assert.AreEqual(expected is null?DBNull.Value:expected,cmd.Values["Keyword"]);CollectionAssert.AreEqual(new[]{22},(int[])cmd.Values["DocumentTypes"]!);CollectionAssert.AreEqual(new[]{8},(int[])cmd.Values["PostingStatuses"]!);
     }
 
     /// <summary>非法页仍绑定原值；静态验证局部SQL负LIMIT，内存结果不冒称数据库已经拒绝。</summary>
@@ -73,9 +73,27 @@ public sealed class PostgreSqlOutboundQueryMigrationTests
     {
         using var f=new Fixture(false);SearchResults(f);await f.Repository.SearchAsync(new(),default);var sql=f.Connection.Commands.Single().Sql;var parts=sql.Split(';',StringSplitOptions.RemoveEmptyEntries);Assert.HasCount(2,parts);
         foreach(var property in typeof(OutboundManagerListItemDto).GetProperties())StringAssert.Contains(parts[1],"AS \""+property.Name+"\"");
-        foreach(var part in parts){StringAssert.Contains(part,"h.\"is_deleted\"=FALSE");StringAssert.Contains(part,"l.\"sku_snapshot\"");StringAssert.Contains(part,"@PostingStatus IS NULL");Assert.IsFalse(part.Contains("lifecycle_status\"=",StringComparison.Ordinal));Assert.IsFalse(part.Contains("trigger_packing_list_id",StringComparison.Ordinal));}
+        foreach(var part in parts){StringAssert.Contains(part,"h.\"is_deleted\"=FALSE");StringAssert.Contains(part,"l.\"sku_snapshot\"");StringAssert.Contains(part,"cardinality(@PostingStatuses)=0 OR h.\"posting_status\"=ANY(@PostingStatuses)");Assert.IsFalse(part.Contains("lifecycle_status\"=",StringComparison.Ordinal));Assert.IsFalse(part.Contains("trigger_packing_list_id",StringComparison.Ordinal));}
         StringAssert.Contains(sql,"COUNT(*)::integer");StringAssert.Contains(sql,"SUM(l.\"quantity\")");StringAssert.Contains(sql,"DESC NULLS LAST");
         Assert.IsFalse(sql.Contains("product",StringComparison.Ordinal));Assert.IsFalse(sql.Contains("inventory_balance",StringComparison.Ordinal));Assert.IsFalse(sql.Contains("MATERIALIZED",StringComparison.Ordinal));
+    }
+
+    /// <summary>集合优先于旧单值，空集合不限；类型与状态显式绑定 integer[]，计数页共用同一谓词。</summary>
+    [TestMethod,DataRow(0),DataRow(1),DataRow(2),DataRow(3)]
+    public async Task MultiFilterArraysAreTypedAndApplyBeforePaging(int mode)
+    {
+        using var f=new Fixture(false);SearchResults(f);
+        var request=new OutboundManagerSearchRequest{DocumentType=OutboundDocumentTypeEnum.StockIssue,PostingStatus=OutboundPostingStatusEnum.Posted,PageIndex=2,PageSize=2};
+        if(mode==1){request.DocumentTypes=[];request.PostingStatuses=[];}
+        if(mode>=2)request.DocumentTypes=[OutboundDocumentTypeEnum.FinalCustomerShipment,OutboundDocumentTypeEnum.CustomerSuppliedConsumption];
+        if(mode==2)request.PostingStatuses=[OutboundPostingStatusEnum.Unposted,OutboundPostingStatusEnum.Reversed];
+        await f.Repository.SearchAsync(request,default);var cmd=f.Connection.Commands.Single();
+        CollectionAssert.AreEqual(mode==0?new[]{22}:mode==1?[]:new[]{20,21},(int[])cmd.Values["DocumentTypes"]!);
+        CollectionAssert.AreEqual(mode==1?[]:mode==2?new[]{0,8}:new[]{1},(int[])cmd.Values["PostingStatuses"]!);
+        foreach(var key in new[]{"DocumentTypes","PostingStatuses"})Assert.AreEqual(NpgsqlDbType.Array|NpgsqlDbType.Integer,cmd.Types[key]);
+        Assert.AreEqual(2,cmd.Sql.Split("h.\"document_type\"=ANY(@DocumentTypes)").Length-1);
+        Assert.AreEqual(2,cmd.Sql.Split("h.\"posting_status\"=ANY(@PostingStatuses)").Length-1);
+        Assert.AreEqual(2L,cmd.Values["Skip"]);Assert.AreEqual(2,cmd.Values["Take"]);
     }
 
     /// <summary>头存在/缺失均读完整行集合后判null，保留真实Dapper推进与释放及父事务。</summary>

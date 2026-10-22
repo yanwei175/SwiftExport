@@ -65,12 +65,7 @@ public static class IndependentPurchaseOrderInputPolicy
     public static void ValidateLine(CreateIndependentPurchaseOrderLineCommand line)
     {
         ProcurementOrderPolicy.Number(line.Quantity,4,"Quantity",true);
-        if (!line.UnitPrice.HasValue)
-            throw ProcurementOperationException.Validation("未税单价不能为空；零价需明确输入0。","UnitPrice");
-        ProcurementOrderPolicy.Number(line.UnitPrice.Value,4,"UnitPrice");
-        if (line.TaxPrice.HasValue) ProcurementOrderPolicy.Number(line.TaxPrice.Value,4,"TaxPrice");
-        _ = ProcurementOrderPolicy.Amount(line.Quantity,line.UnitPrice);
-        _ = ProcurementOrderPolicy.Amount(line.Quantity,line.TaxPrice);
+        _ = ProcurementOrderPolicy.CalculateAmounts(line.Quantity, line.UnitPrice, line.TaxPrice, "UnitPrice", "TaxPrice");
         foreach (var (value, limit, field) in new[]
         {
             (line.CustomerSku,300,"CustomerSku"),(line.LinkSku,300,"LinkSku"),(line.SupplierSku,ProcurementOrderPolicy.SupplierSkuMaximumLength,"SupplierSku"),

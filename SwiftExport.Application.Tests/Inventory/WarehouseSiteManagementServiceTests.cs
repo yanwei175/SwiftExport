@@ -455,6 +455,9 @@ public sealed class WarehouseSiteManagementServiceTests
 
     private sealed class WarehouseRepositoryStub : IWarehouseQueryRepository, IWarehouseManagementRepository
     {
+        /// <summary>库存筛选候选不属于仓库管理命令用例，意外调用必须显式失败。</summary>
+        public Task<PagedResponseBase<InventorySupplierLookupDto>> SearchSupplierFilterOptionsAsync(PagedRequestBase request, CancellationToken cancellationToken = default)
+            => throw new NotSupportedException();
         /// <summary>为新增的产品批量仓库校验契约提供同一内存仓库中的记录。</summary>
         public Task<IReadOnlyList<WarehouseSite>> GetByIdsAsync(IReadOnlyList<Guid> ids, CancellationToken cancellationToken = default)
             => Task.FromResult<IReadOnlyList<WarehouseSite>>(_site is not null && ids.Contains(_site.Uid) && !_site.IsDeleted ? [_site] : []);

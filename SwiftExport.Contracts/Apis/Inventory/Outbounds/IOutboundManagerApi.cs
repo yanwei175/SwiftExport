@@ -3,6 +3,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Refit;
 using SwiftExport.Contracts.DTOs.Inventory.Outbounds;
+using SwiftExport.Contracts.DTOs.Inventory.WareHouseSite.Picker;
 using SwiftExport.Contracts.Wrappers;
 
 namespace SwiftExport.Contracts.Apis.Inventory
@@ -10,6 +11,11 @@ namespace SwiftExport.Contracts.Apis.Inventory
     /// <summary>手工库存出库查询、草稿、正向过账及整单反过账契约，基址为 api/inventory/outbounds。</summary>
     public interface IOutboundManagerApi
     {
+        /// <summary>按出库查看权限分页读取活动仓库候选，不授予仓库管理权限。</summary>
+        [Post("/warehouses/search")]
+        Task<ServiceResult<PagedResponseBase<WarehouseSitePickerDto>>> GetWarehouseOptionsAsync(
+            [Body] PagedRequestBase request, CancellationToken cancellationToken = default(CancellationToken));
+
         /// <summary>核查手工出库整单反向及库存恢复。</summary>
         [Post("/{uid}/reverse-preview")]
         Task<ServiceResult<OutboundReversePreviewDto>> PreviewReverseAsync(Guid uid, [Body] OutboundReversePreviewRequest request, CancellationToken cancellationToken = default(CancellationToken));

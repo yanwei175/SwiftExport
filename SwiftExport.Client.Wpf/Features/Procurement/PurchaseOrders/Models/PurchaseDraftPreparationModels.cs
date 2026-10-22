@@ -43,18 +43,22 @@ public sealed partial class PurchaseDraftSelectionItemModel : ObservableObject
     public Guid? CustomerId { get; init; }
     public string CustomerCode { get; init; } = string.Empty;
     public string CustomerName { get; init; } = string.Empty;
-    public string? QuantityError => PurchaseQty <= 0 || PurchaseQty > ExpectedRemainingQty
-        ? $"本次数量必须大于 0 且不超过 {ExpectedRemainingQty:N4}。"
-        : null;
+    /// <summary>当前可创建量及四位正数数量的本地错误。</summary>
+    public string? QuantityError => PurchaseDraftInputValidation.ValidateQuantity(PurchaseQty, ExpectedRemainingQty);
+    /// <summary>准备快照在提交前重验数量、两价和金额范围，不依赖候选页先前校验。</summary>
+    public string? InputError => PurchaseDraftInputValidation.Validate(PurchaseQty, ExpectedRemainingQty, UnitPrice, TaxPrice);
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(QuantityError))]
+    [NotifyPropertyChangedFor(nameof(InputError))]
     public partial decimal PurchaseQty { get; set; }
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(InputError))]
     public partial decimal UnitPrice { get; set; }
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(InputError))]
     public partial decimal TaxPrice { get; set; }
 
     [ObservableProperty]

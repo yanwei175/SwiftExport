@@ -238,7 +238,9 @@ public sealed class WarehouseSitesViewModelTests
                 Assert.IsNotNull(editor.ItemsSource);
                 Assert.IsFalse(editor.ItemsSource!.Cast<SupplierDto>().Any(item => item.Uid == warehouse.SupplierId));
                 var display = (TextBlock)FindVisualDescendants<LookupTextBox>(editor).Single().FindName("DisplayTextBlock")!;
-                Assert.AreEqual(warehouse.SupplierCode, display.Text);
+                // 共享供应商控件显示名称；代码和归属仍由上方快照断言保护。
+                Assert.AreEqual(warehouse.SupplierName, editor.SelectedSupplier?.SupplierName);
+                Assert.AreEqual(warehouse.SupplierName, display.Text);
             }
             finally
             {

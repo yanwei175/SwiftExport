@@ -530,7 +530,7 @@ public partial class MultiSelectLookupButton : UserControl
         _itemsView?.Refresh();
     }
 
-    /// <summary>匹配配置字段或后代，保留命中分支的祖先以展示完整层级。</summary>
+    /// <summary>匹配配置字段或后代；未配置字段的枚举按描述和名称搜索，保留命中分支的祖先。</summary>
     private bool FilterItem(
         object item)
     {
@@ -544,6 +544,16 @@ public partial class MultiSelectLookupButton : UserControl
             return true;
 
         var paths = GetFilterPaths();
+
+        // 枚举本身没有属性路径，中文模板的描述仍应能被用户搜索到。
+        if (paths.Count == 0 && lookupItem.Item is Enum enumValue)
+        {
+            var name = enumValue.ToString();
+            var description = enumValue.GetType().GetField(name)?.GetCustomAttribute<DescriptionAttribute>()?.Description;
+            if (name.IndexOf(searchText, StringComparison.OrdinalIgnoreCase) >= 0
+                || description?.IndexOf(searchText, StringComparison.OrdinalIgnoreCase) >= 0)
+                return true;
+        }
 
         foreach (var path in paths)
         {

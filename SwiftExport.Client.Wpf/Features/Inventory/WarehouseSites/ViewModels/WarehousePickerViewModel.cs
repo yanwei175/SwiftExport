@@ -6,6 +6,7 @@ using SwiftExportClient.Resources.Controls;
 using SwiftExportClient.Services.Caching;
 using SwiftExportClient.Services.UI;
 using System.Collections.ObjectModel;
+using SwiftExport.Contracts.Wrappers;
 
 namespace SwiftExportClient.Features.Inventory.WarehouseSites.ViewModels;
 
@@ -13,7 +14,9 @@ namespace SwiftExportClient.Features.Inventory.WarehouseSites.ViewModels;
 public sealed partial class WarehousePickerViewModel : ViewModelBaseEx, IDialogContentState, IDialogCloseRequest, IDisposable
 {
     private const int DefaultPageSize = 20;
-    private readonly IReferenceDataCacheService _cache;
+    private readonly IReferenceDataCacheService? _cache;
+    private readonly Func<CancellationToken, Task<ServiceResult<IReadOnlyList<WarehouseSitePickerDto>>>>? _loadOptions;
+    private IReadOnlyList<WarehouseSitePickerDto> _options = [];
     private readonly CancellationTokenSource _lifetimeCancellation = new();
     private bool _disposed;
 
@@ -28,6 +31,10 @@ public sealed partial class WarehousePickerViewModel : ViewModelBaseEx, IDialogC
         RegisterBusyAwareCommand(PageChangeCommand);
         RegisterBusyAwareCommand(ConfirmCommand);
     }
+
+    /// <summary>为业务专用权限提供会话级候选供数；复用原选择交互，不接触仓库管理共享缓存。</summary>
+    public WarehousePickerViewModel(Func<CancellationToken, Task<ServiceResult<IReadOnlyList<WarehouseSitePickerDto>>>> loadOptions)
+        : this((IReferenceDataCacheService)null!) => _loadOptions = loadOptions;
 
     /// <inheritdoc/>
     public event EventHandler? StateChanged;
@@ -84,7 +91,7 @@ public sealed partial class WarehousePickerViewModel : ViewModelBaseEx, IDialogC
         if (_disposed) return;
         using var cancellationRegistration = cancellationToken.Register(_lifetimeCancellation.Cancel);
         ResultSummary = "正在加载仓库...";
-        var result = await _cache.EnsureWarehouseSitesLoadedAsync();
+        var result = await LoadOptionsAsync(false);
         if (_disposed || _lifetimeCancellation.IsCancellationRequested) return;
 
         ApplyFilter(resetPage: true);
@@ -103,7 +110,7 @@ public sealed partial class WarehousePickerViewModel : ViewModelBaseEx, IDialogC
         await RunBusyAsync(async () =>
         {
             RaiseDialogStateChanged();
-            var result = await _cache.RefreshWarehouseSitesAsync();
+            var result = await LoadOptionsAsync(true);
             if (_disposed || _lifetimeCancellation.IsCancellationRequested) return;
             ApplyFilter(resetPage: true);
             ResultSummary = result.Success ? "仓库缓存已刷新。" : result.Message;
@@ -138,7 +145,7 @@ public sealed partial class WarehousePickerViewModel : ViewModelBaseEx, IDialogC
         SelectedItem = null;
 
         var keyword = Keyword.Trim();
-        var filtered = _cache.WarehouseSites.Where(item =>
+        var filtered = _options.Where(item =>
             string.IsNullOrEmpty(keyword)
             || Contains(item.Code, keyword)
             || Contains(item.Name, keyword)
@@ -161,6 +168,20 @@ public sealed partial class WarehousePickerViewModel : ViewModelBaseEx, IDialogC
 
     private static bool Contains(string? source, string keyword) =>
         !string.IsNullOrEmpty(source) && source.Contains(keyword, StringComparison.CurrentCultureIgnoreCase);
+
+    /// <summary>业务供数只保存在本弹窗；原入口继续复用共享缓存及其既有刷新协议。</summary>
+    private async Task<CacheRefreshResult> LoadOptionsAsync(bool refresh)
+    {
+        if (_loadOptions is not null)
+        {
+            var loaded = await _loadOptions(_lifetimeCancellation.Token);
+            if (!_disposed && !_lifetimeCancellation.IsCancellationRequested && loaded.Success && loaded.Data is not null) _options = loaded.Data;
+            return loaded.Success ? CacheRefreshResult.Ok() : CacheRefreshResult.Fail(loaded.Message);
+        }
+        var result = refresh ? await _cache!.RefreshWarehouseSitesAsync() : await _cache!.EnsureWarehouseSitesLoadedAsync();
+        if (!_disposed && !_lifetimeCancellation.IsCancellationRequested) _options = _cache.WarehouseSites.ToArray();
+        return result;
+    }
 
     partial void OnSelectedItemChanged(WarehouseSitePickerDto? value) => RaiseDialogStateChanged();
 

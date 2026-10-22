@@ -14,7 +14,7 @@ public sealed partial class InboundManagerViewModel
     private readonly IInboundReverseDialogService? _reverseDialogs;
     private bool CanReverse() => CanEdit() && _persistence is not null && _reverseDialogs is not null
         && _postingUser?.HasPermission(PermissionKeys.InventoryInboundReverse) == true
-        && _postingUser.HasPermission("Inventory.Inbound.View")
+        && HasViewPermission
         && SelectedItem is { IsNew: false, IsDetailLoaded: true, IsPersistencePending: false, HasVersionConflict: false,
             PostingStatus: InboundPostingStatusEnum.Posted, DocumentType: InboundDocumentTypeEnum.PurchaseReceipt,
             CreationMode: InboundCreationModeEnum.Manual, LifecycleStatus: InventoryDocumentLifecycleStatusEnum.Active, TriggerPackingListId: null, PersistedIsDeleted: false };
@@ -25,12 +25,13 @@ public sealed partial class InboundManagerViewModel
     {
         if (!CanReverse() || !CommitGridEdits() || RequirePendingRecovery()) return;
         var row = SelectedItem!;
+        var session = _userSession;
         if (row.IsDirty || row.Lines.HasChanges) { ValidationSummary = "当前单据有未保存修改，请先处理。"; return; }
         await RunWriteAsync(async () =>
         {
             var version = row.Version;
             var result = await _persistence!.PreviewReverseAsync(row.Uid, new() { ExpectedVersion = version }, _lifetime.Token);
-            if (_disposed || !ReferenceEquals(SelectedItem, row)) return;
+            if (_disposed || session != _userSession || !ReferenceEquals(SelectedItem, row)) return;
             if (!result.Success || result.Data is null) { ResultSummary = result.Message ?? "反过账预览失败，未提交库存。"; return; }
             var preview = result.Data;
             if (preview.Uid != row.Uid || preview.Version != version || preview.Blockers is null || preview.StockImpacts is null)
@@ -38,11 +39,13 @@ public sealed partial class InboundManagerViewModel
             var reason = await _reverseDialogs!.ConfirmAsync(preview, _lifetime.Token);
             if (_disposed || !ReferenceEquals(SelectedItem, row) || string.IsNullOrWhiteSpace(reason) || reason.Length > 500
                 || !preview.CanReverse || preview.Blockers.Count > 0) return;
-            if (row.IsDirty || row.Lines.HasChanges || row.Version != version || row.PostingStatus != InboundPostingStatusEnum.Posted)
+            if (session != _userSession || !HasViewPermission || _postingUser?.HasPermission(PermissionKeys.InventoryInboundReverse) != true
+                || IsReadOnly || row.IsDirty || row.Lines.HasChanges || row.Version != version || row.PostingStatus != InboundPostingStatusEnum.Posted)
             { ResultSummary = "确认期间单据已变化，请重新加载。"; return; }
             var pending = new InboundPendingWrite { DocumentId = row.Uid, Reverse = new() { CommandId = Guid.NewGuid(), ExpectedVersion = version, Reason = reason } };
             BeginPending(row, pending);
-            if (await CompletePendingAsync(row, pending) && !_disposed) ResultSummary = $"{row.DocumentNo} 已整单反过账；原单只读，重新入库请新建单据。";
+            if (await CompletePendingAsync(row, pending) && !_disposed) ResultSummary = pending.HasLaterDetail ? LaterDetailMessage(row)
+                : $"{row.DocumentNo} 已整单反过账；原单只读，重新入库请新建单据。";
         }, "预览并提交整单反过账");
     }
 

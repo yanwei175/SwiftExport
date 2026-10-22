@@ -44,7 +44,14 @@ public sealed class PackingListQueryService(ServiceBaseContext context, IPacking
         {
             await RequireSchemaAsync(cancellationToken);
             ValidatePage(request);
-            if (request.PostingStatus.HasValue && !Enum.IsDefined(request.PostingStatus.Value))
+            // 非 null 集合完整覆盖对应旧单值，空集合不限；只校验本次生效的筛选维度。
+            if (request.CustomerIds is not null && request.CustomerIds.Any(value => value == Guid.Empty))
+                Fail(PackingListErrorCodes.InvalidDraft, "客户集合包含空标识。", nameof(request.CustomerIds));
+            if (request.CustomerIds is null && request.CustomerId == Guid.Empty)
+                Fail(PackingListErrorCodes.InvalidDraft, "客户标识无效。", nameof(request.CustomerId));
+            if (request.PostingStatuses is not null && request.PostingStatuses.Any(value => !Enum.IsDefined(value)))
+                Fail(PackingListErrorCodes.InvalidDraft, "过账状态集合包含无效值。", nameof(request.PostingStatuses));
+            if (request.PostingStatuses is null && request.PostingStatus.HasValue && !Enum.IsDefined(request.PostingStatus.Value))
                 Fail(PackingListErrorCodes.InvalidDraft, "过账状态无效。", nameof(request.PostingStatus));
             if (request.InvoiceDateFrom.HasValue && request.InvoiceDateTo.HasValue
                 && request.InvoiceDateFrom.Value.Date > request.InvoiceDateTo.Value.Date)

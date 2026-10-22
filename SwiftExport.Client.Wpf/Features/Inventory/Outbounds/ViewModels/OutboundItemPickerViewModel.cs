@@ -23,6 +23,7 @@ public partial class OutboundItemPickerViewModel : ObservableObject, IDialogCont
     private OutboundItemSearchRequest? _appliedSearch;
     private Guid _warehouseSiteId;
     private Guid[] _excludedProductIds = [];
+    private string? _inputWarning;
 
     /// <summary>仅供设计器及本地模型测试创建，不提供任何远程数据。</summary>
     public OutboundItemPickerViewModel() { }
@@ -69,13 +70,18 @@ public partial class OutboundItemPickerViewModel : ObservableObject, IDialogCont
     }
 
     /// <summary>显式查询第一页，不查询采购或需求。</summary>
-    [RelayCommand(AllowConcurrentExecutions = true)]
+    [RelayCommand(CanExecute = nameof(CanSearch), AllowConcurrentExecutions = true)]
     private Task SearchAsync(CancellationToken token) => QueryAsync(1, token);
 
     /// <summary>翻页重新加载快照，当前页勾选不被误当作跨页选择。</summary>
     [RelayCommand(AllowConcurrentExecutions = true)]
-    private Task PageChangeAsync(PageChangeRequest? request, CancellationToken token) => request is null
-        ? Task.CompletedTask : QueryAsync(Math.Max(1, request.NewIndex), token, applyEditedFilters: false);
+    private Task PageChangeAsync(PageChangeRequest? request, CancellationToken token)
+    {
+        if (request is null) return Task.CompletedTask;
+        if (GetInputError(_appliedSearch?.Keyword, request.NewIndex, request.NewSize) is { } error)
+        { StatusText = error; return Task.CompletedTask; }
+        return QueryAsync(request.NewIndex, token, applyEditedFilters: false);
+    }
 
     /// <summary>可取消且 latest-request-wins；这是 UI 请求防串回写，不是业务并发检查。</summary>
     private async Task QueryAsync(int page, CancellationToken token, bool applyEditedFilters = true)
@@ -92,10 +98,12 @@ public partial class OutboundItemPickerViewModel : ObservableObject, IDialogCont
         {
             WarehouseSiteId = _warehouseSiteId,
             ExcludedProductIds = _excludedProductIds.ToList(),
-            Keyword = applied is null ? Keyword : applied.Keyword,
+            Keyword = applied is null ? Keyword?.Trim() : applied.Keyword,
             PageIndex = page,
             PageSize = PageSize
         };
+        if (GetInputError(request.Keyword, page, request.PageSize) is { } error)
+        { _inputWarning = error; StatusText = error; return; }
         _query?.Cancel();
         using var query = CancellationTokenSource.CreateLinkedTokenSource(token);
         _query = query;
@@ -167,6 +175,24 @@ public partial class OutboundItemPickerViewModel : ObservableObject, IDialogCont
         OnPropertyChanged(nameof(IsAllChecked)); OnPropertyChanged(nameof(CheckedCount));
         OnPropertyChanged(nameof(IsPrimaryButtonEnabled)); OnPropertyChanged(nameof(CanSelect));
         StateChanged?.Invoke(this, EventArgs.Empty);
+    }
+
+    private bool CanSearch() => !_disposed && GetInputError(Keyword, 1, PageSize) is null;
+
+    /// <summary>共用服务端查询上限；无效输入不清除已有候选和分页事实。</summary>
+    private string? GetInputError(string? keyword, int page, int size) => keyword?.Trim().Length > OutboundQueryLimits.KeywordMaxLength
+        ? $"查询关键词最多 {OutboundQueryLimits.KeywordMaxLength} 字。"
+        : _warehouseSiteId == Guid.Empty ? "请先选择仓库。"
+        : _excludedProductIds.Length > OutboundQueryLimits.ExcludedProductIdsMax ? $"最多支持排除 {OutboundQueryLimits.ExcludedProductIdsMax} 个产品。"
+        : page < 1 || size is < 1 or > OutboundQueryLimits.PageSizeMax ? $"页码须为正数，每页最多 {OutboundQueryLimits.PageSizeMax} 条。" : null;
+
+    /// <summary>修正仅撤销当前输入拥有的旧提示，不覆盖后来的 API 反馈。</summary>
+    partial void OnKeywordChanged(string value)
+    {
+        var error = GetInputError(value, 1, PageSize);
+        if (error is not null) { _inputWarning = error; StatusText = error; }
+        else { if (_inputWarning is not null && StatusText == _inputWarning) StatusText = "查询条件已修正，请点击查询。"; _inputWarning = null; }
+        SearchCommand.NotifyCanExecuteChanged();
     }
     /// <summary>关闭或取消后停止查询，释放行订阅并拒绝晚到结果。</summary>
     public void Dispose()

@@ -15,6 +15,6 @@ public interface IInboundExecutionReadRepository
     Task<IReadOnlyList<InventoryLedgerEntry>> ReadReverseLedgersAsync(Guid uid, CancellationToken token);
     /// <summary>只读读取原余额，含已删除投影以显式阻断异常。</summary>
     Task<InventoryBalance?> ReadReverseBalanceAsync(Guid warehouseId, Guid productId, CancellationToken token);
-    /// <summary>历史反向允许停用仓，但不允许缺失或已删除仓库。</summary>
+    /// <summary>反向预览与库存内核一致，只允许存在、未删除且启用的仓库。</summary>
     Task<bool> ReverseWarehouseExistsAsync(Guid warehouseId, CancellationToken token);
 }

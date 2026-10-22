@@ -337,7 +337,7 @@ public sealed class PurchaseDraftCreationService(
         }
     }
 
-    /// <summary>拒绝缺失身份、无效版本数量与来源内重复命令项。</summary>
+    /// <summary>拒绝缺失身份、无效版本数量、超出存储精度的价格金额及来源内重复命令项。</summary>
     private static void ValidateCreateItems(IReadOnlyList<CreatePurchaseDraftItemCommand> items)
     {
         if (items.Count>500 || items.Any(x => x.CommandItemId == Guid.Empty || x.NetDemandId == Guid.Empty || x.SupplierId == Guid.Empty
@@ -351,8 +351,7 @@ public sealed class PurchaseDraftCreationService(
             try
             {
                 ProcurementOrderPolicy.Number(item.PurchaseQty,4,"Items[].PurchaseQty",true);
-                ProcurementOrderPolicy.Number(item.UnitPrice,6,"Items[].UnitPrice",false);
-                ProcurementOrderPolicy.Number(item.TaxPrice,6,"Items[].TaxPrice",false);
+                _ = ProcurementOrderPolicy.CalculateAmounts(item.PurchaseQty, item.UnitPrice, item.TaxPrice);
             }
             catch(ProcurementOperationException ex)
             {throw new PurchaseDraftException(ex.Code,$"物料 {item.NetDemandId}：{ex.Message}");}

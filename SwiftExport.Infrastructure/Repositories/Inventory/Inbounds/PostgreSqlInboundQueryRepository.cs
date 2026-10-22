@@ -6,18 +6,22 @@ using SwiftExport.Contracts.DTOs.Inventory.Inbounds.Query;
 using SwiftExport.Contracts.Wrappers;
 using SwiftExport.Core.Interfaces.Inventory.Inbounds;
 using SwiftExport.Infrastructure.Contexts;
+using SwiftExport.Infrastructure.Repositories.OrderTracking.Receipts;
 
 namespace SwiftExport.Infrastructure.Repositories.Inventory.Inbounds;
 
 /// <summary>借用请求会话读取入库摘要和详情，保留历史来源与分阶段观察，不接管事务或库存写入。</summary>
 public sealed class PostgreSqlInboundQueryRepository(RepositoryBaseContext context) : IInboundQueryRepository
 {
-    /// <summary>一次批次依次读取总数和当前页；不执行历史门禁，不裁剪分页或冻结候选集合。</summary>
+    /// <summary>集合内并集、类型与状态间交集在计数和分页前过滤；空集合不限，集合未传时兼容旧单值。</summary>
     public async Task<PagedResponseBase<InboundManagerListItemDto>> SearchAsync(InboundManagerSearchRequest request, CancellationToken token)
     {
         var parameters = new QueryParameters();
-        parameters.Add("DocumentType", request.DocumentType.HasValue ? (int)request.DocumentType.Value : null, NpgsqlDbType.Integer);
-        parameters.Add("PostingStatus", request.PostingStatus.HasValue ? (int)request.PostingStatus.Value : null, NpgsqlDbType.Integer);
+        // 显式 integer[] 绑定同时覆盖空选及旧单值，避免提供者猜测数组或将枚举展开成多个参数。
+        parameters.Add("DocumentTypes", request.DocumentTypes?.Select(value => (int)value).ToArray()
+            ?? (request.DocumentType.HasValue ? [(int)request.DocumentType.Value] : []), NpgsqlDbType.Array | NpgsqlDbType.Integer);
+        parameters.Add("PostingStatuses", request.PostingStatuses?.Select(value => (int)value).ToArray()
+            ?? (request.PostingStatus.HasValue ? [(int)request.PostingStatus.Value] : []), NpgsqlDbType.Array | NpgsqlDbType.Integer);
         parameters.Add("Keyword", Like(request.Keyword), NpgsqlDbType.Text);
         parameters.Add("Skip", (long)(request.PageIndex - 1) * request.PageSize, NpgsqlDbType.Bigint);
         parameters.Add("Take", request.PageSize, NpgsqlDbType.Integer);
@@ -39,10 +43,10 @@ public sealed class PostgreSqlInboundQueryRepository(RepositoryBaseContext conte
         return new() { TotalCount = count, Items = rows, PageIndex = request.PageIndex, PageSize = request.PageSize };
     }
 
-    /// <summary>先检查全局采购反向历史，再读完整头行；缺头仍缓冲行结果，暴露该阶段的错误和取消。</summary>
+    /// <summary>按有效目标头的来源集合检查整头历史，再读完整头行；无关异常不阻断缺头结果。</summary>
     public async Task<InboundManagerDetailDto?> GetDetailAsync(Guid uid, CancellationToken token)
     {
-        await PostgreSqlInboundReceiptHistoryGuard.ValidateGlobalAsync(context.Session, token);
+        await PostgreSqlInboundReceiptHistoryGuard.ValidateDocumentSourcesAsync(context.Session, uid, token);
         var parameters = new QueryParameters();
         parameters.Add("Uid", uid, NpgsqlDbType.Uuid);
         using var reader = await context.Session.Connection.QueryMultipleAsync(Command(DetailSql(), parameters, token));
@@ -65,15 +69,15 @@ public sealed class PostgreSqlInboundQueryRepository(RepositoryBaseContext conte
 
     private const string SearchFilter = """
         FROM public.inbound_document h WHERE h.is_deleted=FALSE
-          AND (@DocumentType IS NULL OR h.document_type=@DocumentType)
-          AND (@PostingStatus IS NULL OR h.posting_status=@PostingStatus)
+          AND (cardinality(@DocumentTypes)=0 OR h.document_type=ANY(@DocumentTypes))
+          AND (cardinality(@PostingStatuses)=0 OR h.posting_status=ANY(@PostingStatuses))
           AND (@Keyword IS NULL OR h.document_no COLLATE public.erp_dictionary_ci LIKE @Keyword ESCAPE '~'
             OR h.warehouse_name_snapshot COLLATE public.erp_dictionary_ci LIKE @Keyword ESCAPE '~'
             OR EXISTS(SELECT 1 FROM public.inbound_document_line l WHERE l.inbound_document_id=h.uid
                 AND l.is_deleted=FALSE AND l.sku_snapshot COLLATE public.erp_dictionary_ci LIKE @Keyword ESCAPE '~'))
         """;
 
-    /// <summary>采购/产品外连保留软删历史；两个LATERAL只聚合正式净额和其他草稿，不占用可收容量。</summary>
+    /// <summary>详情复用整头收货事实计算净额，另以草稿 LATERAL 汇总提示；历史快照联查保留 NULL 与 DTO 默认。</summary>
     private static string DetailSql() => $"""
         SELECT uid AS "Uid",version AS "Version",document_no AS "DocumentNo",document_type AS "DocumentType",
             creation_mode AS "CreationMode",lifecycle_status AS "LifecycleStatus",posting_status AS "PostingStatus",
@@ -83,22 +87,20 @@ public sealed class PostgreSqlInboundQueryRepository(RepositoryBaseContext conte
             reverse_reason AS "ReverseReason",trigger_packing_list_id AS "TriggerPackingListId",command_id AS "CommandId",
             created_date AS "CreatedDate",created_by AS "CreatedBy",updated_date AS "UpdatedDate",updated_by AS "UpdatedBy",is_deleted AS "IsDeleted"
         FROM public.inbound_document WHERE uid=@Uid AND is_deleted=FALSE;
+        WITH {PurchaseReceiptFactsSql.Ctes(PostgreSqlInboundReceiptHistoryGuard.DocumentSourceScope, includeUnprovenTypes: true)}
         SELECT l.uid AS "Uid",l.version AS "Version",l.inbound_document_id AS "InboundDocumentId",l.line_number AS "LineNumber",
             l.product_id AS "ProductId",l.sku_snapshot AS "SkuSnapshot",l.description_snapshot AS "DescriptionSnapshot",
             l.unit_snapshot AS "UnitSnapshot",l.quantity AS "Quantity",l.source_line_id AS "SourceLineId",l.original_line_id AS "OriginalLineId",
             l.created_date AS "CreatedDate",l.created_by AS "CreatedBy",l.updated_date AS "UpdatedDate",l.updated_by AS "UpdatedBy",
             p.version AS "SourceVersion",h.order_no AS "SourceNo",h.bo_no AS "BoNo",p.link_sku AS "LinkSku",product.main_image AS "ImagePath",
             p.quantity AS "OriginalQty",drafts.other_draft_count AS "OtherDraftCount",drafts.other_draft_quantity AS "OtherDraftQuantity",
-            CASE WHEN p.quantity>COALESCE(received.qty,0) THEN p.quantity-COALESCE(received.qty,0) ELSE 0 END AS "RemainingReceivableQty"
+            CASE WHEN p.quantity>COALESCE(received.received_qty,0) THEN p.quantity-COALESCE(received.received_qty,0) ELSE 0 END AS "RemainingReceivableQty"
         FROM public.inbound_document_line l
         INNER JOIN public.inbound_document ih ON ih.uid=l.inbound_document_id AND ih.is_deleted=FALSE
         LEFT JOIN public.purchase_order_line p ON ih.document_type=10 AND p.uid=l.source_line_id
         LEFT JOIN public.purchase_order_head h ON h.uid=p.purchase_order_id
         LEFT JOIN public.product product ON product.uid=l.product_id
-        LEFT JOIN LATERAL(SELECT SUM(CASE WHEN rh.posting_status=1 THEN rl.quantity ELSE 0 END) AS qty
-            FROM public.inbound_document_line rl INNER JOIN public.inbound_document rh ON rh.uid=rl.inbound_document_id
-            WHERE rl.source_line_id=p.uid AND rh.document_type=10 AND rh.posting_status IN(1,8)
-              AND rl.is_deleted=FALSE AND rh.is_deleted=FALSE) received ON TRUE
+        LEFT JOIN receipt_facts received ON received.source_line_id=p.uid
         LEFT JOIN LATERAL(SELECT COUNT(DISTINCT dh.uid)::integer AS other_draft_count,COALESCE(SUM(dl.quantity),0) AS other_draft_quantity
             FROM public.inbound_document_line dl JOIN public.inbound_document dh ON dh.uid=dl.inbound_document_id
             WHERE dl.source_line_id=p.uid AND dh.document_type=10 AND dh.posting_status=0 AND dh.lifecycle_status=0

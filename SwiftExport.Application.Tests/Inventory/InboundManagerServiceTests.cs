@@ -50,7 +50,7 @@ namespace SwiftExport.Application.Tests.Inventory;
 [TestClass]
 public sealed partial class InboundManagerServiceTests
 {
-    /// <summary>验证五个窄用例的依赖注入，以及十个 HTTP 端点与 Refit 契约的路由、授权、绑定和返回类型。</summary>
+    /// <summary>验证五个窄用例的依赖注入，以及十二个 HTTP 端点与 Refit 契约的路由、授权、绑定和返回类型。</summary>
     [TestMethod]
     public void SplitServicesKeepDiAndHttpRoutes()
     {
@@ -66,7 +66,9 @@ public sealed partial class InboundManagerServiceTests
         {
             (typeof(InboundQueryController), typeof(IInboundQueryService), typeof(IInboundManagerApi), "SearchAsync", "POST", "api/inventory/inbounds", "search", typeof(InboundManagerSearchRequest), typeof(Task<ServiceResult<PagedResponseBase<InboundManagerListItemDto>>>)),
             (typeof(InboundQueryController), typeof(IInboundQueryService), typeof(IInboundManagerApi), "GetAsync", "GET", "api/inventory/inbounds", "{uid:guid}", null, typeof(Task<ServiceResult<InboundManagerDetailDto>>)),
+            (typeof(InboundQueryController), typeof(IInboundQueryService), typeof(IInboundManagerApi), "GetWarehouseOptionsAsync", "GET", "api/inventory/inbounds", "warehouses/picker", null, typeof(Task<ServiceResult<PagedResponseBase<SwiftExport.Contracts.DTOs.Inventory.WareHouseSite.Picker.WarehouseSitePickerDto>>>)),
             (typeof(InboundSourcesController), typeof(IInboundSourceQueryService), typeof(IInboundSourceApi), "SearchAsync", "POST", "api/inventory/inbound-sources", "search", typeof(InboundSourceSearchRequest), typeof(Task<ServiceResult<PagedResponseBase<InboundSourceCandidateDto>>>)),
+            (typeof(InboundSourcesController), typeof(IInboundSourceQueryService), typeof(IInboundSourceApi), "GetSupplierOptionsAsync", "GET", "api/inventory/inbound-sources", "suppliers/picker", null, typeof(Task<ServiceResult<PagedResponseBase<SwiftExport.Contracts.DTOs.Inventory.InventorySupplierLookupDto>>>)),
             (typeof(InboundDraftController), typeof(IInboundDraftService), typeof(IInboundManagerApi), "CreateAsync", "POST", "api/inventory/inbounds", "drafts", typeof(CreateInboundDraftCommand), typeof(Task<ServiceResult<InboundDraftCommandResult>>)),
             (typeof(InboundDraftController), typeof(IInboundDraftService), typeof(IInboundManagerApi), "UpdateAsync", "PUT", "api/inventory/inbounds", "drafts/{uid:guid}", typeof(UpdateInboundDraftCommand), typeof(Task<ServiceResult<InboundDraftCommandResult>>)),
             (typeof(InboundDraftController), typeof(IInboundDraftService), typeof(IInboundManagerApi), "DeleteAsync", "POST", "api/inventory/inbounds", "drafts/{uid:guid}/delete", typeof(DeleteInboundDraftCommand), typeof(Task<ServiceResult<InboundDraftCommandResult>>)),
@@ -75,8 +77,8 @@ public sealed partial class InboundManagerServiceTests
             (typeof(InboundReversalController), typeof(IInboundReversalService), typeof(IInboundManagerApi), "PreviewReverseAsync", "POST", "api/inventory/inbounds", "{uid:guid}/reverse-preview", typeof(InboundReversePreviewRequest), typeof(Task<ServiceResult<InboundReversePreviewDto>>)),
             (typeof(InboundReversalController), typeof(IInboundReversalService), typeof(IInboundManagerApi), "ReverseAsync", "POST", "api/inventory/inbounds", "{uid:guid}/reverse", typeof(ReverseInboundCommand), typeof(Task<ServiceResult<InboundReverseResult>>)),
         };
-        Assert.AreEqual(10, routes.Length);
-        Assert.AreEqual(10, routes.Select(x => (x.Verb, x.Prefix, x.Path)).Distinct().Count(), "入库端点不能重叠。");
+        Assert.AreEqual(12, routes.Length);
+        Assert.AreEqual(12, routes.Select(x => (x.Verb, x.Prefix, x.Path)).Distinct().Count(), "入库端点不能重叠。");
 
         foreach (var route in routes)
         {
@@ -442,8 +444,8 @@ public sealed partial class InboundManagerServiceTests
             ReversalService = new(repository, executionReads, queries, sources, logs, user, permissions, inventoryPosting, execution, correlation, pipeline, support);
             PostingService = new(repository, executionReads, queries, sources, logs, user, permissions, inventoryPosting, execution, correlation, pipeline, support);
             DraftService = new(repository, executionReads, sources, warehouses, logs, user, numbers, execution, correlation, pipeline, support);
-            QueryService = new(queries, support);
-            SourceQueryService = new(sources, support);
+            QueryService = new(queries, support, Proxy<IWarehouseQueryRepository>((method, _) => throw new NotSupportedException(method)));
+            SourceQueryService = new(sources, support, Proxy<IWarehouseQueryRepository>((method,_)=>throw new NotSupportedException(method)));
         }
 
         public CreateInboundDraftCommand Create() => new() { CommandId = Guid.NewGuid(), Draft = new() { DocumentType = InboundDocumentTypeEnum.PurchaseReceipt, WarehouseSiteId = WarehouseId, ReceiptDate = DateTime.Today, Lines = [new() { SourceLineId = SourceId, Quantity = 10 }] } };

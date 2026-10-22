@@ -6,7 +6,7 @@ namespace SwiftExport.Application.Tests.Database;
 /// <summary>限制集成测试只连接用户确认的测试库；不提供默认凭据，不初始化或清理数据库。</summary>
 internal static class PostgreSqlIntegrationEnvironment
 {
-    /// <summary>读取用户保留的第四批专用测试库；后续切片按各自授权使用，不允许降级到原库或备份。</summary>
+    /// <summary>仅接受已明确批准的故障隔离库或本轮入库隔离库，不能降级到原库、备份或任意新库。</summary>
     internal static string GetFailureConnectionString()
     {
         var connection = Environment.GetEnvironmentVariable("SWIFTEXPORT_PG_FAILURE_TEST_CONNECTION");
@@ -22,7 +22,7 @@ internal static class PostgreSqlIntegrationEnvironment
         }
         Assert.AreEqual("192.168.3.12", settings.Host);
         Assert.AreEqual(5432, settings.Port);
-        Assert.AreEqual("dv_next_pg_failure_tests_20261004", settings.Database);
+        Assert.IsTrue(settings.Database is "dv_next_pg_failure_tests_20261004" or "dv_next_pg_inbound_tests_20261021", "数据库必须属于已明确批准的隔离白名单。");
         Assert.IsTrue(string.IsNullOrEmpty(settings.SearchPath) || settings.SearchPath == "public");
         return connection!;
     }

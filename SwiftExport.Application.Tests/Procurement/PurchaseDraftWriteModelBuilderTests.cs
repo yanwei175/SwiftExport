@@ -96,11 +96,12 @@ public sealed class PurchaseDraftWriteModelBuilderTests
             _builder.Build(document, Guid.NewGuid(), Guid.NewGuid(), "PO2026070004", 1, createHead: true));
     }
 
+    /// <summary>明确零价保留，折扣记录不参与两种采购金额的计算。</summary>
     [TestMethod]
-    public void Build_NullPricesSnapshotToZeroIndependentlyWithoutDiscountCalculation()
+    public void Build_ExplicitZeroPricesPreserveAmountsWithoutDiscountCalculation()
     {
         var document = CreateDocument();
-        document.Lines[0].UnitPrice = null;
+        document.Lines[0].UnitPrice = 0m;
         document.Lines[0].TaxPrice = 11m;
         document.Header.DiscountRate = 0.8m;
         document.Header.DiscountAmount = null;
@@ -114,6 +115,38 @@ public sealed class PurchaseDraftWriteModelBuilderTests
         Assert.AreEqual(55m, model.Lines.Single().TaxAmount);
         Assert.AreEqual(0.8m, model.Head!.DiscountRate);
         Assert.IsNull(model.Head.DiscountAmount);
+    }
+
+    /// <summary>需求采购写模型拒绝缺失或超四位的价格，不能将缺价自动转成零价。</summary>
+    [TestMethod]
+    [DataRow(true)]
+    [DataRow(false)]
+    public void Build_RejectsMissingOrExcessPrecisionPrices(bool unitPrice)
+    {
+        foreach (var price in new decimal?[] { null, 1.000049m })
+        {
+            var document = CreateDocument();
+            if (unitPrice) document.Lines[0].UnitPrice = price;
+            else document.Lines[0].TaxPrice = price;
+            Assert.ThrowsExactly<ProcurementOperationException>(() =>
+                _builder.Build(document, Guid.NewGuid(), Guid.NewGuid(), "PO-INVALID-PRICE", 1, createHead: true));
+        }
+    }
+
+    /// <summary>需求创建也使用四位远离零舍入，写入金额与后续确认规则一致。</summary>
+    [TestMethod]
+    public void Build_RoundsAmountsBeforeWriting()
+    {
+        var document = CreateDocument();
+        document.Lines[0].UnitPrice = 0.0001m;
+        document.Lines[0].TaxPrice = 0.0003m;
+        document.Lines[0].PurchaseQty = 0.5m;
+        document.Lines[0].Contributions.RemoveRange(1, document.Lines[0].Contributions.Count - 1);
+        document.Lines[0].Contributions[0].PurchaseQty = 0.5m;
+        var model = _builder.Build(document, Guid.NewGuid(), Guid.NewGuid(), "PO-ROUNDING", 1, createHead: true);
+        Assert.AreEqual(0.0001m, model.Lines.Single().UnitAmount);
+        Assert.AreEqual(0.0002m, model.Lines.Single().TaxAmount);
+        ProcurementOrderPolicy.RequireConfirmationAmounts(model.Lines.Single());
     }
 
     private static PurchaseDraftPreviewDocumentDto CreateDocument()

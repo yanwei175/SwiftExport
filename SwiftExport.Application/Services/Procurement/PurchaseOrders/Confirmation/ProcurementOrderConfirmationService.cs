@@ -53,13 +53,7 @@ public sealed class ProcurementOrderConfirmationService(
         var head = facts.Head ?? throw new InvalidOperationException("采购单不存在。");
         ProcurementOrderPolicy.RequireDraft(head, command.ExpectedVersion);
         var lines = facts.Lines.Where(x => !x.IsDeleted).ToList();
-        foreach (var line in lines)
-        {
-            if (!line.TaxPrice.HasValue) throw new InvalidOperationException("确认前必须明确含税单价；零价允许。");
-            if (line.TaxAmount != ProcurementOrderPolicy.Amount(line.Quantity, line.TaxPrice)
-                || line.UnitAmount != ProcurementOrderPolicy.Amount(line.Quantity, line.UnitPrice))
-                throw new InvalidOperationException("采购金额与数量单价不一致。");
-        }
+        // 与预检复用构造器中的价格、金额及身份校验，正式提交仍在锁定后重新执行。
         var basis = await confirmation.BuildAsync(facts, ct);
         if (basis.Fingerprint != command.ContextFingerprint)
             throw new ProcurementOperationException(ProcurementErrorCodes.BomBasisChanged, "确认依据已改变，请重新读取采购确认预览。", "ContextFingerprint");

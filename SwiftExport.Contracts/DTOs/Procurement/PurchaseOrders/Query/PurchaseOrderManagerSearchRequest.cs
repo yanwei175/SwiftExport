@@ -8,6 +8,13 @@ namespace SwiftExport.Contracts.DTOs.Procurement.PurchaseOrderManagerDto
     /// <summary>采购订单事实分页条件；不接受货好、收货或跟进进度筛选，空状态集合不限制对应状态。</summary>
     public sealed class PurchaseOrderManagerSearchRequest : PagedRequestBase
     {
+        /// <summary>关键词与客户编码的最大字符数，供查询输入和服务端校验共用。</summary>
+        public const int MaxTextLength = 100;
+        /// <summary>客户编码和供应商身份多选集合各自的最大项数。</summary>
+        public const int MaxPartyFilterCount = 500;
+        /// <summary>单次查询最多返回的采购订单条数。</summary>
+        public const int MaxPageSize = 200;
+
         /// <summary>按采购头保存的客户编码精确筛选，不联查客户主数据。</summary>
         public string CustomerCode { get; set; }
         public Guid? SupplierId { get; set; }

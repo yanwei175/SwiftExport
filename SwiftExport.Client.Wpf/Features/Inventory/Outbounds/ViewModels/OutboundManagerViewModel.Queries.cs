@@ -19,6 +19,8 @@ public sealed partial class OutboundManagerViewModel
     private long _readRequestId;
     private OutboundManagerSearchRequest? _appliedSearch;
     private bool _initialSearchRequested;
+    private bool _applyingList;
+    private string? _queryInputWarning;
 
     /// <summary>首次显示使用现有默认条件搜索；再次激活或已有本地数据时不覆盖页面。</summary>
     public Task InitializeAsync()
@@ -42,35 +44,42 @@ public sealed partial class OutboundManagerViewModel
     /// <summary>当前契约接线固定每页五十条，不提供尚未处理的页大小切换。</summary>
     public IReadOnlyList<int> PageSizeOptions { get; } = [50];
 
-    private bool CanRead() => !_disposed && _api is not null && _runner is not null && (IsNotBusy || _readQuery is not null);
+    private bool CanRead() => !_disposed && HasViewPermission && _api is not null && _runner is not null && (IsNotBusy || _readQuery is not null);
+    private bool CanSearch() => CanRead() && GetQueryInputError(Keyword, 1, PageSize) is null;
 
     /// <summary>显式应用输入条件，从第一页重新查询；输入改变本身不调用 API。</summary>
-    [RelayCommand(CanExecute = nameof(CanRead), AllowConcurrentExecutions = true)]
+    [RelayCommand(CanExecute = nameof(CanSearch), AllowConcurrentExecutions = true)]
     private Task SearchAsync() => QueryAsync(1, true);
 
-    private bool CanRefresh() => CanRead() || (CanEdit() && _persistence is not null);
+    private bool CanRefresh() => _pendingWrites.Count > 0 ? CanRecover(_pendingWrites.Values.First())
+        : CanRead() || (CanEdit() && _persistence is not null);
 
     /// <summary>优先确认原命令或重载冲突单，其余情况按已应用条件刷新。</summary>
     [RelayCommand(CanExecute = nameof(CanRefresh))]
     private Task RefreshAsync()
     {
         if (_disposed || IsBusy) return Task.CompletedTask;
-        if (SelectedItem is { } row && _pendingWrites.ContainsKey(row)) return RecoverSelectedAsync();
-        if (RequirePendingRecovery()) return Task.CompletedTask;
+        if (_pendingWrites.Count > 0) return RecoverSelectedAsync();
         if (SelectedItem is { HasVersionConflict: true }) return ReloadConflictedAsync();
         return SelectedItem is { IsDetailLoaded: false } ? LoadSelectedDetailAsync() : QueryAsync(PageIndex, false);
     }
 
     /// <summary>翻页沿用上次成功查询条件，不隐式应用尚未查询的输入。</summary>
     [RelayCommand(CanExecute = nameof(CanRead), AllowConcurrentExecutions = true)]
-    private Task PageChangeAsync(PageChangeRequest? request) => request is null ? Task.CompletedTask : QueryAsync(Math.Max(1, request.NewIndex), false);
+    private Task PageChangeAsync(PageChangeRequest? request)
+    {
+        if (request is null || !CanRead()) return Task.CompletedTask;
+        if (GetQueryInputError(_appliedSearch?.Keyword, request.NewIndex, request.NewSize) is { } error)
+        { ResultSummary = error; return Task.CompletedTask; }
+        return QueryAsync(request.NewIndex, false);
+    }
 
     /// <summary>页面选择事件调用此命令；已加载或已编辑的单据直接复用，不清空本地明细。</summary>
-    [RelayCommand]
+    [RelayCommand(AllowConcurrentExecutions = true)]
     private Task LoadSelectedDetailAsync()
     {
         var row = SelectedItem;
-        if (!CanRead() || IsBusy || row is null || row.IsPersistencePending || row.IsDetailLoaded || row.IsNew) return Task.CompletedTask;
+        if (_applyingList || !CanRead() || row is null || row.IsPersistencePending || row.IsDetailLoaded || row.IsNew) return Task.CompletedTask;
         return ExecuteReadAsync((token, id) => LoadDetailCoreAsync(row, token, id), "加载出库详情");
     }
 
@@ -81,19 +90,23 @@ public sealed partial class OutboundManagerViewModel
         var applied = applyEditedFilters ? null : _appliedSearch;
         var request = new OutboundManagerSearchRequest
         {
-            Keyword = applied is null ? Keyword : applied.Keyword,
-            DocumentType = applied is null ? SelectedDocumentType : applied.DocumentType,
-            PostingStatus = applied is null ? SelectedPostingStatus : applied.PostingStatus,
+            Keyword = applied is null ? Keyword?.Trim() : applied.Keyword,
+            DocumentTypes = applied is null ? SelectedDocumentTypes.Distinct().ToList() : applied.DocumentTypes.ToList(),
+            PostingStatuses = applied is null ? SelectedPostingStatuses.Distinct().ToList() : applied.PostingStatuses.ToList(),
             PageIndex = page,
             PageSize = PageSize
         };
+        if (GetQueryInputError(request.Keyword, page, request.PageSize) is { } error)
+        { SetQueryInputWarning(error); return Task.CompletedTask; }
         return ExecuteReadAsync(async (token, id) =>
         {
             if (HasUnsavedChanges && !await _dialogs.ConfirmAsync("重新查询出库单",
                 "当前页有未保存修改，查询成功后将放弃这些修改，是否继续？", cancellationToken: token)) return;
             if (!IsCurrentRead(token, id)) return;
+            var revision = _editRevision;
             var result = await _runner!.RunAsync(() => _api!.SearchAsync(request, token), token, "出库列表查询失败");
             if (!IsCurrentRead(token, id)) return;
+            if (revision != _editRevision) { ResultSummary = "查询期间产生了新的本地修改，结果未覆盖当前编辑。"; return; }
             if (!result.Success || result.Data is null)
             { ResultSummary = result.Message ?? "出库列表查询失败，已有编辑已保留。"; return; }
             var data = result.Data;
@@ -101,15 +114,20 @@ public sealed partial class OutboundManagerViewModel
                 || data.Items.Select(x => x.Uid).Distinct().Count() != data.Items.Count)
             { ResultSummary = "出库列表响应缺少有效单据身份，未替换当前数据。"; return; }
             var selectedId = SelectedItem?.Uid;
-            Headers.LoadFromDtos(data.Items.Adapt<List<OutboundHeaderDetailDto>>());
-            foreach (var row in Headers.Items)
+            _applyingList = true;
+            try
             {
-                row.IsDetailLoaded = false;
-                row.SummaryQuantity = data.Items.First(x => x.Uid == row.Uid).TotalQuantity;
+                Headers.LoadFromDtos(data.Items.Adapt<List<OutboundHeaderDetailDto>>());
+                foreach (var row in Headers.Items)
+                {
+                    row.IsDetailLoaded = false;
+                    row.SummaryQuantity = data.Items.First(x => x.Uid == row.Uid).TotalQuantity;
+                }
+                _appliedSearch = request;
+                PageIndex = page; TotalCount = data.TotalCount;
+                SelectedItem = Headers.Items.FirstOrDefault(x => x.Uid == selectedId) ?? Headers.Items.FirstOrDefault();
             }
-            _appliedSearch = request;
-            PageIndex = page; TotalCount = data.TotalCount;
-            SelectedItem = Headers.Items.FirstOrDefault(x => x.Uid == selectedId) ?? Headers.Items.FirstOrDefault();
+            finally { _applyingList = false; }
             NotifyEditState();
             ResultSummary = Headers.Items.Count == 0 ? "没有符合条件的出库单。" : "列表已加载；草稿可过账，符合条件的手工单可授权整单反过账。";
             if (SelectedItem is not null) await LoadDetailCoreAsync(SelectedItem, token, id);
@@ -119,8 +137,10 @@ public sealed partial class OutboundManagerViewModel
     /// <summary>详情只回填发起请求的同一单据；失败保持只读，不能将未加载明细作为空草稿编辑。</summary>
     private async Task LoadDetailCoreAsync(OutboundHeaderModel row, CancellationToken token, long id)
     {
+        var revision = _editRevision;
         var result = await _runner!.RunAsync(() => _api!.GetAsync(row.Uid, token), token, "出库详情查询失败");
         if (!IsCurrentRead(token, id) || !ReferenceEquals(SelectedItem, row) || !Headers.Items.Contains(row)) return;
+        if (revision != _editRevision) { ResultSummary = "读取期间产生了新的本地修改，详情未覆盖当前编辑。"; return; }
         if (!result.Success || result.Data is null)
         { ResultSummary = result.Message ?? "出库详情加载失败，请点击刷新重试。"; return; }
         var detail = result.Data;
@@ -168,5 +188,22 @@ public sealed partial class OutboundManagerViewModel
         { row.DetailStateChanged += OnDetailStateChanged; _observedHeaders.Add(row); }
     }
 
-    private void OnDetailStateChanged(object? sender, EventArgs e) => NotifyEditState();
+    private void OnDetailStateChanged(object? sender, EventArgs e) { _editRevision++; NotifyEditState(); }
+
+    /// <summary>请求提交前共用契约上限；翻页校验已应用输入，不隐式应用新条件。</summary>
+    private static string? GetQueryInputError(string? keyword, int page, int size) => keyword?.Trim().Length > OutboundQueryLimits.KeywordMaxLength
+        ? $"查询关键词最多 {OutboundQueryLimits.KeywordMaxLength} 字。"
+        : page < 1 || size is < 1 or > OutboundQueryLimits.PageSizeMax ? $"页码须为正数，每页最多 {OutboundQueryLimits.PageSizeMax} 条。" : null;
+
+    /// <summary>输入纠正只撤回该输入自己的提示，不覆盖后来的 API 或业务结果。</summary>
+    partial void OnKeywordChanged(string value)
+    {
+        var error = GetQueryInputError(value, 1, PageSize);
+        if (error is not null) SetQueryInputWarning(error);
+        else { if (_queryInputWarning is not null && ResultSummary == _queryInputWarning) ResultSummary = "查询条件已修正，请点击查询。"; _queryInputWarning = null; }
+        SearchCommand.NotifyCanExecuteChanged();
+    }
+
+    /// <summary>保存本地校验反馈所有权，避免修正条件时清除更晚的结果。</summary>
+    private void SetQueryInputWarning(string error) { _queryInputWarning = error; ResultSummary = error; }
 }

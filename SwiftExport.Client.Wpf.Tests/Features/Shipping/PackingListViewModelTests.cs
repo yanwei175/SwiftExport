@@ -1,4 +1,4 @@
-using Microsoft.VisualStudio.TestTools.UnitTesting;
+﻿using Microsoft.VisualStudio.TestTools.UnitTesting;
 using SwiftExportClient.Mvvm;
 using Microsoft.Extensions.Logging.Abstractions;
 using SwiftExport.Client.Wpf.Tests.TestInfrastructure;
@@ -358,6 +358,89 @@ public sealed class PackingListViewModelTests
         Assert.AreEqual(1, api.Creates.Count);
         CollectionAssert.AreEqual(before.Select(row => row.Uid).ToArray(), api.Creates[0].Lines.Select(row => row.Uid).ToArray());
         Assert.IsTrue(vm.HasUnsavedChanges, "模拟保存失败后仍须保留排序草稿。");
+    }
+
+    /// <summary>两级排序只改行号，保存仍包含真实产品，并拒绝跨箱或跨层载荷。</summary>
+    [TestMethod]
+    public async Task PackageRowsKeepTwoBoxesAndSaveOnlyRealMembers()
+    {
+        var api = new PackingListApiStub(); var ui = new PackingListUiStub();
+        using var vm = Detail(api, ui); await NewDraft(vm);
+        for (var i = 2; i <= 5; i++) vm.Lines.AddNew(new() { Uid = Guid.NewGuid(), PackingListHeadId = vm.Header.Uid,
+            LineNumber = i, GrossDemandId = Guid.NewGuid(), ProductId = Guid.NewGuid(), Qty = i, PcsPerPackage = i });
+        var rows = vm.Lines.Items.ToArray(); rows[0].PcsPerPackage = rows[0].Qty;
+        var quantities = rows.Select(x => x.Qty).ToArray(); var identities = rows.Select(x => x.GrossDemandId).ToArray();
+        vm.UpdatePackageSelection(vm.Lines.Packages.Take(2).ToArray());
+        ui.Confirm = false; await vm.PackProductsCommand.ExecuteAsync(null);
+        Assert.AreEqual(5, vm.Lines.Packages.Count); Assert.AreEqual(0, vm.Lines.PackingGroups.Count);
+        ui.Confirm = true; await vm.PackProductsCommand.ExecuteAsync(null);
+        var first = vm.SelectedPackage!;
+        vm.UpdatePackageSelection(vm.Lines.Packages.Where(x => ReferenceEquals(x.Product, rows[2]) || ReferenceEquals(x.Product, rows[3])).ToArray());
+        await vm.PackProductsCommand.ExecuteAsync(null); var second = vm.SelectedPackage!;
+        Assert.AreEqual(3, vm.Lines.Packages.Count); Assert.AreEqual(2, vm.Lines.PackingGroups.Count);
+        Assert.AreNotEqual(first.Title, second.Title);
+        vm.ReorderPackageCommand.Execute(new RowReorderRequest(second, first, RowDropPosition.Before));
+        CollectionAssert.AreEqual(new[] { rows[2], rows[3], rows[0], rows[1], rows[4] }, vm.Lines.Items.ToArray());
+        vm.SelectedPackage = first;
+        Assert.IsFalse(vm.ReorderMemberCommand.CanExecute(new RowReorderRequest(rows[0], rows[2], RowDropPosition.Before)));
+        Assert.IsFalse(vm.ReorderPackageCommand.CanExecute(new RowReorderRequest(rows[0], first, RowDropPosition.Before)));
+        vm.ReorderMemberCommand.Execute(new RowReorderRequest(rows[0], null, RowDropPosition.End));
+        CollectionAssert.AreEqual(new[] { rows[2], rows[3], rows[1], rows[0], rows[4] }, vm.Lines.Items.ToArray());
+        CollectionAssert.AreEqual(quantities, rows.Select(x => x.Qty).ToArray());
+        CollectionAssert.AreEqual(identities, rows.Select(x => x.GrossDemandId).ToArray());
+        first.NetWeight = 3; first.GrossWeight = 4; first.Volume = 0.1m;
+        second.NetWeight = 5; second.GrossWeight = 6; second.Volume = 0.2m;
+        await vm.SaveCommand.ExecuteAsync(null);
+        Assert.AreEqual(1, api.Creates.Count); Assert.AreEqual(5, api.Creates[0].Lines.Count);
+        CollectionAssert.AreEqual(vm.Lines.Items.Select(x => x.Uid).ToArray(), api.Creates[0].Lines.Select(x => x.Uid).ToArray());
+        var loaded = new PackingListLineListModel();
+        loaded.LoadFromDtos(vm.Lines.Items.Select(x => new PackingListLineDto { Uid = x.Uid, LineNumber = x.LineNumber,
+            PackingListHeadId = x.PackingListHeadId, PackingGroupId = x.PackingGroupId, Qty = x.Qty, PcsPerPackage = x.PcsPerPackage }));
+        Assert.AreEqual(3, loaded.Packages.Count); Assert.AreEqual(2, loaded.PackingGroups.Count);
+    }
+
+    /// <summary>加入已有箱、解散、末行删除均保持真实数量；空箱明确阻止保存，删除后安全清空选择。</summary>
+    [TestMethod]
+    public async Task PackageMembershipAndDeletionKeepSelectionWithinBounds()
+    {
+        var api = new PackingListApiStub(); var ui = new PackingListUiStub();
+        using var vm = Detail(api, ui); await NewDraft(vm);
+        var first = vm.Lines.Items[0];
+        vm.UpdatePackageSelection(vm.Lines.Packages.ToArray()); await vm.PackProductsCommand.ExecuteAsync(null);
+        var group = vm.SelectedPackage!;
+        var second = vm.Lines.AddNew(new() { Uid = Guid.NewGuid(), PackingListHeadId = vm.Header.Uid,
+            GrossDemandId = Guid.NewGuid(), ProductId = Guid.NewGuid(), Qty = 3, PcsPerPackage = 3 });
+        vm.UpdatePackageSelection([second.DisplayGroup!]); await vm.PackProductsCommand.ExecuteAsync(group);
+        Assert.AreEqual(1, vm.Lines.Packages.Count); Assert.AreEqual(2, group.Members.Count);
+        await vm.DissolvePackageCommand.ExecuteAsync(null);
+        Assert.AreEqual(2, vm.Lines.Packages.Count); Assert.AreEqual(5m, vm.Lines.Items.Sum(x => x.Qty));
+        Assert.IsTrue(vm.Lines.Items.All(x => x.PackingGroupId is null));
+        vm.SelectedPackage = second.DisplayGroup; vm.DeletePackageProductCommand.Execute(null);
+        Assert.AreSame(first.DisplayGroup, vm.SelectedPackage);
+        vm.UpdatePackageSelection([first.DisplayGroup!]); await vm.PackProductsCommand.ExecuteAsync(null);
+        group = vm.SelectedPackage!; vm.SelectedPackingLine = first; vm.DeletePackingMemberCommand.Execute(null);
+        Assert.AreEqual(0, group.Members.Count); Assert.IsNull(vm.SelectedPackingLine);
+        Assert.AreSame(group, vm.SelectedPackage); Assert.IsTrue(vm.Lines.HasEmptyGroups);
+        await vm.SaveCommand.ExecuteAsync(null); Assert.AreEqual(0, api.Creates.Count);
+        await vm.DissolvePackageCommand.ExecuteAsync(null);
+        Assert.AreEqual(0, vm.Lines.Packages.Count); Assert.IsNull(vm.SelectedPackage);
+        Assert.IsFalse(vm.DeletePackingMemberCommand.CanExecute(null)); Assert.IsFalse(vm.DeletePackageProductCommand.CanExecute(null));
+    }
+
+    /// <summary>浏览拼箱时获取来源仍新增普通产品，不受隐藏目标状态影响。</summary>
+    [TestMethod]
+    public async Task FetchWhileBrowsingBoxAddsOrdinaryProduct()
+    {
+        var source = new PackingListSourceStub(); var ui = new PackingListUiStub();
+        using var vm = Detail(new PackingListApiStub(), ui, source); await NewDraft(vm);
+        vm.UpdatePackageSelection(vm.Lines.Packages.ToArray()); await vm.PackProductsCommand.ExecuteAsync(null);
+        var group = vm.SelectedPackage!; var member = group.Members[0];
+        source.Selection = [new() { Source = new() { CustomerId = vm.Header.CustomerId, GrossDemandId = Guid.NewGuid(),
+            ProductId = Guid.NewGuid(), RemainingQty = 10, PcsPerPackage = 2 }, Qty = 2 }];
+        await vm.SelectSourcesCommand.ExecuteAsync(null);
+        Assert.AreEqual(2, vm.Lines.Packages.Count); Assert.AreEqual(1, group.Members.Count);
+        Assert.AreSame(member, group.Members[0]); Assert.IsNull(vm.Lines.Items.Last().PackingGroupId);
+        Assert.AreSame(vm.Lines.Items.Last(), vm.SelectedPackage!.Product); Assert.IsNull(vm.SelectedPackingGroup);
     }
 
     private static PackingListDetailViewModel Detail(PackingListApiStub api, PackingListUiStub ui, PackingListSourceStub? source = null) =>

@@ -42,7 +42,7 @@ public sealed class ProcurementOrderPolicyTests
         });
     }
 
-    /// <summary>空价留待确认补齐，明确零价保留，金额仅在最终四位舍入。</summary>
+    /// <summary>历史读取可表达空价，明确零价保留，金额仅在最终四位舍入。</summary>
     [TestMethod]
     public void AmountDistinguishesMissingAndZeroAndRoundsFinalResult()
     {
@@ -58,8 +58,48 @@ public sealed class ProcurementOrderPolicyTests
         Assert.ThrowsExactly<ProcurementOperationException>(() => ProcurementOrderPolicy.Amount(0m, 1m));
         Assert.ThrowsExactly<ProcurementOperationException>(() => ProcurementOrderPolicy.Amount(1.00001m, 1m));
         Assert.ThrowsExactly<ProcurementOperationException>(() => ProcurementOrderPolicy.Amount(1m, 0.0000001m));
+        Assert.ThrowsExactly<ProcurementOperationException>(() => ProcurementOrderPolicy.Amount(100m, 1.000049m));
         Assert.ThrowsExactly<ProcurementOperationException>(() => ProcurementOrderPolicy.Amount(99999999999999.9999m, 999999999999.999999m));
         Assert.ThrowsExactly<ProcurementOperationException>(() => ProcurementOrderPolicy.Amount(1m, -1m));
+    }
+
+    /// <summary>创建和保存均要求明确两价，拒绝负价、超四位精度、超范围及金额溢出，允许明确零价。</summary>
+    [TestMethod]
+    public void CreateAndSaveShareRequiredPriceAndStoragePrecisionRules()
+    {
+        foreach (var (unitPrice, taxPrice) in new (decimal?, decimal?)[]
+        {
+            (null, 0), (0, null), (-1, 0), (0, -1), (0.00001m, 0), (0, 0.00001m),
+            (100000000000000m, 0), (0, 100000000000000m)
+        })
+        {
+            var input = new CreateIndependentPurchaseOrderLineCommand { Quantity = 1, UnitPrice = unitPrice, TaxPrice = taxPrice };
+            var line = new PurchaseOrderLine { Uid = Guid.NewGuid(), Quantity = 1 };
+            var command = new UpdatePurchaseOrderDraftCommand
+            {
+                ExpectedVersion = 1, Lines = [new() { PurchaseOrderLineId = line.Uid, ExpectedVersion = 1, UnitPrice = unitPrice, TaxPrice = taxPrice }]
+            };
+            Assert.ThrowsExactly<ProcurementOperationException>(() => IndependentPurchaseOrderInputPolicy.ValidateLine(input));
+            Assert.ThrowsExactly<ProcurementOperationException>(() => ProcurementOrderPolicy.ApplySave(new(), [line], command));
+        }
+        IndependentPurchaseOrderInputPolicy.ValidateLine(new() { Quantity = 1, UnitPrice = 0, TaxPrice = 0 });
+        Assert.AreEqual((0m, 0m), ProcurementOrderPolicy.CalculateAmounts(1, 0, 0));
+        Assert.AreEqual((0.0001m, 0.0002m), ProcurementOrderPolicy.CalculateAmounts(0.5m, 0.0001m, 0.0003m));
+        Assert.ThrowsExactly<ProcurementOperationException>(() => ProcurementOrderPolicy.CalculateAmounts(2, 99999999999999.9999m, 0));
+    }
+
+    /// <summary>保存忽略旧金额并按两价重算；保存结果能通过与确认预检共用的金额核验。</summary>
+    [TestMethod]
+    public void SaveRecalculatesAmountsWithFourDigitRounding()
+    {
+        var line = new PurchaseOrderLine { Uid = Guid.NewGuid(), Quantity = 0.5m, UnitAmount = 99, TaxAmount = null };
+        ProcurementOrderPolicy.ApplySave(new(), [line], new()
+        {
+            ExpectedVersion = 1, Lines = [new() { PurchaseOrderLineId = line.Uid, ExpectedVersion = 1, UnitPrice = 0.0001m, TaxPrice = 0.0003m }]
+        });
+        Assert.AreEqual(0.0001m, line.UnitAmount);
+        Assert.AreEqual(0.0002m, line.TaxAmount);
+        ProcurementOrderPolicy.RequireConfirmationAmounts(line);
     }
 
     /// <summary>新保存协议物理上没有客户、供应商、数量、产品或收货目标字段。</summary>
@@ -102,12 +142,12 @@ public sealed class ProcurementOrderPolicyTests
         {
             var input=new CreateIndependentPurchaseOrderLineCommand
             {
-                Quantity=1,UnitPrice=1,SupplierSku=new string('型',skuLength),DescriptionZh=new string('述',descriptionLength)
+                Quantity=1,UnitPrice=1,TaxPrice=1,SupplierSku=new string('型',skuLength),DescriptionZh=new string('述',descriptionLength)
             };
             var head=new PurchaseOrderHead();var line=new PurchaseOrderLine{Uid=Guid.NewGuid(),Quantity=1};
             var command=new UpdatePurchaseOrderDraftCommand
             {
-                ExpectedVersion=1,Lines=[new(){PurchaseOrderLineId=line.Uid,ExpectedVersion=1,UnitPrice=1,
+                ExpectedVersion=1,Lines=[new(){PurchaseOrderLineId=line.Uid,ExpectedVersion=1,UnitPrice=1,TaxPrice=1,
                     SupplierSku=input.SupplierSku,DescriptionZh=input.DescriptionZh}]
             };
             if(skuLength<=300 && descriptionLength<=2000)

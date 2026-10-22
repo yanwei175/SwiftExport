@@ -15,14 +15,14 @@ namespace SwiftExport.Client.Wpf.Tests.Features;
 
 /// <summary>验证库存选择的仓库、排重、默认数量和异步隔离，不连接真实 API。</summary>
 [TestClass]
-public sealed class OutboundItemPickerTests
+public sealed partial class OutboundItemPickerTests
 {
     /// <summary>未选仓库不能获取；确认带入余额，重复获取不能覆盖用户编辑，已有明细禁改仓。</summary>
     [TestMethod]
     public async Task Manager_RequiresWarehouse_AndPreservesQuantity()
     {
         var source = new PickerStub();
-        using var vm = new OutboundManagerViewModel(new WarehouseStub(), source, new DialogStub());
+        using var vm = new OutboundManagerViewModel(new WarehouseStub(), source, new DialogStub(), postingUser: OutboundTestUsers.Create());
         vm.AddNewHeaderRowCommand.Execute(null);
         await vm.OpenOutboundItemDialogCommand.ExecuteAsync(null);
         Assert.AreEqual(0, source.Calls);

@@ -17,12 +17,14 @@ public sealed partial class PostgreSqlOutboundQueryRepository(RepositoryBaseCont
 {
     private static readonly EntityMetadata ProductMap = EntityMetadataCache.GetMetadata(typeof(Product));
 
-    /// <summary>一次多结果分别读取当前计数与页；原分页值和SQL技术失败保留，不新增生命周期或自动单过滤。</summary>
+    /// <summary>集合内并集、类型与状态间交集在计数和分页前生效；空集合不限，未传集合回退旧单值。</summary>
     public async Task<PagedResponseBase<OutboundManagerListItemDto>> SearchAsync(OutboundManagerSearchRequest request, CancellationToken token)
     {
         var p = new PostgreSqlParameters();
-        p.Add("DocumentType", request.DocumentType.HasValue ? (int)request.DocumentType.Value : null);
-        p.Add("PostingStatus", request.PostingStatus.HasValue ? (int)request.PostingStatus.Value : null);
+        p.Add("DocumentTypes", request.DocumentTypes?.Select(value => (int)value).ToArray()
+            ?? (request.DocumentType.HasValue ? [(int)request.DocumentType.Value] : []));
+        p.Add("PostingStatuses", request.PostingStatuses?.Select(value => (int)value).ToArray()
+            ?? (request.PostingStatus.HasValue ? [(int)request.PostingStatus.Value] : []));
         p.Add("Keyword", Like(request.Keyword));
         // 减1先在int中计算再提升long，与源表达式相同；不裁剪原页号或页大小。
         p.Add("Skip", (long)(request.PageIndex - 1) * request.PageSize);
@@ -71,8 +73,8 @@ public sealed partial class PostgreSqlOutboundQueryRepository(RepositoryBaseCont
     {
         var filter = $"""
             FROM "public"."outbound_document" h WHERE h."is_deleted"=FALSE
-                AND (@DocumentType IS NULL OR h."document_type"=@DocumentType)
-                AND (@PostingStatus IS NULL OR h."posting_status"=@PostingStatus)
+                AND (cardinality(@DocumentTypes)=0 OR h."document_type"=ANY(@DocumentTypes))
+                AND (cardinality(@PostingStatuses)=0 OR h."posting_status"=ANY(@PostingStatuses))
                 AND (@Keyword IS NULL OR h."document_no" COLLATE public.erp_dictionary_ci LIKE @Keyword ESCAPE '~'
                     OR h."warehouse_name_snapshot" COLLATE public.erp_dictionary_ci LIKE @Keyword ESCAPE '~'
                     OR EXISTS(SELECT 1 FROM "public"."outbound_document_line" l WHERE l."outbound_document_id"=h."uid"
@@ -152,10 +154,10 @@ public sealed partial class PostgreSqlOutboundQueryRepository(RepositoryBaseCont
     /// <summary>保留SQL Server uniqueidentifier的SqlGuid字节比较顺序。</summary>
     private static string UuidOrder(string column) => "ARRAY[" + string.Join(',', new[] { 10, 11, 12, 13, 14, 15, 8, 9, 7, 6, 5, 4, 3, 2, 1, 0 }.Select(x => $"get_byte(uuid_send({column}),{x})")) + "]";
 
-    /// <summary>本查询局部明确NULL标量和UUID数组类型；每命令独立克隆，不修改公共参数组件。</summary>
+    /// <summary>本查询局部明确标量、UUID 与枚举整数数组类型；每命令独立克隆，不修改公共参数组件。</summary>
     private sealed class QueryParameters(PostgreSqlParameters parameters) : SqlMapper.IDynamicParameters
     {
-        /// <summary>装饰连接也按uuid[]单参数绑定，NULL enum/text不依赖驱动猜测。</summary>
+        /// <summary>装饰连接也按 uuid[]、integer[] 单参数绑定，可空文本不依赖驱动猜测。</summary>
         public void AddParameters(IDbCommand command, SqlMapper.Identity identity)
         {
             parameters.AddParameters(command, identity);
@@ -164,6 +166,7 @@ public sealed partial class PostgreSqlOutboundQueryRepository(RepositoryBaseCont
                 {
                     "Uid" or "ProductId" => NpgsqlDbType.Uuid,
                     "Ids" => NpgsqlDbType.Array | NpgsqlDbType.Uuid,
+                    "DocumentTypes" or "PostingStatuses" => NpgsqlDbType.Array | NpgsqlDbType.Integer,
                     "Keyword" => NpgsqlDbType.Text,
                     "Skip" => NpgsqlDbType.Bigint,
                     _ => NpgsqlDbType.Integer

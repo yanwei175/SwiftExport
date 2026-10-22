@@ -341,7 +341,7 @@ public sealed class AutomaticPostingPortsTests
             var sourceRepo = Proxy<IInboundSourceRepository>((m, a) => m switch
             {
                 "LockPurchaseSourcesAsync" => Task.CompletedTask,
-                "HasUnprovenReceiptAsync" => Task.FromResult(false),
+                "HasUnprovenReceiptAsync" => CheckHistoryScope((IReadOnlyList<Guid>)a[0]!),
                 "ReadPostingSourcesAsync" => Task.FromResult<IReadOnlyList<InboundPurchasePostingSourceDto>>([new() { SourceLineId = PurchaseId,
                     ProductId = ProductId, IsReceivable = true, IsCustomerSupplied = CustomerSuppliedSource, OriginalQty = 10,
                     PostedNetQty = InHeaders.Values.Where(x => x.PostingStatus == InboundPostingStatusEnum.Posted).Sum(h => InLines.Where(l => l.InboundDocumentId == h.Uid).Sum(l => l.Quantity)), Unit = "PCS", CurrentUnit = "PCS" }]),
@@ -376,6 +376,12 @@ public sealed class AutomaticPostingPortsTests
                 }), Proxy<IDocumentNoService>((_, _) => Task.FromResult(ServiceResult<DocumentNoResponse>.Ok(new() { DocumentNo = "AUTO-" + ++Numbers }))),
                 Proxy<ICurrentUser>((m, _) => m switch { "get_IsAuthenticated" => true, "get_UserId" => (Guid?)userId, "get_UserName" => "测试", _ => throw new NotSupportedException(m) }));
             In = ports; Out = ports;
+        }
+        /// <summary>自动收货容量证明必须限定为本批采购行，不能读取无关历史作为全局门禁。</summary>
+        private Task<bool> CheckHistoryScope(IReadOnlyList<Guid> ids)
+        {
+            CollectionAssert.AreEquivalent(new[]{PurchaseId},ids.ToArray());
+            return Task.FromResult(false);
         }
         private Task<IReadOnlyList<InventoryLedgerEntry>> History(Guid id) => Task.FromResult<IReadOnlyList<InventoryLedgerEntry>>(Ledgers.Where(x => x.SourceDocumentId == id).ToList());
         private Task<int> InsertBalance(InventoryBalance b) { b.Version = 1; Balances.Add((b.WarehouseSiteId, b.ProductId), b); return Task.FromResult(1); }

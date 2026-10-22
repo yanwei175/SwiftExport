@@ -15,6 +15,19 @@ namespace SwiftExport.Application.Tests.Inventory;
 /// <summary>人工入库整单反向的数量、幂等与事实证明；不冒充真实数据库锁验证。</summary>
 public sealed partial class InboundManagerServiceTests
 {
+    /// <summary>停用仓库在预览阶段就阻断，正式命令同样不进入库存写入，与内核要求保持一致。</summary>
+    [TestMethod]
+    public async Task Reverse_InactiveWarehouseBlocksPreviewAndSubmission()
+    {
+        var f=await Fixture.Reversible();f.ReverseWarehouseActive=false;
+        var preview=await f.ReversalService.PreviewReverseAsync(f.Header!.Uid,new(){ExpectedVersion=2});
+        Assert.IsTrue(preview.Success);Assert.IsFalse(preview.Data.CanReverse);
+        Assert.IsTrue(preview.Data.Blockers.Any(x=>x.Message.Contains("已停用",StringComparison.Ordinal)));
+        var result=await f.ReversalService.ReverseAsync(f.Header.Uid,new(){CommandId=Guid.NewGuid(),ExpectedVersion=2,Reason="纠错"});
+        Assert.IsFalse(result.Success);Assert.AreEqual(0,f.ReverseCalls);
+        Assert.AreEqual(InboundPostingStatusEnum.Posted,f.Header.PostingStatus);Assert.AreEqual(100m,f.Balance);
+    }
+
     /// <summary>反向细权限先于回执检查，预览不新增写事务、回执或库存事实。</summary>
     [TestMethod]
     public async Task Reverse_RequiresPermissionBeforeReceipt_AndPreviewStaysReadOnly()
@@ -182,7 +195,7 @@ public sealed partial class InboundManagerServiceTests
     {
         public decimal Balance = 100;
         public int ReverseCalls;
-        public bool FailReverseInventory, FailMarkReverse;
+        public bool FailReverseInventory, FailMarkReverse, ReverseWarehouseActive = true;
         public List<InventoryLedgerEntry> Facts = [];
         public static async Task<Fixture> Reversible()
         {
@@ -199,7 +212,7 @@ public sealed partial class InboundManagerServiceTests
         {
             "ReadReverseLedgersAsync" => Task.FromResult<IReadOnlyList<InventoryLedgerEntry>>(Facts),
             "ReadReverseBalanceAsync" => Task.FromResult<InventoryBalance?>(new() { OnHandQty = Balance, UnitSnapshot = "PCS" }),
-            "ReverseWarehouseExistsAsync" => Task.FromResult(true),
+            "ReverseWarehouseExistsAsync" => Task.FromResult(ReverseWarehouseActive),
             "MarkReversedAsync" => MarkReversed(),
             _ => throw new NotSupportedException(method)
         };

@@ -22,7 +22,8 @@ public sealed class InboundPostingSqlContractTests
         StringAssert.Contains(query, "dh.uid<>@Uid");
         StringAssert.Contains(source, "dh.uid<>@CurrentInboundDocumentId");
         StringAssert.Contains(source, "dh.posting_status=0 AND dh.lifecycle_status=0");
-        StringAssert.Contains(query, "rh.posting_status IN(1,8)");
+        StringAssert.Contains(query, "receipt_head_reviews");
+        StringAssert.Contains(query, "SUM(CASE WHEN posting_status=1 THEN quantity ELSE 0 END)");
         StringAssert.Contains(source, "COUNT(DISTINCT dh.uid)");
         var service = File.ReadAllText(Path.Combine(root, "SwiftExport.Application/Services/Inventory/Inbounds/InboundPostingService.cs"));
         Assert.IsTrue(service.IndexOf("LockPurchaseSourcesAsync", StringComparison.Ordinal) < service.IndexOf("LockHeaderAsync", StringComparison.Ordinal));
@@ -36,7 +37,8 @@ public sealed class InboundPostingSqlContractTests
         StringAssert.Contains(source, "SELECT uid FROM public.purchase_order_head WHERE uid=@Id FOR UPDATE");
         StringAssert.Contains(source, "SELECT purchase_order_id FROM public.purchase_order_line WHERE uid=@Id FOR UPDATE");
         StringAssert.Contains(document, "WHERE uid=@Uid AND version=@Version AND posting_status=0 AND lifecycle_status=0");
-        StringAssert.Contains(executionRead, "FROM {Table<InventoryLedgerEntry>()} e JOIN related_facts r");
+        StringAssert.Contains(executionRead, "FROM \"public\".\"inventory_ledger_entry\" e JOIN related_facts r");
+        StringAssert.Contains(executionRead, "w.\"is_deleted\"=FALSE AND w.\"is_active\"=TRUE");
     }
 
     /// <summary>四类入库仓储均按请求注册，并复用同一请求级 RepositoryBaseContext 注入边界。</summary>

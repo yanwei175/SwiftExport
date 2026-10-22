@@ -261,7 +261,7 @@ public sealed partial class InboundManagerPersistenceTests
         public InboundManagerViewModel Vm { get; }
         public Fixture()
         {
-            User.SetCurrentUser(new() { Permissions = [SwiftExport.Contracts.DTOs.Auth.PermissionKeys.InventoryInboundReverse, SwiftExport.Contracts.DTOs.Auth.PermissionKeys.InventoryInboundPost, "Inventory.Inbound.View"] });
+            User.SetCurrentUser(InboundTestUsers.Create().CurrentUser!);
             Vm = new(new WarehouseStub(), new SourceStub(), Dialogs, persistence: Service, deleteDialogs: DeleteDialogs, postDialogs: PostDialogs, postingUser: User, reverseDialogs: ReverseDialogs);
         }
         public InboundHeaderModel Add()
@@ -287,6 +287,7 @@ public sealed partial class InboundManagerPersistenceTests
         public List<DeleteInboundDraftCommand> Deletes { get; } = [];
         public int Writes { get; private set; }
         public int FailCreateAt { get; set; }
+        public int FailDeleteAt { get; set; }
         public bool LoseNextResponse, FailDetails, ConflictUpdate, DenyRequests;
         public string LossErrorCode = "OUTCOME_UNKNOWN";
         public TaskCompletionSource? Wait;
@@ -307,7 +308,9 @@ public sealed partial class InboundManagerPersistenceTests
         }
         /// <inheritdoc/>
         public Task<ServiceResult<InboundDraftCommandResult>> DeleteAsync(Guid uid, DeleteInboundDraftCommand command, CancellationToken token)
-        { Deletes.Add(command); return Task.FromResult(Write(command.CommandId, uid, null, command.ExpectedVersion + 1, true)); }
+        { Deletes.Add(command); return Task.FromResult(Deletes.Count == FailDeleteAt
+            ? ServiceResult<InboundDraftCommandResult>.Fail(ServiceErrorCodes.Validation, "删除被拒绝")
+            : Write(command.CommandId, uid, null, command.ExpectedVersion + 1, true)); }
         /// <inheritdoc/>
         public Task<ServiceResult<InboundManagerDetailDto>> GetAsync(Guid uid, CancellationToken token)
             => Task.FromResult(FailDetails ? ServiceResult<InboundManagerDetailDto>.Fail(ServiceErrorCodes.OutcomeUnknown, "详情网络错误") : ServiceResult<InboundManagerDetailDto>.Ok(_details[uid]));
@@ -356,6 +359,8 @@ public sealed partial class InboundManagerPersistenceTests
     /// <summary>模拟 Refit 返回或传输异常，意外调用其他接口立即失败。</summary>
     private sealed class TransportStub : IInboundManagerApi
     {
+        /// <inheritdoc/>
+        public Task<ServiceResult<PagedResponseBase<WarehouseSitePickerDto>>> GetWarehouseOptionsAsync(PagedRequestBase request, CancellationToken cancellationToken = default) => throw new NotSupportedException();
         /// <inheritdoc/>
         public Task<ServiceResult<InboundReversePreviewDto>> PreviewReverseAsync(Guid uid, InboundReversePreviewRequest request, CancellationToken token = default) => throw new NotSupportedException();
         /// <inheritdoc/>

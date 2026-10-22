@@ -15,11 +15,13 @@ using SwiftExportClient.Services.Caching;
 using SwiftExportClient.Services.UI;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
+using SwiftExportClient.Navigation;
+using System.Text.Json;
 
 namespace SwiftExportClient.Features.Inventory.WarehouseSites.ViewModels;
 
 /// <summary>编排供应商虚拟仓列表、分页查询、随行编辑抽屉及受权启用、停用和删除命令。</summary>
-public sealed partial class WarehouseSitesViewModel : ViewModelBaseEx, IAsyncInitializable, IDisposable
+public sealed partial class WarehouseSitesViewModel : ViewModelBaseEx, IAsyncInitializable, IDocumentTabViewModel, IDisposable
 {
     private enum ListLoadResult
     {
@@ -49,6 +51,9 @@ public sealed partial class WarehouseSitesViewModel : ViewModelBaseEx, IAsyncIni
     private bool _suppressSelectionCoordination;
     private bool _initialized;
     private bool _isAlive = true;
+    private string? _inputError;
+    private string? _summaryBeforeInputError;
+    private string? _appliedQuery;
 
     /// <summary>创建页面编排器并接入当前会话权限快照。</summary>
     public WarehouseSitesViewModel(
@@ -67,6 +72,7 @@ public sealed partial class WarehouseSitesViewModel : ViewModelBaseEx, IAsyncIni
         _reasonDialog = reasonDialog;
         _currentUser = currentUser;
         _referenceDataCache = referenceDataCache;
+        _observedUser = CurrentUserKey;
         Title = "供应商虚拟仓";
         StatusOptions =
         [
@@ -85,6 +91,7 @@ public sealed partial class WarehouseSitesViewModel : ViewModelBaseEx, IAsyncIni
         RegisterBusyAwareCommand(DeactivateCommand);
         RegisterBusyAwareCommand(DeleteCommand);
         RegisterBusyAwareCommand(PageChangeCommand);
+        RegisterBusyAwareCommand(SearchCommand); RegisterBusyAwareCommand(RefreshCommand);
     }
 
     public ObservableCollection<WarehouseSiteDto> Items { get; } = [];
@@ -160,39 +167,37 @@ public sealed partial class WarehouseSitesViewModel : ViewModelBaseEx, IAsyncIni
         UpdateEditState();
     }
 
-    [RelayCommand(AllowConcurrentExecutions = true)]
+    [RelayCommand(AllowConcurrentExecutions = true, CanExecute = nameof(CanSearch))]
     private async Task SearchAsync()
     {
+        if (!CanQuery()) return;
+        var request = CaptureSearchRequest(1, PageSize);
+        if (GetSearchInputError(request) is { } error) { ResultSummary = error; return; }
         if (!await PrepareDrawerReplacementAsync()) return;
-        PageIndex = 1;
-        await LoadWithBusyAsync(null, "正在查询虚拟仓...");
+        await LoadWithBusyAsync(null, "正在查询虚拟仓...", request);
     }
 
-    [RelayCommand(AllowConcurrentExecutions = true)]
+    [RelayCommand(AllowConcurrentExecutions = true, CanExecute = nameof(CanRefresh))]
     private async Task RefreshAsync()
     {
+        if (_pendingWrite is not null) { await RetryWriteAsync(); return; }
+        if (!CanQuery()) return;
         if (!await PrepareDrawerReplacementAsync()) return;
         await LoadWithBusyAsync(SelectedItem?.Uid, "正在刷新虚拟仓...");
     }
 
-    [RelayCommand]
+    [RelayCommand(CanExecute = nameof(CanQuery))]
     private async Task PageChangeAsync(PageChangeRequest? request)
     {
-        if (request is null || !await PrepareDrawerReplacementAsync()) return;
-        var oldIndex = PageIndex;
-        var oldSize = PageSize;
-        PageIndex = Math.Max(1, request.NewIndex);
-        PageSize = request.NewSize <= 0 ? DefaultPageSize : request.NewSize;
-        if (!await LoadWithBusyAsync(null, "正在切换分页..."))
-        {
-            PageIndex = oldIndex;
-            PageSize = oldSize;
-        }
+        if (!CanQuery() || request is null || !await PrepareDrawerReplacementAsync()) return;
+        var query = AppliedSearchRequest(); query.PageIndex = request.NewIndex; query.PageSize = request.NewSize;
+        await LoadWithBusyAsync(null, "正在切换分页...", query);
     }
 
     [RelayCommand(CanExecute = nameof(CanOpenCreate))]
     private async Task OpenCreateAsync()
     {
+        if (!CanOpenCreate()) return;
         if (!await PrepareDrawerReplacementAsync()) return;
         _editSelectionAnchor = null;
         EditModel = WarehouseSiteEditModel.CreateNew();
@@ -202,6 +207,7 @@ public sealed partial class WarehouseSitesViewModel : ViewModelBaseEx, IAsyncIni
     [RelayCommand(CanExecute = nameof(CanOpenEdit))]
     private async Task OpenEditAsync()
     {
+        if (!CanOpenEdit()) return;
         var selected = SelectedItem;
         if (selected is null || !await PrepareDrawerReplacementAsync()) return;
         var loadResult = await LoadEditTargetAsync(selected, "正在加载虚拟仓详情...");
@@ -230,6 +236,7 @@ public sealed partial class WarehouseSitesViewModel : ViewModelBaseEx, IAsyncIni
     private async Task HandleSelectionChangedCoreAsync(WarehouseSiteDto? previousItem, WarehouseSiteDto? currentItem)
     {
         if (!_isAlive || _suppressSelectionCoordination || ReferenceEquals(previousItem, currentItem)) return;
+        if (HasPendingWrite) { RestoreSelection(_editSelectionAnchor ?? previousItem); return; }
         if (!IsDrawerOpen || EditModel?.IsCreateMode == true) return;
 
         var anchor = _editSelectionAnchor ?? previousItem;
@@ -333,174 +340,79 @@ public sealed partial class WarehouseSitesViewModel : ViewModelBaseEx, IAsyncIni
     [RelayCommand(CanExecute = nameof(CanCloseDrawer))]
     private async Task CloseDrawerAsync() => await PrepareDrawerReplacementAsync();
 
+    /// <summary>保存或恢复本页冻结的原命令，不把未知请求替换为新输入。</summary>
     [RelayCommand(CanExecute = nameof(CanSave))]
     private async Task SaveAsync()
     {
-        var editor = EditModel;
-        if (editor is null || !editor.ValidateForSave())
-        {
-            _messages.ShowWarning("资料未保存", "请检查供应商、仓库代码和仓库名称。");
-            return;
-        }
-        await RunWriteAsync(async () =>
-        {
-            ServiceResult<WarehouseSiteDto> result;
-            if (editor.IsCreateMode)
-            {
-                result = await _runner.RunAsync(() => _api.CreateSupplierVirtualAsync(new CreateSupplierVirtualWarehouseCommand
-                {
-                    CommandId = editor.GetOrCreateCommandId(), SupplierId = editor.SelectedSupplier!.Uid,
-                    Code = editor.Code.Trim(), Name = editor.Name.Trim()
-                }), "创建虚拟仓失败");
-            }
-            else
-            {
-                result = await _runner.RunAsync(() => _api.UpdateAsync(editor.Uid, new UpdateWarehouseSiteCommand
-                {
-                    CommandId = editor.GetOrCreateCommandId(), ExpectedVersion = editor.Version, Name = editor.Name.Trim()
-                }), "保存虚拟仓失败");
-            }
-            if (!result.Success || result.Data is null)
-            {
-                _messages.ShowError("虚拟仓未保存", result.Message);
-                return;
-            }
-            var savedId = result.Data.Uid;
-            var action = editor.IsCreateMode ? "已创建虚拟仓" : "已保存虚拟仓";
-            editor.Accept(result.Data);
-            CloseDrawerCore();
-            var refreshed = await LoadCoreAsync(savedId) == ListLoadResult.Succeeded;
-            _messages.ShowSuccess(action, result.Data.Code);
-            if (!refreshed) _messages.ShowWarning(action + "，但列表刷新失败", ResultSummary ?? "请稍后刷新列表。");
-            await RefreshWarehousePickerCacheAfterWriteAsync("保存成功，缓存刷新失败");
-        }, editor.IsCreateMode ? "正在创建虚拟仓..." : "正在保存虚拟仓...");
+        if (_pendingWrite is not null) { await RetryWriteAsync(); return; }
+        if (!CanSave()) return;
+        var editor = EditModel!;
+        if (!editor.ValidateForSave()) { _messages.ShowWarning("资料未保存", "请检查供应商、仓库代码和仓库名称。"); return; }
+        object command = editor.IsCreateMode
+            ? new CreateSupplierVirtualWarehouseCommand { CommandId = editor.GetOrCreateCommandId(), SupplierId = editor.SelectedSupplier!.Uid, Code = editor.Code.Trim(), Name = editor.Name.Trim() }
+            : new UpdateWarehouseSiteCommand { CommandId = editor.GetOrCreateCommandId(), ExpectedVersion = editor.Version, Name = editor.Name.Trim() };
+        _pendingWrite = new FrozenWarehouseWrite(CurrentUserKey, editor.IsCreateMode ? "create" : "update", editor.Uid, editor.Version, System.Text.Json.JsonSerializer.Serialize(command), editor, null);
+        NotifyWriteState();
+        await RunBusyAsync(SendFrozenWriteAsync, "正在保存虚拟仓...");
     }
 
     [RelayCommand(CanExecute = nameof(CanActivate))]
-    private async Task ActivateAsync()
-    {
-        var target = SelectedItem;
-        if (target is null) return;
-        var reason = await _reasonDialog.RequestAsync("启用", target);
-        if (reason is null) return;
-        if (SelectedItem?.Uid != target.Uid || SelectedItem.Version != target.Version)
-        {
-            _messages.ShowWarning("未执行启用", "确认期间所选虚拟仓已经变化，请重新选择。");
-            return;
-        }
-        var intentKey = CreateIntentKey("activate", target, reason);
-        await RunWriteAsync(async () =>
-        {
-            var result = await _runner.RunAsync(() => _api.ActivateAsync(target.Uid, new ActivateWarehouseSiteCommand
-            {
-                CommandId = GetOrCreateIntent(intentKey), ExpectedVersion = target.Version, Reason = reason
-            }), "启用虚拟仓失败");
-            if (!result.Success)
-            {
-                _messages.ShowError("虚拟仓未启用", result.Message);
-                return;
-            }
-            _writeIntents.Remove(intentKey);
-            var refreshed = await LoadCoreAsync(target.Uid) == ListLoadResult.Succeeded;
-            _messages.ShowSuccess("虚拟仓已启用", target.Code);
-            if (!refreshed) _messages.ShowWarning("启用成功，但列表刷新失败", ResultSummary ?? "请稍后刷新列表。");
-            await RefreshWarehousePickerCacheAfterWriteAsync("启用成功，缓存刷新失败");
-        }, "正在启用虚拟仓...");
-    }
-
+    private Task ActivateAsync() => CanActivate() ? StartStateWriteAsync("activate", "启用") : Task.CompletedTask;
     [RelayCommand(CanExecute = nameof(CanDeactivate))]
-    private async Task DeactivateAsync()
-    {
-        var target = SelectedItem;
-        if (target is null) return;
-        var reason = await _reasonDialog.RequestAsync("停用", target);
-        if (reason is null) return;
-        if (SelectedItem?.Uid != target.Uid || SelectedItem.Version != target.Version)
-        {
-            _messages.ShowWarning("未执行停用", "确认期间所选虚拟仓已经变化，请重新选择。");
-            return;
-        }
-        var intentKey = CreateIntentKey("deactivate", target, reason);
-        await RunWriteAsync(async () =>
-        {
-            var result = await _runner.RunAsync(() => _api.DeactivateAsync(target.Uid, new DeactivateWarehouseSiteCommand
-            {
-                CommandId = GetOrCreateIntent(intentKey), ExpectedVersion = target.Version, Reason = reason
-            }), "停用虚拟仓失败");
-            if (!result.Success)
-            {
-                _messages.ShowError("虚拟仓未停用", result.Message);
-                return;
-            }
-            _writeIntents.Remove(intentKey);
-            var refreshed = await LoadCoreAsync(target.Uid) == ListLoadResult.Succeeded;
-            _messages.ShowSuccess("虚拟仓已停用", target.Code);
-            if (!refreshed) _messages.ShowWarning("停用成功，但列表刷新失败", ResultSummary ?? "请稍后刷新列表。");
-            await RefreshWarehousePickerCacheAfterWriteAsync("停用成功，缓存刷新失败");
-        }, "正在停用虚拟仓...");
-    }
-
+    private Task DeactivateAsync() => CanDeactivate() ? StartStateWriteAsync("deactivate", "停用") : Task.CompletedTask;
     [RelayCommand(CanExecute = nameof(CanDelete))]
-    private async Task DeleteAsync()
-    {
-        var target = SelectedItem;
-        if (target is null) return;
-        var reason = await _reasonDialog.RequestAsync("删除", target);
-        if (reason is null) return;
-        if (SelectedItem?.Uid != target.Uid || SelectedItem.Version != target.Version)
-        {
-            _messages.ShowWarning("未执行删除", "确认期间所选虚拟仓已经变化，请重新选择。");
-            return;
-        }
-        var intentKey = CreateIntentKey("delete", target, reason);
-        await RunWriteAsync(async () =>
-        {
-            var result = await _runner.RunAsync(() => _api.DeleteAsync(target.Uid, new DeleteWarehouseSiteCommand
-            {
-                CommandId = GetOrCreateIntent(intentKey), ExpectedVersion = target.Version, Reason = reason
-            }), "删除虚拟仓失败");
-            if (!result.Success)
-            {
-                _messages.ShowError("虚拟仓未删除", result.Message);
-                return;
-            }
-            _writeIntents.Remove(intentKey);
-            if (Items.Count == 1 && PageIndex > 1) PageIndex--;
-            var refreshed = await LoadCoreAsync(null) == ListLoadResult.Succeeded;
-            _messages.ShowSuccess("虚拟仓已删除", target.Code);
-            if (!refreshed) _messages.ShowWarning("删除成功，但列表刷新失败", ResultSummary ?? "请稍后刷新列表。");
-            await RefreshWarehousePickerCacheAfterWriteAsync("删除成功，缓存刷新失败");
-        }, "正在删除虚拟仓...");
-    }
+    private Task DeleteAsync() => CanDelete() ? StartStateWriteAsync("delete", "删除") : Task.CompletedTask;
 
+    /// <summary>原因确认后复核同一账号、权限和目标，冻结完整状态命令后才发送。</summary>
+    private async Task StartStateWriteAsync(string kind, string title)
+    {
+        var target = SelectedItem!; var version = target.Version; var user = CurrentUserKey; var session = _userSession;
+        var reason = await _reasonDialog.RequestAsync(title, target);
+        if (reason is null || !_isAlive || session != _userSession || user != CurrentUserKey || !HasManagePermission || IsBusy || HasPendingWrite) return;
+        if (SelectedItem?.Uid != target.Uid || SelectedItem.Version != version)
+        { _messages.ShowWarning("未执行" + title, "确认期间所选虚拟仓已经变化，请重新选择。"); return; }
+        var key = CreateIntentKey(kind, target, reason); var id = GetOrCreateIntent(key);
+        object command = kind switch
+        {
+            "activate" => new ActivateWarehouseSiteCommand { CommandId = id, ExpectedVersion = version, Reason = reason },
+            "deactivate" => new DeactivateWarehouseSiteCommand { CommandId = id, ExpectedVersion = version, Reason = reason },
+            _ => new DeleteWarehouseSiteCommand { CommandId = id, ExpectedVersion = version, Reason = reason }
+        };
+        _pendingWrite = new FrozenWarehouseWrite(user, kind, target.Uid, version, System.Text.Json.JsonSerializer.Serialize(command), null, key);
+        NotifyWriteState(); await RunBusyAsync(SendFrozenWriteAsync, "正在" + title + "虚拟仓...");
+    }
     /// <summary>在写命令已经成功后独立刷新选择器快照；缓存失败只提示，不改变已完成的业务结果。</summary>
     private async Task RefreshWarehousePickerCacheAfterWriteAsync(string failureTitle)
     {
+        var user = CurrentUserKey; var session = _userSession;
         try
         {
             var cacheResult = await _referenceDataCache.RefreshWarehouseSitesAsync();
-            if (!cacheResult.Success)
+            if (_isAlive && user == CurrentUserKey && session == _userSession && !cacheResult.Success)
                 _messages.ShowWarning(failureTitle, cacheResult.Message);
         }
         catch (Exception exception)
         {
-            _messages.ShowWarning(failureTitle, exception.Message);
+            if (_isAlive && user == CurrentUserKey && session == _userSession) _messages.ShowWarning(failureTitle, exception.Message);
         }
     }
 
     /// <summary>加载列表并由当前用户操作持有 Busy；实际查询使用请求身份和页面存活双重校验。</summary>
-    private async Task<bool> LoadWithBusyAsync(Guid? preferredId, string busyMessage)
+    private async Task<bool> LoadWithBusyAsync(Guid? preferredId, string busyMessage, WarehouseSiteSearchRequest? request = null)
     {
         var loadResult = ListLoadResult.Ignored;
-        await RunBusyAsync(async () => loadResult = await LoadCoreAsync(preferredId), busyMessage, false);
+        await RunBusyAsync(async () => loadResult = await LoadCoreAsync(preferredId, request), busyMessage, false);
         if (loadResult == ListLoadResult.Failed && _isAlive && !string.IsNullOrWhiteSpace(ResultSummary))
             _messages.ShowError("虚拟仓列表未更新", ResultSummary);
         return loadResult == ListLoadResult.Succeeded;
     }
 
     /// <summary>执行可替代列表查询；写成功后的刷新可直接复用，避免嵌套 Busy。</summary>
-    private async Task<ListLoadResult> LoadCoreAsync(Guid? preferredId)
+    private async Task<ListLoadResult> LoadCoreAsync(Guid? preferredId, WarehouseSiteSearchRequest? request = null)
     {
+        if (!_isAlive) return ListLoadResult.Ignored;
+        request ??= AppliedSearchRequest();
+        if (GetSearchInputError(request) is { } inputError) { ResultSummary = inputError; return ListLoadResult.Failed; }
         _listCancellation?.Cancel();
         _listCancellation?.Dispose();
         var cancellation = new CancellationTokenSource();
@@ -509,12 +421,7 @@ public sealed partial class WarehouseSitesViewModel : ViewModelBaseEx, IAsyncIni
         var selectedId = preferredId ?? SelectedItem?.Uid;
         try
         {
-            var result = await _runner.RunAsync(() => _api.SearchAsync(new WarehouseSiteSearchRequest
-            {
-                Keyword = string.IsNullOrWhiteSpace(Keyword) ? null : Keyword.Trim(),
-                SupplierId = SearchSupplier?.Uid, IsActive = SelectedStatus.Value,
-                PageIndex = Math.Max(1, PageIndex), PageSize = Math.Clamp(PageSize, 1, 200)
-            }, cancellation.Token), cancellation.Token, "查询虚拟仓失败");
+            var result = await _runner.RunAsync(() => _api.SearchAsync(request, cancellation.Token), cancellation.Token, "查询虚拟仓失败");
             if (!CanAcceptListResult(cancellation, requestVersion)) return ListLoadResult.Ignored;
             if (!result.Success || result.Data is null)
             {
@@ -525,10 +432,11 @@ public sealed partial class WarehouseSitesViewModel : ViewModelBaseEx, IAsyncIni
             try
             {
                 Items.Clear();
+                _appliedQuery = JsonSerializer.Serialize(request);
                 foreach (var item in result.Data.Items) Items.Add(item);
                 TotalCount = result.Data.TotalCount;
-                PageIndex = result.Data.PageIndex;
-                PageSize = result.Data.PageSize;
+                PageIndex = result.Data.PageIndex > 0 ? result.Data.PageIndex : request.PageIndex;
+                PageSize = result.Data.PageSize > 0 ? result.Data.PageSize : request.PageSize;
                 SelectedItem = Items.FirstOrDefault(item => item.Uid == selectedId) ?? Items.FirstOrDefault();
             }
             finally
@@ -548,6 +456,7 @@ public sealed partial class WarehouseSitesViewModel : ViewModelBaseEx, IAsyncIni
     /// <summary>关闭或替换抽屉前保护未保存内容；写命令期间拒绝关闭。</summary>
     private async Task<bool> PrepareDrawerReplacementAsync()
     {
+        if (!_isAlive || HasPendingWrite) return false;
         if (!IsDrawerOpen) return true;
         if (IsBusy || _selectionConfirmationInProgress) return false;
         if (EditModel?.HasChanges == true && !await _dialogs.ConfirmAsync(
@@ -601,23 +510,65 @@ public sealed partial class WarehouseSitesViewModel : ViewModelBaseEx, IAsyncIni
     private static string CreateIntentKey(string operation, WarehouseSiteDto item, string reason) =>
         $"{operation}|{item.Uid:N}|{item.Version}|{reason.Trim()}";
 
-    private bool CanOpenCreate() => HasManagePermission && IsNotBusy && !IsDrawerOpen;
-    private bool CanOpenEdit() => HasManagePermission && IsNotBusy && !IsDrawerOpen && SelectedItem is not null;
-    private bool CanSave() => HasManagePermission && IsNotBusy && IsDrawerOpen && EditModel?.HasChanges == true;
-    private bool CanCloseDrawer() => IsDrawerOpen && IsNotBusy;
-    private bool CanActivate() => HasManagePermission && IsNotBusy && !IsDrawerOpen && SelectedItem?.IsActive == false;
-    private bool CanDeactivate() => HasManagePermission && IsNotBusy && !IsDrawerOpen && SelectedItem?.IsActive == true;
-    private bool CanDelete() => HasManagePermission && IsNotBusy && !IsDrawerOpen && SelectedItem is not null;
+    private bool CanOpenCreate() => CanEditInputs && !IsDrawerOpen;
+    private bool CanOpenEdit() => CanEditInputs && !IsDrawerOpen && SelectedItem is not null;
+    private bool CanSave() => HasPendingWrite ? CanRetryWrite() : CanEditInputs && IsDrawerOpen && EditModel?.HasChanges == true;
+    private bool CanCloseDrawer() => _isAlive && IsDrawerOpen && IsNotBusy && !HasPendingWrite;
+    private bool CanActivate() => CanEditInputs && !IsDrawerOpen && SelectedItem?.IsActive == false;
+    private bool CanDeactivate() => CanEditInputs && !IsDrawerOpen && SelectedItem?.IsActive == true;
+    private bool CanDelete() => CanEditInputs && !IsDrawerOpen && SelectedItem is not null;
+    private bool CanQuery() => _isAlive && !HasPendingWrite && (!IsBusy || _listCancellation is not null);
+    private bool CanRefresh() => HasPendingWrite ? CanRetryWrite() : CanQuery();
+    private bool CanSearch() => CanQuery() && GetSearchInputError(CaptureSearchRequest(1, PageSize)) is null;
+
+    /// <summary>查询只在成功后接纳条件，后续分页和刷新不读取尚未应用的输入。</summary>
+    private WarehouseSiteSearchRequest AppliedSearchRequest() => _appliedQuery is null ? CaptureSearchRequest(PageIndex, PageSize) : JsonSerializer.Deserialize<WarehouseSiteSearchRequest>(_appliedQuery)!;
+    private WarehouseSiteSearchRequest CaptureSearchRequest(int page, int size) => new()
+    { Keyword = string.IsNullOrWhiteSpace(Keyword) ? null : Keyword.Trim(), SupplierId = SearchSupplier?.Uid, IsActive = SelectedStatus.Value, PageIndex = page, PageSize = size };
+    private static string? GetSearchInputError(WarehouseSiteSearchRequest request) => request.Keyword?.Length > WarehouseSiteLimits.SearchKeywordMaxLength
+        ? $"关键词不能超过 {WarehouseSiteLimits.SearchKeywordMaxLength} 字。" : request.PageIndex < 1 || request.PageSize is < 1 or > WarehouseSiteLimits.MaxPageSize
+            ? $"分页参数无效，每页条数须为 1–{WarehouseSiteLimits.MaxPageSize}。" : null;
+    partial void OnKeywordChanged(string value)
+    {
+        SearchCommand.NotifyCanExecuteChanged();
+        var error = GetSearchInputError(CaptureSearchRequest(1, PageSize));
+        if (error is not null)
+        {
+            if (_inputError is null || ResultSummary != _inputError) _summaryBeforeInputError = ResultSummary;
+            _inputError = error; ResultSummary = error;
+        }
+        else
+        {
+            // 只撤销本地校验提示，不覆盖其间已产生的命令结果。
+            if (_inputError is not null && ResultSummary == _inputError) ResultSummary = _summaryBeforeInputError;
+            _inputError = null; _summaryBeforeInputError = null;
+        }
+    }
 
     private void OnEditModelPropertyChanged(object? sender, PropertyChangedEventArgs args) => UpdateEditState();
 
     private void UpdateEditState()
     {
-        IsDirty = EditModel?.HasChanges == true;
+        IsDirty = HasUnsavedChanges;
         SaveCommand.NotifyCanExecuteChanged();
+        OnPropertyChanged(nameof(HasUnsavedChanges));
     }
 
-    private void OnCurrentUserChanged(object? sender, EventArgs args) => ApplyPermissions();
+    private void OnCurrentUserChanged(object? sender, EventArgs args)
+    {
+        _userSession++; CancelAndDispose(ref _listCancellation); CancelAndDispose(ref _detailCancellation);
+        if (_observedUser != CurrentUserKey)
+        {
+            _observedUser = CurrentUserKey; _appliedQuery = null; Items.Clear(); TotalCount = 0; SelectedItem = null; EditModel = null; IsDrawerOpen = false;
+            if (_pendingWrite?.User == CurrentUserKey && _pendingWrite.Editor is { } editor) { EditModel = editor; IsDrawerOpen = true; }
+            ResultSummary = HasPendingWrite ? "本页仍有待核实原命令，请由原账号恢复；请求仅在本页内存保留。" : "账号已变化，请重新查询。";
+        }
+        ApplyPermissions(); NotifyWriteState();
+    }
+
+    /// <summary>忙碌和只读状态变化同步字段禁用及导航关闭门禁。</summary>
+    protected override void OnPropertyChanged(PropertyChangedEventArgs e)
+    { base.OnPropertyChanged(e); if (e.PropertyName is nameof(IsBusy) or nameof(IsReadOnly)) NotifyWriteState(); }
 
     /// <summary>根据会话权限更新页面操作能力；后端仍会独立重验。</summary>
     private void ApplyPermissions()

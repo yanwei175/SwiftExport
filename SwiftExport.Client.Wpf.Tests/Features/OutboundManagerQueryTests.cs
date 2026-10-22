@@ -16,7 +16,7 @@ namespace SwiftExport.Client.Wpf.Tests.Features;
 
 /// <summary>验证出库管理真实命令接线的分页、懒加载、失败保留和生命周期，不访问数据库。</summary>
 [TestClass]
-public sealed class OutboundManagerQueryTests
+public sealed partial class OutboundManagerQueryTests
 {
     /// <summary>首次显示只搜索一次并沿用默认条件，再次激活不覆盖编辑。</summary>
     [TestMethod]
@@ -26,8 +26,8 @@ public sealed class OutboundManagerQueryTests
         using var vm = Create(api);
         await vm.InitializeAsync();
         Assert.AreEqual(1, api.Requests.Count);
-        Assert.AreEqual(vm.SelectedDocumentType, api.Requests[0].DocumentType);
-        Assert.AreEqual(vm.SelectedPostingStatus, api.Requests[0].PostingStatus);
+        CollectionAssert.AreEqual(vm.SelectedDocumentTypes.ToArray(), api.Requests[0].DocumentTypes);
+        CollectionAssert.AreEqual(vm.SelectedPostingStatuses.ToArray(), api.Requests[0].PostingStatuses);
         vm.Lines!.Items[0].Quantity = 12;
         await vm.InitializeAsync();
         Assert.AreEqual(1, api.Requests.Count);
@@ -69,18 +69,18 @@ public sealed class OutboundManagerQueryTests
         vm.Keyword = "first";
         await vm.SearchCommand.ExecuteAsync(null);
         vm.Keyword = "edited";
-        vm.SelectedDocumentType = OutboundDocumentTypeEnum.FinalCustomerShipment;
-        vm.SelectedPostingStatus = OutboundPostingStatusEnum.Posted;
+        vm.SelectedDocumentTypes.Clear(); vm.SelectedDocumentTypes.Add(OutboundDocumentTypeEnum.FinalCustomerShipment);
+        vm.SelectedPostingStatuses.Clear(); vm.SelectedPostingStatuses.Add(OutboundPostingStatusEnum.Posted);
         Assert.AreEqual(1, api.Requests.Count);
         Assert.IsTrue(vm.SelectedItem!.CanEdit);
         await vm.PageChangeCommand.ExecuteAsync(new PageChangeRequest { NewIndex = 2, NewSize = 50 });
         Assert.AreEqual("first", api.Requests[1].Keyword);
-        Assert.AreEqual(OutboundDocumentTypeEnum.StockIssue, api.Requests[1].DocumentType);
-        Assert.AreEqual(OutboundPostingStatusEnum.Unposted, api.Requests[1].PostingStatus);
+        CollectionAssert.AreEqual(new[] { OutboundDocumentTypeEnum.StockIssue }, api.Requests[1].DocumentTypes);
+        CollectionAssert.AreEqual(new[] { OutboundPostingStatusEnum.Unposted }, api.Requests[1].PostingStatuses);
         Assert.AreEqual(2, vm.PageIndex);
         Assert.AreEqual(100, vm.TotalCount);
         await vm.SearchCommand.ExecuteAsync(null);
-        Assert.AreEqual(OutboundPostingStatusEnum.Posted, api.Requests[2].PostingStatus);
+        CollectionAssert.AreEqual(new[] { OutboundPostingStatusEnum.Posted }, api.Requests[2].PostingStatuses);
     }
 
     /// <summary>拒绝放弃不发请求；即使同意放弃，查询失败也保留本地草稿。</summary>
@@ -144,11 +144,15 @@ public sealed class OutboundManagerQueryTests
     }
 
     private static OutboundManagerViewModel Create(ApiStub api, DialogStub? dialogs = null)
-        => new(new WarehouseStub(), new SourceStub(), dialogs ?? new DialogStub(), api, new RunnerStub());
+        => new(new WarehouseStub(), new SourceStub(), dialogs ?? new DialogStub(), api, new RunnerStub(), postingUser: OutboundTestUsers.Create());
 
     /// <summary>可控查询服务；所有写入口抛错，确保本批查询不会误调用保存或删除。</summary>
     private sealed class ApiStub : IOutboundManagerApi
     {
+        /// <inheritdoc/>
+        public Task<ServiceResult<PagedResponseBase<WarehouseSitePickerDto>>> GetWarehouseOptionsAsync(PagedRequestBase request, CancellationToken cancellationToken = default)
+            => OptionsHandler?.Invoke(request) ?? throw new NotSupportedException();
+        public Func<PagedRequestBase, Task<ServiceResult<PagedResponseBase<WarehouseSitePickerDto>>>>? OptionsHandler { get; set; }
         /// <inheritdoc/>
         public Task<ServiceResult<OutboundReversePreviewDto>> PreviewReverseAsync(Guid uid, OutboundReversePreviewRequest request, CancellationToken cancellationToken = default) => throw new NotSupportedException();
         /// <inheritdoc/>
@@ -161,6 +165,8 @@ public sealed class OutboundManagerQueryTests
         public bool FailSearch { get; set; }
         public bool FailDetail { get; set; }
         public int DetailCalls { get; private set; }
+        public Func<Guid, Task<ServiceResult<OutboundManagerDetailDto>>>? DetailHandler { get; set; }
+        public bool AllowDelete { get; set; }
         public List<OutboundManagerSearchRequest> Requests { get; } = [];
         public Task<ServiceResult<PagedResponseBase<OutboundItemCandidateDto>>> SearchItemsAsync(OutboundItemSearchRequest request, CancellationToken cancellationToken = default) => throw new NotSupportedException();
         public TaskCompletionSource<ServiceResult<PagedResponseBase<OutboundManagerListItemDto>>>? Pending { get; set; }
@@ -180,6 +186,7 @@ public sealed class OutboundManagerQueryTests
         public Task<ServiceResult<OutboundManagerDetailDto>> GetAsync(Guid uid, CancellationToken cancellationToken = default)
         {
             DetailCalls++;
+            if (DetailHandler is not null) return DetailHandler(uid);
             return Task.FromResult(FailDetail ? ServiceResult<OutboundManagerDetailDto>.Fail("详情错误") : ServiceResult<OutboundManagerDetailDto>.Ok(new()
             {
                 Header = new() { Uid = uid, Version = 3, WarehouseSiteId = Guid.NewGuid() },
@@ -191,7 +198,8 @@ public sealed class OutboundManagerQueryTests
         /// <inheritdoc/>
         public Task<ServiceResult<OutboundDraftCommandResult>> UpdateAsync(Guid uid, UpdateOutboundDraftCommand command, CancellationToken cancellationToken = default) => throw new NotSupportedException();
         /// <inheritdoc/>
-        public Task<ServiceResult<OutboundDraftCommandResult>> DeleteAsync(Guid uid, DeleteOutboundDraftCommand command, CancellationToken cancellationToken = default) => throw new NotSupportedException();
+        public Task<ServiceResult<OutboundDraftCommandResult>> DeleteAsync(Guid uid, DeleteOutboundDraftCommand command, CancellationToken cancellationToken = default)
+            => AllowDelete ? Task.FromResult(ServiceResult<OutboundDraftCommandResult>.Ok(new() { Uid = uid, Version = command.ExpectedVersion + 1, IsDeleted = true })) : throw new NotSupportedException();
     }
 
     /// <summary>测试直接执行请求，取消故意由响应身份门禁验证。</summary>

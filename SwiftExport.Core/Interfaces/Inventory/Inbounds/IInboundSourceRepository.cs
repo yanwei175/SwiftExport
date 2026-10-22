@@ -16,6 +16,6 @@ public interface IInboundSourceRepository
     Task<IReadOnlyList<InboundPurchasePostingSourceDto>> ReadPostingSourcesAsync(IReadOnlyList<Guid> ids, CancellationToken token);
     /// <summary>按稳定顺序先锁采购头再锁采购行，必须在入库头锁之前调用。</summary>
     Task LockPurchaseSourcesAsync(IReadOnlyList<Guid> ids, CancellationToken token);
-    /// <summary>检查无法证明来源的正式历史，不能当作零收货。</summary>
-    Task<bool> HasUnprovenReceiptAsync(CancellationToken token);
+    /// <summary>检查指定采购行关联入库头的完整历史，异常仅影响关联行，不能当作零收货。</summary>
+    Task<bool> HasUnprovenReceiptAsync(IReadOnlyList<Guid> ids, CancellationToken token);
 }

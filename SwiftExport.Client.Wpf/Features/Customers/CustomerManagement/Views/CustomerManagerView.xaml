@@ -1,17 +1,23 @@
-﻿<UserControl xmlns:fill="clr-namespace:SwiftExportClient.Resources.Behaviors"
-             xmlns:i="http://schemas.microsoft.com/xaml/behaviors"
-             x:Class="SwiftExportClient.Features.Customers.CustomerManagement.Views.CustomerManagerView"
-             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
-             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
-             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
-             xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
-             xmlns:dgx="urn:tom-englert.de/DataGridExtensions"
-             xmlns:gridCore="clr-namespace:SwiftExportClient.Resources.Behaviors"
-             xmlns:gridSelection="clr-namespace:SwiftExportClient.Resources.Converters"
-             mc:Ignorable="d"  d:DesignHeight="450" d:DesignWidth="1200" >
+﻿<UserControl
+    x:Class="SwiftExportClient.Features.Customers.CustomerManagement.Views.CustomerManagerView"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:dgx="urn:tom-englert.de/DataGridExtensions"
+    xmlns:fill="clr-namespace:SwiftExportClient.Resources.Behaviors"
+    xmlns:gridCore="clr-namespace:SwiftExportClient.Resources.Behaviors"
+    xmlns:gridSelection="clr-namespace:SwiftExportClient.Resources.Converters"
+    xmlns:i="http://schemas.microsoft.com/xaml/behaviors"
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
+    d:DesignHeight="450"
+    d:DesignWidth="1200"
+    mc:Ignorable="d">
     <UserControl.Resources>
-        <Style x:Key="CustomerSelectionMenuItem" TargetType="MenuItem" BasedOn="{StaticResource {x:Type MenuItem}}">
+        <Style
+            x:Key="CustomerSelectionMenuItem"
+            BasedOn="{StaticResource {x:Type MenuItem}}"
+            TargetType="MenuItem">
             <Setter Property="CommandParameter" Value="{Binding PlacementTarget.SelectedItems, RelativeSource={RelativeSource AncestorType=ContextMenu}}" />
         </Style>
 
@@ -19,17 +25,19 @@
         <DataTemplate x:Key="CustomerDictionaryOptionTemplate">
             <StackPanel Orientation="Horizontal">
                 <TextBlock Text="{Binding DataNameEn}" />
-                <TextBlock Margin="6,0,0,0"
-                           Foreground="{DynamicResource UserTextFillColorSecondaryBrush}"
-                           Text="{Binding DataNameZh}" />
+                <TextBlock
+                    Margin="6,0,0,0"
+                    Foreground="{DynamicResource UserTextFillColorSecondaryBrush}"
+                    Text="{Binding DataNameZh}" />
             </StackPanel>
         </DataTemplate>
         <DataTemplate x:Key="CustomerCurrencyOptionTemplate">
             <StackPanel Orientation="Horizontal">
                 <TextBlock Text="{Binding CurrencyCode}" />
-                <TextBlock Margin="6,0,0,0"
-                           Foreground="{DynamicResource UserTextFillColorSecondaryBrush}"
-                           Text="{Binding CurrencyNameZh}" />
+                <TextBlock
+                    Margin="6,0,0,0"
+                    Foreground="{DynamicResource UserTextFillColorSecondaryBrush}"
+                    Text="{Binding CurrencyNameZh}" />
             </StackPanel>
         </DataTemplate>
     </UserControl.Resources>
@@ -43,78 +51,120 @@
             <RowDefinition Height="Auto" />
         </Grid.RowDefinitions>
         <DockPanel>
-                <ui:Button Content="刷新" Command="{Binding RefreshCommand}" Margin="0,0,8,0" MinWidth="70" />
-                <ui:Button Content="新增" Command="{Binding AddRowCommand}"  Margin="0,0,8,0"  MinWidth="70"/>
+            <ui:Button
+                MinWidth="70"
+                Margin="0,0,8,0"
+                Command="{Binding RefreshCommand}"
+                Content="刷新" />
+            <ui:Button
+                MinWidth="70"
+                Margin="0,0,8,0"
+                Command="{Binding AddRowCommand}"
+                Content="新增" />
 
-                <ui:Button Content="保存" Command="{Binding SaveCommand}" Margin="0,0,8,0"  Appearance="Primary"
-                           MinWidth="70" />
+            <ui:Button
+                MinWidth="70"
+                Margin="0,0,8,0"
+                Appearance="Primary"
+                Command="{Binding SaveCommand}"
+                Content="保存" />
 
-                <ui:Button Content="删除" Command="{Binding DeleteSelectedCommand}" Margin="0,0,8,0" MinWidth="70"/>
+            <ui:Button
+                MinWidth="70"
+                Margin="0,0,8,0"
+                Command="{Binding DeleteSelectedCommand}"
+                Content="删除" />
 
 
-                <ui:Button Command="{Binding RejectCommand}" Margin="0,0,8,0" Content="放弃" MinWidth="70"/>
+            <ui:Button
+                MinWidth="70"
+                Margin="0,0,8,0"
+                Command="{Binding RejectCommand}"
+                Content="放弃" />
 
-                <ui:ToggleSwitch Margin="0,0,8,0" VerticalAlignment="Center"
-                                 OffContent="整行模式"
-                                 OnContent="格子模式"
-                                 IsChecked="{Binding IsCellSelectionMode, Mode=TwoWay}" />
-            <ToggleButton x:Name="IsFilterEnabled" IsChecked="True" Content="筛选器" VerticalAlignment="Center" />
+            <ui:ToggleSwitch
+                Margin="0,0,8,0"
+                VerticalAlignment="Center"
+                IsChecked="{Binding IsCellSelectionMode, Mode=TwoWay}"
+                OffContent="整行模式"
+                OnContent="格子模式" />
+            <ToggleButton
+                x:Name="IsFilterEnabled"
+                VerticalAlignment="Center"
+                Content="筛选器"
+                IsChecked="True" />
         </DockPanel>
 
 
-        <DataGrid Grid.Row="2" 
-                  ItemsSource="{Binding Customers.Items}" 
-                  IsEnabled="{Binding IsNotBusy}"
-                  ColumnHeaderStyle="{StaticResource SwiftExportFilterColumnHeader}"
-                  dgx:DataGridFilter.IsAutoFilterEnabled="{Binding Path=IsChecked, ElementName=IsFilterEnabled}"
-                  dgx:DataGridFilter.FilterEvaluationDelay="0:0:0.15"
-                  Style="{StaticResource SwiftExportDataGrid}"
-                  RowStyle="{StaticResource SwiftExportStateDataGridRow}"
-                  SelectionMode="Extended"
-                  SelectionUnit="{Binding IsCellSelectionMode, Converter={StaticResource GridSelectionUnitConverter}, Mode=TwoWay}"
-                  FrozenColumnCount="3"
-                  RowHeight="{StaticResource DataGridRowHeightSmall}"
-                  FontSize="{DynamicResource SwiftExportDefaltFontSize}"
-                  gridCore:GridRowHeader.ShowRowNumber="True"
-                  SelectedItem="{Binding SelectedLine, Mode=TwoWay}">
+        <DataGrid
+            Grid.Row="2"
+            dgx:DataGridFilter.FilterEvaluationDelay="0:0:0.15"
+            dgx:DataGridFilter.IsAutoFilterEnabled="{Binding Path=IsChecked, ElementName=IsFilterEnabled}"
+            gridCore:GridRowHeader.ShowRowNumber="True"
+            ColumnHeaderStyle="{StaticResource SwiftExportFilterColumnHeader}"
+            FontSize="{DynamicResource SwiftExportDefaltFontSize}"
+            FrozenColumnCount="3"
+            IsEnabled="{Binding IsNotBusy}"
+            ItemsSource="{Binding Customers.Items}"
+            RowHeight="{StaticResource DataGridRowHeightSmall}"
+            RowStyle="{StaticResource SwiftExportStateDataGridRow}"
+            SelectedItem="{Binding SelectedLine, Mode=TwoWay}"
+            SelectionMode="Extended"
+            SelectionUnit="{Binding IsCellSelectionMode, Converter={StaticResource GridSelectionUnitConverter}, Mode=TwoWay}"
+            Style="{StaticResource SwiftExportDataGrid}">
             <i:Interaction.Behaviors>
                 <fill:DataGridFillDownBehavior Command="{Binding FillDownCommand}" />
                 <fill:DataGridColumnVisibilityBehavior />
             </i:Interaction.Behaviors>
             <DataGrid.ContextMenu>
-                <ContextMenu DataContext="{Binding PlacementTarget.DataContext, RelativeSource={RelativeSource Self}}" AutomationProperties.Name="客户批量勾选">
-                    <MenuItem Header="刷新" Command="{Binding RefreshCommand}" >
+                <ContextMenu AutomationProperties.Name="客户批量勾选" DataContext="{Binding PlacementTarget.DataContext, RelativeSource={RelativeSource Self}}">
+                    <MenuItem Command="{Binding RefreshCommand}" Header="刷新">
                         <MenuItem.Icon>
                             <ui:SymbolIcon Symbol="ArrowClockwise24" />
                         </MenuItem.Icon>
                     </MenuItem>
-                    
-                    <MenuItem Style="{StaticResource CustomerSelectionMenuItem}" Header="勾选(选区)" Command="{Binding CheckSelectionCommand}" >
+
+                    <MenuItem
+                        Command="{Binding CheckSelectionCommand}"
+                        Header="勾选(选区)"
+                        Style="{StaticResource CustomerSelectionMenuItem}">
                         <MenuItem.Icon>
-                            <ui:SymbolIcon Symbol="CheckmarkSquare24"/>
+                            <ui:SymbolIcon Symbol="CheckmarkSquare24" />
                         </MenuItem.Icon>
                     </MenuItem>
 
-                    <MenuItem Style="{StaticResource CustomerSelectionMenuItem}" Header="取消勾选(选区)" Command="{Binding UncheckSelectionCommand}" >
+                    <MenuItem
+                        Command="{Binding UncheckSelectionCommand}"
+                        Header="取消勾选(选区)"
+                        Style="{StaticResource CustomerSelectionMenuItem}">
                         <MenuItem.Icon>
-                            <ui:SymbolIcon Symbol="Square24"/>
+                            <ui:SymbolIcon Symbol="Square24" />
                         </MenuItem.Icon>
                     </MenuItem>
 
-                    <MenuItem Style="{StaticResource CustomerSelectionMenuItem}" Header="反选(选区)" Command="{Binding InvertSelectionCommand}" >
+                    <MenuItem
+                        Command="{Binding InvertSelectionCommand}"
+                        Header="反选(选区)"
+                        Style="{StaticResource CustomerSelectionMenuItem}">
                         <MenuItem.Icon>
-                            <ui:SymbolIcon Symbol="ArrowSwap24"/>
+                            <ui:SymbolIcon Symbol="ArrowSwap24" />
                         </MenuItem.Icon>
                     </MenuItem>
 
                     <Separator />
-                    <MenuItem Header="全选" Command="{Binding CheckVisibleCommand}" ToolTip="勾选当前筛选结果" >
+                    <MenuItem
+                        Command="{Binding CheckVisibleCommand}"
+                        Header="全选"
+                        ToolTip="勾选当前筛选结果">
                         <MenuItem.Icon>
-                            <ui:SymbolIcon Symbol="SelectAllOn24"/>
+                            <ui:SymbolIcon Symbol="SelectAllOn24" />
                         </MenuItem.Icon>
                     </MenuItem>
 
-                    <MenuItem Header="反选" Command="{Binding InvertVisibleCommand}" ToolTip="反转当前筛选结果的勾选" >
+                    <MenuItem
+                        Command="{Binding InvertVisibleCommand}"
+                        Header="反选"
+                        ToolTip="反转当前筛选结果的勾选">
 
                         <MenuItem.Icon>
                             <ui:SymbolIcon Symbol="SelectAllOff24" />
@@ -123,7 +173,10 @@
                     <Separator />
 
 
-                    <MenuItem Header="删除" Command="{Binding DeleteSelectedCommand}" ToolTip="删除已勾选客户；未勾选时删除当前客户" >
+                    <MenuItem
+                        Command="{Binding DeleteSelectedCommand}"
+                        Header="删除"
+                        ToolTip="删除已勾选客户；未勾选时删除当前客户">
                         <MenuItem.Icon>
                             <ui:SymbolIcon Symbol="Delete24" />
                         </MenuItem.Icon>
@@ -131,8 +184,10 @@
 
                     <Separator />
 
-                    <MenuItem Header="表格模式" Style="{StaticResource ToggleMenuItemStyle}"
-                                      IsChecked="{Binding IsCellSelectionMode, Mode=TwoWay}">
+                    <MenuItem
+                        Header="表格模式"
+                        IsChecked="{Binding IsCellSelectionMode, Mode=TwoWay}"
+                        Style="{StaticResource ToggleMenuItemStyle}">
                         <MenuItem.Icon>
                             <ui:SymbolIcon Symbol="Table24" />
                         </MenuItem.Icon>
@@ -142,162 +197,244 @@
             </DataGrid.ContextMenu>
             <DataGrid.Columns>
 
-                <DataGridTemplateColumn dgx:DataGridFilterColumn.IsFilterVisible="False"
-                                                ClipboardContentBinding="{Binding IsChecked, Mode=OneWay}"
-                                                Width="45" CanUserSort="False" CanUserResize="False">
+                <DataGridTemplateColumn
+                    Width="45"
+                    dgx:DataGridFilterColumn.IsFilterVisible="False"
+                    CanUserResize="False"
+                    CanUserSort="False"
+                    ClipboardContentBinding="{Binding IsChecked, Mode=OneWay}">
                     <DataGridTemplateColumn.HeaderTemplate>
                         <DataTemplate>
-                            <CheckBox HorizontalAlignment="Center" Margin="0" Padding="0"
-                                              AutomationProperties.Name="勾选当前筛选结果"
-                                              IsChecked="{Binding DataContext.IsAllVisibleChecked, Mode=OneWay, RelativeSource={RelativeSource AncestorType={x:Type DataGrid}}}"
-                                              Command="{Binding DataContext.SetVisibleChecksCommand, RelativeSource={RelativeSource AncestorType={x:Type DataGrid}}}"
-                                              CommandParameter="{Binding IsChecked, RelativeSource={RelativeSource Self}}" />
+                            <CheckBox
+                                Margin="0"
+                                Padding="0"
+                                HorizontalAlignment="Center"
+                                AutomationProperties.Name="勾选当前筛选结果"
+                                Command="{Binding DataContext.SetVisibleChecksCommand, RelativeSource={RelativeSource AncestorType={x:Type DataGrid}}}"
+                                CommandParameter="{Binding IsChecked, RelativeSource={RelativeSource Self}}"
+                                IsChecked="{Binding DataContext.IsAllVisibleChecked, Mode=OneWay, RelativeSource={RelativeSource AncestorType={x:Type DataGrid}}}" />
                         </DataTemplate>
                     </DataGridTemplateColumn.HeaderTemplate>
                     <DataGridTemplateColumn.CellTemplate>
                         <DataTemplate>
-                            <CheckBox HorizontalAlignment="Center" Margin="0,0"
-                                              IsChecked="{Binding IsChecked, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
+                            <CheckBox
+                                Margin="0,0"
+                                HorizontalAlignment="Center"
+                                IsChecked="{Binding IsChecked, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
                         </DataTemplate>
                     </DataGridTemplateColumn.CellTemplate>
                 </DataGridTemplateColumn>
 
-                <DataGridTextColumn dgx:DataGridFilterColumn.Template="{StaticResource SwiftExportColumnFilter}" Header="客户代码" Width="110"
-                                            Binding="{Binding CustomerCode, UpdateSourceTrigger=PropertyChanged}"
-                                            ElementStyle="{StaticResource SwiftExportDataGridTextBlock}"
-                                            EditingElementStyle="{StaticResource SwiftExportDataGridTextBox}" />
+                <DataGridTextColumn
+                    Width="110"
+                    dgx:DataGridFilterColumn.Template="{StaticResource SwiftExportColumnFilter}"
+                    Binding="{Binding CustomerCode, UpdateSourceTrigger=PropertyChanged}"
+                    EditingElementStyle="{StaticResource SwiftExportDataGridTextBox}"
+                    ElementStyle="{StaticResource SwiftExportDataGridTextBlock}"
+                    Header="客户代码" />
 
-                <DataGridTextColumn dgx:DataGridFilterColumn.Template="{StaticResource SwiftExportColumnFilter}" fill:DataGridFillDownBehavior.Field="CustomerName" Header="客户名称" Width="180"
-                                            Binding="{Binding CustomerName, UpdateSourceTrigger=PropertyChanged}"
-                                            ElementStyle="{StaticResource SwiftExportDataGridTextBlock}"
-                                            EditingElementStyle="{StaticResource SwiftExportDataGridTextBox}" />
+                <DataGridTextColumn
+                    Width="180"
+                    dgx:DataGridFilterColumn.Template="{StaticResource SwiftExportColumnFilter}"
+                    fill:DataGridFillDownBehavior.Field="CustomerName"
+                    Binding="{Binding CustomerName, UpdateSourceTrigger=PropertyChanged}"
+                    EditingElementStyle="{StaticResource SwiftExportDataGridTextBox}"
+                    ElementStyle="{StaticResource SwiftExportDataGridTextBlock}"
+                    Header="客户名称" />
 
-                <DataGridTextColumn dgx:DataGridFilterColumn.Template="{StaticResource SwiftExportColumnFilter}" fill:DataGridFillDownBehavior.Field="DocRelateNo" Header="单据关联号" Width="120"
-                                            Binding="{Binding DocRelateNo, UpdateSourceTrigger=PropertyChanged}"
-                                            ElementStyle="{StaticResource SwiftExportDataGridTextBlock}"
-                                            EditingElementStyle="{StaticResource SwiftExportDataGridTextBox}" />
+                <DataGridTextColumn
+                    Width="120"
+                    dgx:DataGridFilterColumn.Template="{StaticResource SwiftExportColumnFilter}"
+                    fill:DataGridFillDownBehavior.Field="DocRelateNo"
+                    Binding="{Binding DocRelateNo, UpdateSourceTrigger=PropertyChanged}"
+                    EditingElementStyle="{StaticResource SwiftExportDataGridTextBox}"
+                    ElementStyle="{StaticResource SwiftExportDataGridTextBlock}"
+                    Header="单据关联号" />
 
-                <DataGridTextColumn dgx:DataGridFilterColumn.Template="{StaticResource SwiftExportColumnFilter}" fill:DataGridFillDownBehavior.Field="ContactPerson" Header="联系人" Width="100"
-                                            Binding="{Binding ContactPerson, UpdateSourceTrigger=PropertyChanged}"
-                                            ElementStyle="{StaticResource SwiftExportDataGridTextBlock}"
-                                            EditingElementStyle="{StaticResource SwiftExportDataGridTextBox}" />
+                <DataGridTextColumn
+                    Width="100"
+                    dgx:DataGridFilterColumn.Template="{StaticResource SwiftExportColumnFilter}"
+                    fill:DataGridFillDownBehavior.Field="ContactPerson"
+                    Binding="{Binding ContactPerson, UpdateSourceTrigger=PropertyChanged}"
+                    EditingElementStyle="{StaticResource SwiftExportDataGridTextBox}"
+                    ElementStyle="{StaticResource SwiftExportDataGridTextBlock}"
+                    Header="联系人" />
 
-                <DataGridTextColumn dgx:DataGridFilterColumn.Template="{StaticResource SwiftExportColumnFilter}" fill:DataGridFillDownBehavior.Field="PhoneNumber" Header="电话" Width="120"
-                                            Binding="{Binding PhoneNumber, UpdateSourceTrigger=PropertyChanged}"
-                                            ElementStyle="{StaticResource SwiftExportDataGridTextBlock}"
-                                            EditingElementStyle="{StaticResource SwiftExportDataGridTextBox}" />
+                <DataGridTextColumn
+                    Width="120"
+                    dgx:DataGridFilterColumn.Template="{StaticResource SwiftExportColumnFilter}"
+                    fill:DataGridFillDownBehavior.Field="PhoneNumber"
+                    Binding="{Binding PhoneNumber, UpdateSourceTrigger=PropertyChanged}"
+                    EditingElementStyle="{StaticResource SwiftExportDataGridTextBox}"
+                    ElementStyle="{StaticResource SwiftExportDataGridTextBlock}"
+                    Header="电话" />
 
-                <DataGridTextColumn dgx:DataGridFilterColumn.Template="{StaticResource SwiftExportColumnFilter}"
-                                    fill:DataGridFillDownBehavior.Field="Address" Header="地址" Width="220"
-                                    Binding="{Binding Address, UpdateSourceTrigger=PropertyChanged}"
-                                    ElementStyle="{StaticResource SwiftExportDataGridWarpTextBlock}"
-                                    EditingElementStyle="{StaticResource SwiftExportDataGridWarpTextBox}" />
+                <DataGridTextColumn
+                    Width="220"
+                    dgx:DataGridFilterColumn.Template="{StaticResource SwiftExportColumnFilter}"
+                    fill:DataGridFillDownBehavior.Field="Address"
+                    Binding="{Binding Address, UpdateSourceTrigger=PropertyChanged}"
+                    EditingElementStyle="{StaticResource SwiftExportDataGridWarpTextBox}"
+                    ElementStyle="{StaticResource SwiftExportDataGridWarpTextBlock}"
+                    Header="地址" />
 
-                <DataGridTemplateColumn dgx:DataGridFilterColumn.Template="{StaticResource SwiftExportColumnFilter}" fill:DataGridFillDownBehavior.Field="Incoterm" ClipboardContentBinding="{Binding Incoterm, Mode=OneWay}" Header="贸易条款" Width="90"
-                                                SortMemberPath="Incoterm">
+                <DataGridTemplateColumn
+                    Width="90"
+                    dgx:DataGridFilterColumn.Template="{StaticResource SwiftExportColumnFilter}"
+                    fill:DataGridFillDownBehavior.Field="Incoterm"
+                    ClipboardContentBinding="{Binding Incoterm, Mode=OneWay}"
+                    Header="贸易条款"
+                    SortMemberPath="Incoterm">
                     <DataGridTemplateColumn.CellTemplate>
                         <DataTemplate>
-                            <ComboBox Margin="4,0" VerticalContentAlignment="Center"
-                                              ItemsSource="{Binding DataContext.IncotermOptions, RelativeSource={RelativeSource AncestorType={x:Type DataGrid}}}"
-                                              ItemTemplate="{StaticResource CustomerDictionaryOptionTemplate}"
-                                              SelectedValuePath="DataNameEn"
-                                              SelectedValue="{Binding Incoterm, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
-                                              TextSearch.TextPath="DataNameEn" />
+                            <ComboBox
+                                Margin="4,0"
+                                VerticalContentAlignment="Center"
+                                ItemTemplate="{StaticResource CustomerDictionaryOptionTemplate}"
+                                ItemsSource="{Binding DataContext.IncotermOptions, RelativeSource={RelativeSource AncestorType={x:Type DataGrid}}}"
+                                SelectedValue="{Binding Incoterm, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                SelectedValuePath="DataNameEn"
+                                TextSearch.TextPath="DataNameEn" />
                         </DataTemplate>
                     </DataGridTemplateColumn.CellTemplate>
                 </DataGridTemplateColumn>
 
-                <DataGridTemplateColumn dgx:DataGridFilterColumn.Template="{StaticResource SwiftExportColumnFilter}" fill:DataGridFillDownBehavior.Field="IncotermLocation" ClipboardContentBinding="{Binding IncotermLocation, Mode=OneWay}" Header="条款地点" Width="140"
-                                                SortMemberPath="IncotermLocation">
+                <DataGridTemplateColumn
+                    Width="140"
+                    dgx:DataGridFilterColumn.Template="{StaticResource SwiftExportColumnFilter}"
+                    fill:DataGridFillDownBehavior.Field="IncotermLocation"
+                    ClipboardContentBinding="{Binding IncotermLocation, Mode=OneWay}"
+                    Header="条款地点"
+                    SortMemberPath="IncotermLocation">
                     <DataGridTemplateColumn.CellTemplate>
                         <DataTemplate>
-                            <ComboBox Margin="8,0" VerticalContentAlignment="Center"
-                                              ItemsSource="{Binding DataContext.IncotermLocationOptions, RelativeSource={RelativeSource AncestorType={x:Type DataGrid}}}"
-                                              ItemTemplate="{StaticResource CustomerDictionaryOptionTemplate}"
-                                              SelectedValuePath="DataNameEn"
-                                              SelectedValue="{Binding IncotermLocation, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
-                                              TextSearch.TextPath="DataNameEn" />
+                            <ComboBox
+                                Margin="8,0"
+                                VerticalContentAlignment="Center"
+                                ItemTemplate="{StaticResource CustomerDictionaryOptionTemplate}"
+                                ItemsSource="{Binding DataContext.IncotermLocationOptions, RelativeSource={RelativeSource AncestorType={x:Type DataGrid}}}"
+                                SelectedValue="{Binding IncotermLocation, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                SelectedValuePath="DataNameEn"
+                                TextSearch.TextPath="DataNameEn" />
                         </DataTemplate>
                     </DataGridTemplateColumn.CellTemplate>
                 </DataGridTemplateColumn>
 
-                <DataGridTemplateColumn dgx:DataGridFilterColumn.Template="{StaticResource SwiftExportColumnFilter}" fill:DataGridFillDownBehavior.Field="IncotermSortRemark" ClipboardContentBinding="{Binding IncotermSortRemark, Mode=OneWay}" Header="条款备注" Width="180"
-                                                SortMemberPath="IncotermSortRemark">
+                <DataGridTemplateColumn
+                    Width="180"
+                    dgx:DataGridFilterColumn.Template="{StaticResource SwiftExportColumnFilter}"
+                    fill:DataGridFillDownBehavior.Field="IncotermSortRemark"
+                    ClipboardContentBinding="{Binding IncotermSortRemark, Mode=OneWay}"
+                    Header="条款备注"
+                    SortMemberPath="IncotermSortRemark">
                     <DataGridTemplateColumn.CellTemplate>
                         <DataTemplate>
-                            <ComboBox Margin="8,0" VerticalContentAlignment="Center"
-                                              ItemsSource="{Binding DataContext.IncotermSortRemarkOptions, RelativeSource={RelativeSource AncestorType={x:Type DataGrid}}}"
-                                              ItemTemplate="{StaticResource CustomerDictionaryOptionTemplate}"
-                                              SelectedValuePath="DataNameEn"
-                                              SelectedValue="{Binding IncotermSortRemark, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
-                                              TextSearch.TextPath="DataNameEn" />
+                            <ComboBox
+                                Margin="8,0"
+                                VerticalContentAlignment="Center"
+                                ItemTemplate="{StaticResource CustomerDictionaryOptionTemplate}"
+                                ItemsSource="{Binding DataContext.IncotermSortRemarkOptions, RelativeSource={RelativeSource AncestorType={x:Type DataGrid}}}"
+                                SelectedValue="{Binding IncotermSortRemark, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                SelectedValuePath="DataNameEn"
+                                TextSearch.TextPath="DataNameEn" />
                         </DataTemplate>
                     </DataGridTemplateColumn.CellTemplate>
                 </DataGridTemplateColumn>
 
-                <DataGridTextColumn dgx:DataGridFilterColumn.Template="{StaticResource SwiftExportColumnFilter}" fill:DataGridFillDownBehavior.Field="DepositRate" Header="定金比例"
-                                    Width="88"
-                                    Binding="{Binding DepositRate, StringFormat=P0, UpdateSourceTrigger=LostFocus}"
-                                    ElementStyle="{StaticResource SwiftExportDataGridNumberTextBlock}"
-                                    EditingElementStyle="{StaticResource SwiftExportDataGridNumberTextBox}"/>
+                <DataGridTextColumn
+                    Width="88"
+                    dgx:DataGridFilterColumn.Template="{StaticResource SwiftExportColumnFilter}"
+                    fill:DataGridFillDownBehavior.Field="DepositRate"
+                    Binding="{Binding DepositRate, StringFormat=P0, UpdateSourceTrigger=LostFocus}"
+                    EditingElementStyle="{StaticResource SwiftExportDataGridNumberTextBox}"
+                    ElementStyle="{StaticResource SwiftExportDataGridNumberTextBlock}"
+                    Header="定金比例" />
 
-                <DataGridTextColumn dgx:DataGridFilterColumn.Template="{StaticResource SwiftExportColumnFilter}" fill:DataGridFillDownBehavior.Field="LeadTimeDays" Header="交期(天)" Width="78"
-                                            Binding="{Binding LeadTimeDays, UpdateSourceTrigger=PropertyChanged}"
-                                            ElementStyle="{StaticResource SwiftExportDataGridNumberTextBlock}"
-                                            EditingElementStyle="{StaticResource SwiftExportDataGridNumberTextBox}"/>
+                <DataGridTextColumn
+                    Width="78"
+                    dgx:DataGridFilterColumn.Template="{StaticResource SwiftExportColumnFilter}"
+                    fill:DataGridFillDownBehavior.Field="LeadTimeDays"
+                    Binding="{Binding LeadTimeDays, UpdateSourceTrigger=PropertyChanged}"
+                    EditingElementStyle="{StaticResource SwiftExportDataGridNumberTextBox}"
+                    ElementStyle="{StaticResource SwiftExportDataGridNumberTextBlock}"
+                    Header="交期(天)" />
 
-                <DataGridTemplateColumn dgx:DataGridFilterColumn.Template="{StaticResource SwiftExportColumnFilter}" fill:DataGridFillDownBehavior.Field="PaymentMethod" ClipboardContentBinding="{Binding PaymentMethod, Mode=OneWay}" Header="付款方式" Width="120"
-                                                SortMemberPath="PaymentMethod">
+                <DataGridTemplateColumn
+                    Width="120"
+                    dgx:DataGridFilterColumn.Template="{StaticResource SwiftExportColumnFilter}"
+                    fill:DataGridFillDownBehavior.Field="PaymentMethod"
+                    ClipboardContentBinding="{Binding PaymentMethod, Mode=OneWay}"
+                    Header="付款方式"
+                    SortMemberPath="PaymentMethod">
                     <DataGridTemplateColumn.CellTemplate>
                         <DataTemplate>
-                            <ComboBox Margin="4,0" VerticalContentAlignment="Center"
-                                              ItemsSource="{Binding DataContext.PaymentMethodOptions, RelativeSource={RelativeSource AncestorType={x:Type DataGrid}}}"
-                                              ItemTemplate="{StaticResource CustomerDictionaryOptionTemplate}"
-                                              SelectedValuePath="DataNameEn"
-                                              SelectedValue="{Binding PaymentMethod, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
-                                              TextSearch.TextPath="DataNameEn" />
+                            <ComboBox
+                                Margin="4,0"
+                                VerticalContentAlignment="Center"
+                                ItemTemplate="{StaticResource CustomerDictionaryOptionTemplate}"
+                                ItemsSource="{Binding DataContext.PaymentMethodOptions, RelativeSource={RelativeSource AncestorType={x:Type DataGrid}}}"
+                                SelectedValue="{Binding PaymentMethod, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                SelectedValuePath="DataNameEn"
+                                TextSearch.TextPath="DataNameEn" />
                         </DataTemplate>
                     </DataGridTemplateColumn.CellTemplate>
                 </DataGridTemplateColumn>
 
-                <DataGridTemplateColumn dgx:DataGridFilterColumn.Template="{StaticResource SwiftExportColumnFilter}" fill:DataGridFillDownBehavior.Field="Currency" ClipboardContentBinding="{Binding Currency, Mode=OneWay}" Header="币种" Width="140"
-                                                SortMemberPath="Currency">
+                <DataGridTemplateColumn
+                    Width="140"
+                    dgx:DataGridFilterColumn.Template="{StaticResource SwiftExportColumnFilter}"
+                    fill:DataGridFillDownBehavior.Field="Currency"
+                    ClipboardContentBinding="{Binding Currency, Mode=OneWay}"
+                    Header="币种"
+                    SortMemberPath="Currency">
                     <DataGridTemplateColumn.CellTemplate>
                         <DataTemplate>
-                            <ComboBox Margin="4,0" VerticalContentAlignment="Center"
-                                              ItemsSource="{Binding DataContext.CurrencyOptions, RelativeSource={RelativeSource AncestorType={x:Type DataGrid}}}"
-                                              ItemTemplate="{StaticResource CustomerCurrencyOptionTemplate}"
-                                              SelectedValuePath="CurrencyCode"
-                                              SelectedValue="{Binding Currency, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
-                                              TextSearch.TextPath="CurrencyCode" />
+                            <ComboBox
+                                Margin="4,0"
+                                VerticalContentAlignment="Center"
+                                ItemTemplate="{StaticResource CustomerCurrencyOptionTemplate}"
+                                ItemsSource="{Binding DataContext.CurrencyOptions, RelativeSource={RelativeSource AncestorType={x:Type DataGrid}}}"
+                                SelectedValue="{Binding Currency, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                SelectedValuePath="CurrencyCode"
+                                TextSearch.TextPath="CurrencyCode" />
                         </DataTemplate>
                     </DataGridTemplateColumn.CellTemplate>
                 </DataGridTemplateColumn>
 
-                <DataGridTemplateColumn dgx:DataGridFilterColumn.Template="{StaticResource SwiftExportColumnFilter}" fill:DataGridFillDownBehavior.Field="ShippedBy" ClipboardContentBinding="{Binding ShippedBy, Mode=OneWay}" Header="承运方式" Width="100"
-                                                SortMemberPath="ShippedBy">
+                <DataGridTemplateColumn
+                    Width="100"
+                    dgx:DataGridFilterColumn.Template="{StaticResource SwiftExportColumnFilter}"
+                    fill:DataGridFillDownBehavior.Field="ShippedBy"
+                    ClipboardContentBinding="{Binding ShippedBy, Mode=OneWay}"
+                    Header="承运方式"
+                    SortMemberPath="ShippedBy">
                     <DataGridTemplateColumn.CellTemplate>
                         <DataTemplate>
-                            <ComboBox Margin="4,0" VerticalContentAlignment="Center"
-                                              ItemsSource="{Binding DataContext.ShippedByOptions, RelativeSource={RelativeSource AncestorType={x:Type DataGrid}}}"
-                                              ItemTemplate="{StaticResource CustomerDictionaryOptionTemplate}"
-                                              SelectedValuePath="DataNameEn"
-                                              IsEditable="False"
-                                              SelectedValue="{Binding ShippedBy, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
-                                              TextSearch.TextPath="DataNameEn" />
+                            <ComboBox
+                                Margin="4,0"
+                                VerticalContentAlignment="Center"
+                                IsEditable="False"
+                                ItemTemplate="{StaticResource CustomerDictionaryOptionTemplate}"
+                                ItemsSource="{Binding DataContext.ShippedByOptions, RelativeSource={RelativeSource AncestorType={x:Type DataGrid}}}"
+                                SelectedValue="{Binding ShippedBy, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                SelectedValuePath="DataNameEn"
+                                TextSearch.TextPath="DataNameEn" />
                         </DataTemplate>
                     </DataGridTemplateColumn.CellTemplate>
                 </DataGridTemplateColumn>
 
-                <DataGridTextColumn dgx:DataGridFilterColumn.Template="{StaticResource SwiftExportColumnFilter}" fill:DataGridFillDownBehavior.Field="EtdSortRemark" Header="ETD备注"
-                                            Width="160"
-                                            Binding="{Binding EtdSortRemark, UpdateSourceTrigger=PropertyChanged}"
-                                            ElementStyle="{StaticResource SwiftExportDataGridLongTextBlock}"
-                                            EditingElementStyle="{StaticResource SwiftExportDataGridWarpTextBox}" />
+                <DataGridTextColumn
+                    Width="160"
+                    dgx:DataGridFilterColumn.Template="{StaticResource SwiftExportColumnFilter}"
+                    fill:DataGridFillDownBehavior.Field="EtdSortRemark"
+                    Binding="{Binding EtdSortRemark, UpdateSourceTrigger=PropertyChanged}"
+                    EditingElementStyle="{StaticResource SwiftExportDataGridWarpTextBox}"
+                    ElementStyle="{StaticResource SwiftExportDataGridLongTextBlock}"
+                    Header="ETD备注" />
             </DataGrid.Columns>
         </DataGrid>
         <StackPanel Grid.Row="4">
-            <TextBlock Text="{Binding ResultSummary}" Style="{StaticResource CaptionTextBlock}" />
+            <TextBlock Style="{StaticResource CaptionTextBlock}" Text="{Binding ResultSummary}" />
         </StackPanel>
     </Grid>
 </UserControl>

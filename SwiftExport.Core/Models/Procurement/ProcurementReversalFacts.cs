@@ -9,8 +9,10 @@ public sealed class ProcurementReversalFacts
     public bool HasConfirmationHistory { get; set; }
     /// <summary>可定位到本单的全部下游历史，包括软删除、反向、箱单执行及孤立流水，禁止整单删除。</summary>
     public bool HasDownstreamHistory { get; set; }
-    /// <summary>存在无法归属到采购行的采购入库历史，不能证明本单没有未处理下游。</summary>
-    public bool HasUnattributedInbound { get; set; }
+    /// <summary>本单全部采购行关联的异常入库头；删行按选定行关联头判断，整单操作仍检查全部头。</summary>
+    public HashSet<Guid> UnattributedInboundHeadIds { get; set; } = [];
+    /// <summary>是否存在相关异常入库头，不能把整单汇总结果直接用于判断某条选定行。</summary>
+    public bool HasUnattributedInbound => UnattributedInboundHeadIds.Count > 0;
     public PurchaseOrderHead? Head { get; set; }
     public List<PurchaseOrderLine> Lines { get; set; } = [];
     public List<GrossDemand> Sources { get; set; } = [];

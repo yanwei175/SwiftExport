@@ -8,25 +8,39 @@ using SwiftExport.Application.Services.Inventory;
 using SwiftExport.Contracts.DTOs.Auth;
 using SwiftExport.Contracts.DTOs.Errors;
 using SwiftExport.Contracts.DTOs.Inventory;
+using SwiftExport.Contracts.DTOs.Inventory.WareHouseSite.Picker;
 using SwiftExport.Contracts.Wrappers;
 using SwiftExport.Core.Interfaces.Auth;
 using SwiftExport.Core.Interfaces.Inventory;
 using SwiftExport.Core.Interfaces.Inventory.Query;
+using SwiftExport.Core.Interfaces.Inventory.Warehouses;
 namespace SwiftExport.Application.Services.Inventory.Query;
 
-/// <summary>按库存模块访问权限读取余额、不可变流水与余额追溯，不持有写入事务。</summary>
+/// <summary>按库存查看权限读取余额、不可变流水、余额追溯及仓库和供应商筛选候选，不持有写入事务。</summary>
 public sealed class InventoryQueryService(
     ServiceBaseContext context, IInventoryQueryRepository inventory,
-    ICurrentUser currentUser, IPermissionEvaluationService permissions) : IInventoryQueryService
+    ICurrentUser currentUser, IPermissionEvaluationService permissions,
+    IWarehouseQueryRepository warehouseSites) : IInventoryQueryService
 {
     private const string ReadPermissionDeniedMessage = "当前账号无库存模块访问权限。";
     private readonly ILogger<InventoryQueryService> _logger = context.LoggerFactory.CreateLogger<InventoryQueryService>();
     private readonly IPermissionEvaluationService _permissions = permissions;
 
     /// <inheritdoc/>
+    public async Task<ServiceResult<PagedResponseBase<InventorySupplierLookupDto>>> GetSupplierOptionsAsync(PagedRequestBase request, CancellationToken cancellationToken = default)
+    {
+        if (request is null || request.PageIndex < 1 || request.PageSize is < 1 or > InventoryQueryLimits.MaxPageSize || request.Keyword?.Length > InventoryQueryLimits.KeywordMaxLength)
+            return ServiceResult<PagedResponseBase<InventorySupplierLookupDto>>.Fail("库存供应商筛选条件无效。");
+        return await ReadWarehouseAsync(() => warehouseSites.SearchSupplierFilterOptionsAsync(new PagedRequestBase
+        {
+            Keyword = request.Keyword?.Trim(), PageIndex = request.PageIndex, PageSize = request.PageSize
+        }, cancellationToken), cancellationToken, "查询库存供应商筛选候选失败。");
+    }
+
+    /// <inheritdoc/>
     public async Task<ServiceResult<PagedResponseBase<InventoryBalanceDto>>> SearchBalancesAsync(InventoryBalanceSearchRequest request, CancellationToken cancellationToken = default)
     {
-        if (request is null || request.PageIndex < 1 || request.PageSize is < 1 or > 200 || request.Keyword?.Length > 200)
+        if (request is null || request.PageIndex < 1 || request.PageSize is < 1 or > InventoryQueryLimits.MaxPageSize || request.Keyword?.Length > InventoryQueryLimits.KeywordMaxLength)
             return ServiceResult<PagedResponseBase<InventoryBalanceDto>>.Fail("库存余额查询条件无效。");
         return await ReadWarehouseAsync(() => inventory.SearchBalancesAsync(request, cancellationToken), cancellationToken, "查询库存余额失败。");
     }
@@ -34,16 +48,28 @@ public sealed class InventoryQueryService(
     /// <inheritdoc/>
     public async Task<ServiceResult<PagedResponseBase<InventoryLedgerItemDto>>> SearchLedgerAsync(InventoryLedgerSearchRequest request, CancellationToken cancellationToken = default)
     {
-        if (request is null || request.PageIndex < 1 || request.PageSize is < 1 or > 200 || request.Keyword?.Length > 200
-            || request.SourceDocumentNo?.Length > 100 || request.OccurredDateFrom > request.OccurredDateTo)
+        if (request is null || request.PageIndex < 1 || request.PageSize is < 1 or > InventoryQueryLimits.MaxPageSize || request.Keyword?.Length > InventoryQueryLimits.KeywordMaxLength
+            || request.SourceDocumentNo?.Length > InventoryQueryLimits.SourceDocumentNoMaxLength || request.OccurredDateFrom > request.OccurredDateTo)
             return ServiceResult<PagedResponseBase<InventoryLedgerItemDto>>.Fail("库存流水查询条件无效。");
         return await ReadWarehouseAsync(() => inventory.SearchLedgerAsync(request, cancellationToken), cancellationToken, "查询库存流水失败。");
     }
 
     /// <inheritdoc/>
+    public async Task<ServiceResult<PagedResponseBase<WarehouseSitePickerDto>>> GetWarehouseOptionsAsync(PagedRequestBase request, CancellationToken cancellationToken = default)
+    {
+        if (request is null || request.PageIndex < 1 || request.PageSize is < 1 or > InventoryQueryLimits.MaxPageSize || request.Keyword?.Length > InventoryQueryLimits.KeywordMaxLength)
+            return ServiceResult<PagedResponseBase<WarehouseSitePickerDto>>.Fail("库存仓库筛选条件无效。");
+        // 候选仅服务库存筛选，复用活动仓库读取而不授予仓库管理查询权限。
+        return await ReadWarehouseAsync(() => warehouseSites.GetPickerPagedAsync(new PagedRequestBase
+        {
+            Keyword = request.Keyword?.Trim(), PageIndex = request.PageIndex, PageSize = request.PageSize
+        }, cancellationToken), cancellationToken, "查询库存仓库筛选候选失败。");
+    }
+
+    /// <inheritdoc/>
     public async Task<ServiceResult<InventoryBalanceTraceDto>> GetBalanceTraceAsync(Guid uid, int pageIndex, int pageSize, CancellationToken cancellationToken = default)
     {
-        if (uid == Guid.Empty || pageIndex < 1 || pageSize is < 1 or > 200)
+        if (uid == Guid.Empty || pageIndex < 1 || pageSize is < 1 or > InventoryQueryLimits.MaxPageSize)
             return ServiceResult<InventoryBalanceTraceDto>.Fail("库存余额 Uid 或追溯分页参数无效。");
         return await ReadWarehouseAsync(async () =>
         {

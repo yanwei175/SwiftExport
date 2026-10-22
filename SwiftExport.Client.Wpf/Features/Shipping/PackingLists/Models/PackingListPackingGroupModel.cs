@@ -1,4 +1,4 @@
-using CommunityToolkit.Mvvm.ComponentModel;
+﻿using CommunityToolkit.Mvvm.ComponentModel;
 
 namespace SwiftExportClient.Features.Shipping.PackingLists.Models;
 
@@ -13,7 +13,13 @@ public sealed partial class PackingListPackingGroupModel : ObservableObject
     /// <summary>仅在客户端维护的真实成员引用。</summary>
     public IReadOnlyList<PackingListLineModel> Members { get; private set; } = [];
     /// <summary>可理解的组显示名。</summary>
-    public string Title => IsMixed ? $"拼箱 {Id.ToString("N")[..6]} · 1 箱" : "普通包装";
+    public string Title => IsMixed ? $"拼箱 {PackingNumber} · {Members.Count} 行产品" : "普通产品";
+    /// <summary>上表普通包装引用真实产品；拼箱汇总行不冒充产品。</summary>
+    public PackingListLineModel? Product => IsMixed ? null : Members.FirstOrDefault();
+    /// <summary>当前展示顺序中的箱号，只用于识别，不参与持久化身份。</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(Title))]
+    public partial int PackingNumber { get; set; }
     /// <summary>客户端展开状态，不持久化。</summary>
     [ObservableProperty] public partial bool IsExpanded { get; set; } = true;
     /// <summary>整箱净重，未知为空。</summary>
@@ -32,6 +38,9 @@ public sealed partial class PackingListPackingGroupModel : ObservableObject
     public void BindMembers(IReadOnlyList<PackingListLineModel> members)
     {
         Members = members;
+        OnPropertyChanged(nameof(Members));
+        OnPropertyChanged(nameof(Product));
+        OnPropertyChanged(nameof(Title));
         if (members.Count == 0) return;
         _loading = true;
         try

@@ -11,6 +11,9 @@ using SwiftExportClient.Mvvm;
 using SwiftExportClient.Navigation;
 using SwiftExportClient.Services.UI;
 using SwiftExportClient.Services.Api;
+using SwiftExport.Contracts.DTOs.Auth;
+using System.Collections.ObjectModel;
+using System.Windows.Data;
 
 namespace SwiftExportClient.Features.Inventory.Inbounds.ViewModels;
 
@@ -24,14 +27,17 @@ public sealed partial class InboundManagerViewModel : ViewModelBaseEx, IDocument
     private readonly IDialogService _dialogs;
     private readonly CancellationTokenSource _lifetime = new();
     private bool _disposed;
+    private int _userSession;
+    private long _editRevision;
 
     /// <summary>注入选择器、查询和持久化服务；可选依赖支持设计时及本地模型测试。</summary>
     public InboundManagerViewModel(IWarehousePickerService warehouses, IInboundSourceDialogService sources, IDialogService dialogs,
         IInboundManagerApi? api = null, IApiCallRunner? runner = null,
         IInboundPersistenceService? persistence = null, IInboundDeleteDialogService? deleteDialogs = null,
-        IInboundPostDialogService? postDialogs = null, SwiftExportClient.Authentication.ICurrentUserService? postingUser = null, IInboundReverseDialogService? reverseDialogs = null)
+        IInboundPostDialogService? postDialogs = null, SwiftExportClient.Authentication.ICurrentUserService? postingUser = null, IInboundReverseDialogService? reverseDialogs = null,
+        InboundWarehousePickerService? inboundWarehouses = null)
     {
-        _warehouses = warehouses; _sources = sources; _dialogs = dialogs;
+        _warehouses = inboundWarehouses ?? warehouses; _sources = sources; _dialogs = dialogs;
         _api = api; _runner = runner;
         _persistence = persistence; _deleteDialogs = deleteDialogs;
         _reverseDialogs = reverseDialogs;
@@ -56,8 +62,10 @@ public sealed partial class InboundManagerViewModel : ViewModelBaseEx, IDocument
     /// <summary>头行编辑集合，每个头保留自己的明细。</summary>
     public BaseListModel<InboundHeaderModel, InboundHeaderDetailDto> Headers { get; } = new(_ => new InboundHeaderModel());
     [ObservableProperty] public partial string Keyword { get; set; } = string.Empty;
-    [ObservableProperty] public partial InboundDocumentTypeEnum SelectedDocumentType { get; set; } = InboundDocumentTypeEnum.PurchaseReceipt;
-    [ObservableProperty] public partial InboundPostingStatusEnum SelectedPostingStatus { get; set; } = InboundPostingStatusEnum.Unposted;
+    /// <summary>已提交到筛选控件的类型选择；空集合表示查询全部类型，编辑选择不自动查询。</summary>
+    public ObservableCollection<InboundDocumentTypeEnum> SelectedDocumentTypes { get; } = [InboundDocumentTypeEnum.PurchaseReceipt];
+    /// <summary>已提交到筛选控件的过账状态；默认未过账，空集合表示查询全部状态。</summary>
+    public ObservableCollection<InboundPostingStatusEnum> SelectedPostingStatuses { get; } = [InboundPostingStatusEnum.Unposted];
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(Lines))]
@@ -67,15 +75,19 @@ public sealed partial class InboundManagerViewModel : ViewModelBaseEx, IDocument
     [NotifyCanExecuteChangedFor(nameof(DeleteSelectedLineCommand))]
     [NotifyCanExecuteChangedFor(nameof(PostCommand))]
     [NotifyCanExecuteChangedFor(nameof(ReverseCommand))]
+    [NotifyCanExecuteChangedFor(nameof(DeleteSelectedCommand))]
+    [NotifyCanExecuteChangedFor(nameof(RefreshCommand))]
     public partial InboundHeaderModel? SelectedItem { get; set; }
     [ObservableProperty] public partial string ResultSummary { get; set; } = "保存仅持久化草稿；正向过账后增加库存，原单不可编辑，可整单反过账。";
 
     /// <summary>当前单明细集合；切换不丢弃其他单据的本地修改。</summary>
     public BaseListModel<InboundLineModel, InboundLineDetailDto>? Lines => SelectedItem?.Lines;
     /// <summary>已过账、非活动或自动单据不允许编辑明细。</summary>
-    public bool LinesReadOnly => SelectedItem?.CanEdit != true || IsBusy;
+    public bool LinesReadOnly => !CanEditLines();
     /// <summary>单头普通编辑同样受草稿状态约束。</summary>
-    public bool HeaderReadOnly => SelectedItem?.CanEdit != true || IsBusy;
+    public bool HeaderReadOnly => !CanEditLines();
+    /// <summary>替代型读取期间允许切换单据；任何写操作或确认弹窗期间冻结选择。</summary>
+    public bool CanSelectHeaders => !_disposed && (IsNotBusy || _readQuery is not null);
     /// <summary>服务端统计与当前页面新增草稿分别展示。</summary>
     public string PageStatus => $"服务端共 {TotalCount} 张，第 {PageIndex} 页；本页新增 {Headers.AddedItems.Count} 张";
     /// <inheritdoc/>
@@ -83,16 +95,22 @@ public sealed partial class InboundManagerViewModel : ViewModelBaseEx, IDocument
     /// <inheritdoc/>
     public bool HasUnsavedChanges => _pendingWrites.Count > 0 || Headers.HasChanges || Headers.AllLines.Any(x => x.Lines.HasChanges);
 
-    private bool CanEdit() => !_disposed && IsNotBusy && !IsReadOnly;
-    private bool CanEditLines() => CanEdit() && SelectedItem?.CanEdit == true;
-    private bool CanPickWarehouse(InboundHeaderModel? row) => CanEdit() && row?.CanEdit == true;
-    private bool BackendUnavailable() => false;
+    private bool HasViewPermission => _postingUser?.HasPermission(PermissionKeys.InventoryInboundView) == true;
+    private string CurrentUserKey => _postingUser?.CurrentUser?.UserId ?? string.Empty;
+    private bool CanEdit() => !_disposed && IsNotBusy && !IsReadOnly && HasViewPermission;
+    /// <summary>本地新单按创建权限，已有草稿按编辑权限；不能用过账或删除权限代替。</summary>
+    private bool HasDraftPermission(InboundHeaderModel row) => _postingUser?.HasPermission(row.IsNew
+        ? PermissionKeys.InventoryInboundCreate : PermissionKeys.InventoryInboundEdit) == true;
+    private bool CanAddHeader() => CanEdit() && _pendingWrites.Count == 0 && _postingUser?.HasPermission(PermissionKeys.InventoryInboundCreate) == true;
+    private bool CanEditLines() => CanPickWarehouse(SelectedItem);
+    private bool CanPickWarehouse(InboundHeaderModel? row) => CanEdit() && _pendingWrites.Count == 0
+        && row?.CanEdit == true && Headers.Items.Contains(row) && HasDraftPermission(row);
 
     /// <summary>建立本地采购草稿，正式编号由未来后端生成。</summary>
-    [RelayCommand(CanExecute = nameof(CanEdit))]
+    [RelayCommand(CanExecute = nameof(CanAddHeader))]
     private void AddNewHeaderRow()
     {
-        if (!CanEdit()) return;
+        if (!CanAddHeader()) return;
         SelectedItem = Headers.AddNew(new InboundHeaderDetailDto { Uid = Guid.NewGuid(), Version = 0 });
     }
 
@@ -102,7 +120,17 @@ public sealed partial class InboundManagerViewModel : ViewModelBaseEx, IDocument
     {
         if (!CanEditLines() || Lines is null) return;
         var rows = Lines.CheckedItems.Count > 0 ? Lines.CheckedItems : Lines.SelectedItem is null ? [] : new[] { Lines.SelectedItem };
-        foreach (var row in rows.ToArray()) Lines.Remove(row);
+        var selected = rows.ToHashSet();
+        foreach (var row in CollectionViewSource.GetDefaultView(Lines.Items).Cast<InboundLineModel>().Where(selected.Contains).ToArray())
+        {
+            var displayed = CollectionViewSource.GetDefaultView(Lines.Items).Cast<InboundLineModel>().ToArray();
+            var index = Array.IndexOf(displayed, row);
+            if (index < 0) continue;
+            Lines.Remove(row);
+            // 每次实际删除后以当前存活集合定位前一行；首行改选后继，全部删除安全清空。
+            Lines.SelectedItem = displayed.Take(index).LastOrDefault(Lines.Items.Contains)
+                ?? displayed.Skip(index + 1).FirstOrDefault(Lines.Items.Contains);
+        }
     }
 
     /// <summary>仓库只回填打开弹窗时的单头；取消或释放时不改仓。</summary>
@@ -110,10 +138,12 @@ public sealed partial class InboundManagerViewModel : ViewModelBaseEx, IDocument
     private async Task OpenWarehousePickerAsync(InboundHeaderModel? row)
     {
         if (row is null || !CanPickWarehouse(row)) return;
+        var session = _userSession;
         await RunBusyAsync(async () =>
         {
             var result = await _warehouses.PickAsync(_lifetime.Token);
-            if (_disposed || result is null || !result.IsActive || !Headers.Items.Contains(row) || !row!.CanEdit) return;
+            if (_disposed || session != _userSession || IsReadOnly || !HasViewPermission || !HasDraftPermission(row)
+                || result is null || !result.IsActive || !Headers.Items.Contains(row) || !row.CanEdit) return;
             row.WarehouseSiteId = result.Uid;
             row.WarehouseCodeSnapshot = result.Code ?? string.Empty;
             row.WarehouseNameSnapshot = result.Name ?? string.Empty;
@@ -128,10 +158,12 @@ public sealed partial class InboundManagerViewModel : ViewModelBaseEx, IDocument
         var header = SelectedItem!;
         if (header.DocumentType != InboundDocumentTypeEnum.PurchaseReceipt) { ResultSummary = "该入库类型的选源尚未实现。"; return; }
         var type = header.DocumentType;
+        var session = _userSession;
         await RunBusyAsync(async () =>
         {
             var rows = await _sources.PickAsync(new InboundSourcePickerRequest { DocumentType = type, CurrentInboundDocumentId = header.IsNew ? null : header.Uid }, _lifetime.Token);
-            if (_disposed || rows is null || !Headers.Items.Contains(header) || !header.CanEdit || header.DocumentType != type) return;
+            if (_disposed || session != _userSession || IsReadOnly || !HasViewPermission || !HasDraftPermission(header)
+                || rows is null || !Headers.Items.Contains(header) || !header.CanEdit || header.DocumentType != type) return;
             if (rows.Any(x => x.DocumentType != type || x.SourceLineId == Guid.Empty || x.ProductId == Guid.Empty || string.IsNullOrWhiteSpace(x.Unit) || x.RemainingReceivableQty <= 0))
             { ResultSummary = "所选来源类型或标识不匹配，未加入明细。"; return; }
             var added = 0;
@@ -150,11 +182,15 @@ public sealed partial class InboundManagerViewModel : ViewModelBaseEx, IDocument
         }, "选择入库来源");
     }
 
-    [RelayCommand(CanExecute = nameof(BackendUnavailable))] private void AddNewLineRow() { }
 
     /// <summary>同步汇总与关闭脏状态；不将显示合计写回实体。</summary>
     private void OnHeadersChanged(object? sender, ListStateChangedEventArgs<InboundHeaderModel> e)
     {
+        if (e.PropertyName is nameof(InboundHeaderModel.PageAllowsEditing) or nameof(InboundHeaderModel.CanEditInPage)
+            or nameof(InboundHeaderModel.CanChangeDocumentType) or nameof(InboundHeaderModel.EditingStatus)) return;
+        if (e.Line is null || e.PropertyName is nameof(InboundHeaderModel.DocumentType) or nameof(InboundHeaderModel.WarehouseSiteId)
+            or nameof(InboundHeaderModel.WarehouseCodeSnapshot) or nameof(InboundHeaderModel.WarehouseNameSnapshot)
+            or nameof(InboundHeaderModel.ReceiptDate) or nameof(InboundHeaderModel.Remark)) _editRevision++;
         SynchronizeDetailSubscriptions();
         NotifyEditState();
     }
@@ -162,6 +198,8 @@ public sealed partial class InboundManagerViewModel : ViewModelBaseEx, IDocument
     /// <summary>头和明细共享页面级脏状态通知，明细编辑不依赖单头字段变更。</summary>
     private void NotifyEditState()
     {
+        foreach (var row in Headers.Items)
+            row.PageAllowsEditing = CanEdit() && _pendingWrites.Count == 0 && HasDraftPermission(row);
         IsDirty = HasUnsavedChanges;
         OnPropertyChanged(nameof(HasUnsavedChanges));
         OnPropertyChanged(nameof(PageStatus));
@@ -173,14 +211,18 @@ public sealed partial class InboundManagerViewModel : ViewModelBaseEx, IDocument
         OpenInboundSourceDialogCommand.NotifyCanExecuteChanged();
         DeleteSelectedLineCommand.NotifyCanExecuteChanged();
         SaveCommand.NotifyCanExecuteChanged();
+        AddNewHeaderRowCommand.NotifyCanExecuteChanged();
+        DeleteSelectedCommand.NotifyCanExecuteChanged();
+        SearchCommand.NotifyCanExecuteChanged();
+        RefreshCommand.NotifyCanExecuteChanged();
+        PageChangeCommand.NotifyCanExecuteChanged();
+        OnPropertyChanged(nameof(CanSelectHeaders));
     }
 
     /// <summary>Busy 退出后同步只读绑定，避免详情加载完成后仍保留加载期间的只读值。</summary>
     private void OnManagerPropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
     {
-        if (e.PropertyName != nameof(IsBusy)) return;
-        OnPropertyChanged(nameof(LinesReadOnly));
-        OnPropertyChanged(nameof(HeaderReadOnly));
+        if (e.PropertyName is nameof(IsBusy) or nameof(IsReadOnly)) NotifyEditState();
     }
 
     /// <inheritdoc/>

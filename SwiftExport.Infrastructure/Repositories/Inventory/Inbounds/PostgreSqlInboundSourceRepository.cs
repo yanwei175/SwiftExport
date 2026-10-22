@@ -10,6 +10,7 @@ using SwiftExport.Core.Common;
 using SwiftExport.Core.Interfaces.Inventory.Inbounds;
 using SwiftExport.Infrastructure.Contexts;
 using SwiftExport.Infrastructure.Repositories.Base;
+using SwiftExport.Infrastructure.Repositories.OrderTracking.Receipts;
 
 namespace SwiftExport.Infrastructure.Repositories.Inventory.Inbounds;
 
@@ -20,7 +21,7 @@ public sealed class PostgreSqlInboundSourceRepository(RepositoryBaseContext cont
     private CommandDefinition Command(string sql, object? args, CancellationToken token) =>
         new(sql, args, context.Session.Transaction, cancellationToken: token);
 
-    /// <summary>先检查反向及未知来源历史，再物化同一候选集合用于计数和数据库分页；保留原资格和草稿提示，不加锁。</summary>
+    /// <summary>按同一整头收货证明排除受影响采购行，再物化候选用于计数和分页；无关异常不阻断整页。</summary>
     public async Task<PagedResponseBase<InboundSourceCandidateDto>> SearchSourcesAsync(InboundSourceSearchRequest request, CancellationToken token)
     {
         var parameters = PostingParameters();
@@ -30,16 +31,16 @@ public sealed class PostgreSqlInboundSourceRepository(RepositoryBaseContext cont
         parameters.Add("Keyword", Like(request.Keyword));
         parameters.Add("Skip", (long)(request.PageIndex - 1) * request.PageSize);
         parameters.Add("Take", request.PageSize);
-        await PostgreSqlInboundReceiptHistoryGuard.ValidateGlobalAsync(context.Session, token);
-        if (await HasUnprovenReceiptAsync(token)) throw new UnverifiedReceiptHistoryException();
-        var sql = "WITH candidates AS MATERIALIZED (" + SourceProjection + "\n" + """
+        var sql = "WITH " + PurchaseReceiptFactsSql.Ctes("SELECT uid FROM public.purchase_order_line", includeUnprovenTypes: true)
+            + ", candidates AS MATERIALIZED (" + SourceProjection + "\n" + """
             AND h.confirmation_status=@Confirmed AND h.lifecycle_status=@Active
             AND rtrim(l.material_type,' ') COLLATE public.erp_dictionary_ci=ANY(
                 SELECT rtrim(value,' ') FROM unnest(@KnownTypes) input(value))
             AND ((@CustomerSupplied AND rtrim(l.material_type,' ') COLLATE public.erp_dictionary_ci=@CustomerType)
                 OR (NOT @CustomerSupplied AND rtrim(l.material_type,' ') COLLATE public.erp_dictionary_ci<>@CustomerType))
             AND (CAST(@SupplierId AS uuid) IS NULL OR h.supplier_id=@SupplierId)
-            AND l.quantity>COALESCE(received.qty,0)
+            AND COALESCE(received.has_unit_mismatch,0)=0
+            AND l.quantity>COALESCE(received.received_qty,0)
             AND (CAST(@Keyword AS text) IS NULL OR h.order_no COLLATE public.erp_dictionary_ci LIKE @Keyword ESCAPE '~'
                 OR h.bo_no COLLATE public.erp_dictionary_ci LIKE @Keyword ESCAPE '~'
                 OR l.sku COLLATE public.erp_dictionary_ci LIKE @Keyword ESCAPE '~'
@@ -63,25 +64,28 @@ public sealed class PostgreSqlInboundSourceRepository(RepositoryBaseContext cont
         };
     }
 
-    /// <summary>读取指定采购行身份和快照，不按采购状态、数量或版本拒绝草稿；空集合仍先检查全局历史。</summary>
+    /// <summary>仅核对请求采购行关联的整头历史，再读取快照；不按当前采购状态、数量或版本拒绝草稿。</summary>
     public async Task<IReadOnlyList<InboundSourceCandidateDto>> GetSourcesAsync(IReadOnlyList<Guid> ids, CancellationToken token)
     {
+        if (ids.Count == 0) return [];
         var parameters = new PostgreSqlParameters();
         parameters.AddIds("Ids", ids);
         parameters.Add("CurrentInboundDocumentId", null);
-        await PostgreSqlInboundReceiptHistoryGuard.ValidateGlobalAsync(context.Session, token);
+        if (await HasUnprovenReceiptAsync(ids, token)) throw new UnverifiedReceiptHistoryException();
         return (await context.Session.Connection.QueryAsync<InboundSourceCandidateDto>(
-            Command(SourceProjection + " AND l.uid=ANY(@Ids)", parameters, token))).ToList();
+            Command("WITH " + PurchaseReceiptFactsSql.Ctes("SELECT unnest(@Ids) AS uid", includeUnprovenTypes: true)
+                + SourceProjection + " AND l.uid=ANY(@Ids)", parameters, token))).ToList();
     }
 
-    /// <summary>空集合沿用零查询短路；非空先检查全局历史，再返回包含失效和可空产品事实的完整过账投影。</summary>
+    /// <summary>空集合零查询；仅证明请求来源关联整头，再返回包含失效和可空产品事实的完整过账投影。</summary>
     public async Task<IReadOnlyList<InboundPurchasePostingSourceDto>> ReadPostingSourcesAsync(IReadOnlyList<Guid> ids, CancellationToken token)
     {
         if (ids.Count == 0) return [];
         var parameters = PostingParameters();
         parameters.AddIds("Ids", ids);
-        await PostgreSqlInboundReceiptHistoryGuard.ValidateGlobalAsync(context.Session, token);
-        return (await context.Session.Connection.QueryAsync<InboundPurchasePostingSourceDto>(Command("""
+        if (await HasUnprovenReceiptAsync(ids, token)) throw new UnverifiedReceiptHistoryException();
+        return (await context.Session.Connection.QueryAsync<InboundPurchasePostingSourceDto>(Command(
+            "WITH " + PurchaseReceiptFactsSql.Ctes("SELECT unnest(@Ids) AS uid", includeUnprovenTypes: true) + """
             SELECT l.uid AS "SourceLineId",l.purchase_order_id AS "PurchaseOrderId",l.product_id AS "ProductId",
                 h.order_no AS "SourceNo",l.unit_snapshot AS "Unit",p.unit AS "CurrentUnit",l.quantity AS "OriginalQty",
                 CASE WHEN h.is_deleted=FALSE AND l.is_deleted=FALSE AND p.is_deleted=FALSE
@@ -90,12 +94,10 @@ public sealed class PostgreSqlInboundSourceRepository(RepositoryBaseContext cont
                         SELECT rtrim(value,' ') FROM unnest(@KnownTypes) input(value))
                     THEN TRUE ELSE FALSE END AS "IsReceivable",
                 CASE WHEN rtrim(l.material_type,' ') COLLATE public.erp_dictionary_ci=@CustomerType THEN TRUE ELSE FALSE END AS "IsCustomerSupplied",
-                COALESCE((SELECT SUM(CASE WHEN ih.posting_status=1 THEN il.quantity ELSE 0 END)
-                    FROM public.inbound_document_line il JOIN public.inbound_document ih ON ih.uid=il.inbound_document_id
-                    WHERE il.source_line_id=l.uid AND ih.document_type=10 AND ih.posting_status IN(1,8)
-                        AND il.is_deleted=FALSE AND ih.is_deleted=FALSE),0) AS "PostedNetQty"
+                COALESCE(received.received_qty,0) AS "PostedNetQty"
             FROM public.purchase_order_line l JOIN public.purchase_order_head h ON h.uid=l.purchase_order_id
-            LEFT JOIN public.product p ON p.uid=l.product_id WHERE l.uid=ANY(@Ids);
+            LEFT JOIN public.product p ON p.uid=l.product_id
+            LEFT JOIN receipt_facts received ON received.source_line_id=l.uid WHERE l.uid=ANY(@Ids);
             """, parameters, token))).ToList();
     }
 
@@ -117,15 +119,9 @@ public sealed class PostgreSqlInboundSourceRepository(RepositoryBaseContext cont
         }
     }
 
-    /// <summary>仅按原全局正式历史范围检查未知来源；不扩大为通用反向门禁，不把未知当作零收货。</summary>
-    public Task<bool> HasUnprovenReceiptAsync(CancellationToken token) =>
-        context.Session.Connection.ExecuteScalarAsync<bool>(Command("""
-            SELECT EXISTS(SELECT 1 FROM public.inbound_document_line il
-                JOIN public.inbound_document ih ON ih.uid=il.inbound_document_id
-                LEFT JOIN public.purchase_order_line pl ON pl.uid=il.source_line_id
-                WHERE ih.is_deleted=FALSE AND il.is_deleted=FALSE AND ih.posting_status IN(1,8)
-                    AND (ih.document_type IN(11,12) OR (ih.document_type=10 AND pl.uid IS NULL)));
-            """, null, token));
+    /// <summary>通过共同事实证明指定采购行的关联整头，未知证据不扩散到无关采购行。</summary>
+    public Task<bool> HasUnprovenReceiptAsync(IReadOnlyList<Guid> ids, CancellationToken token) =>
+        PostgreSqlInboundReceiptHistoryGuard.HasUnverifiedSourcesAsync(context.Session, ids, token);
 
     // 保存快照仅检查现有头行/产品及非空单位；正式已过账贡献数量，反向为零，其他草稿不扣额度。
     private const string SourceProjection = """
@@ -133,17 +129,12 @@ public sealed class PostgreSqlInboundSourceRepository(RepositoryBaseContext cont
                l.product_id AS "ProductId",h.order_no AS "SourceNo",l.line_number AS "LineNumber",h.bo_no AS "BoNo",
                l.sku AS "Sku",l.link_sku AS "LinkSku",l.description_zh AS "Description",product.main_image AS "ImagePath",
                l.unit_snapshot AS "Unit",h.supplier_name AS "SupplierName",default_warehouse.name AS "DefaultWarehouseName",
-               l.quantity AS "OriginalQty",l.quantity-COALESCE(received.qty,0) AS "RemainingReceivableQty",
+               l.quantity AS "OriginalQty",l.quantity-COALESCE(received.received_qty,0) AS "RemainingReceivableQty",
                drafts.other_draft_count AS "OtherDraftCount",drafts.other_draft_quantity AS "OtherDraftQuantity"
         FROM public.purchase_order_line l JOIN public.purchase_order_head h ON h.uid=l.purchase_order_id
         JOIN public.product product ON product.uid=l.product_id
         LEFT JOIN public.warehouse_site default_warehouse ON default_warehouse.uid=product.default_warehouse_site_id AND default_warehouse.is_deleted=FALSE
-        LEFT JOIN LATERAL (
-            SELECT SUM(CASE WHEN rh.posting_status=1 THEN rl.quantity ELSE 0 END) AS qty
-            FROM public.inbound_document_line rl JOIN public.inbound_document rh ON rh.uid=rl.inbound_document_id
-            WHERE rl.source_line_id=l.uid AND rh.document_type=10 AND rh.posting_status IN(1,8)
-                AND rl.is_deleted=FALSE AND rh.is_deleted=FALSE
-        ) received ON TRUE
+        LEFT JOIN receipt_facts received ON received.source_line_id=l.uid
         LEFT JOIN LATERAL (
             SELECT COUNT(DISTINCT dh.uid)::int AS other_draft_count,COALESCE(SUM(dl.quantity),0) AS other_draft_quantity
             FROM public.inbound_document_line dl JOIN public.inbound_document dh ON dh.uid=dl.inbound_document_id

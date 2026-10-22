@@ -52,8 +52,12 @@ public static class ProcurementReversalPolicy
             if (facts.HasDownstreamHistory || facts.Inbounds.Count>0 || facts.InboundLines.Count>0 || facts.Ledgers.Count>0 || facts.Reports.Count>0)
                 preview.Blockers.Add("采购存在下游历史，不能整单删除草稿。");
         }
-        if (facts.HasUnattributedInbound) preview.Blockers.Add("存在来源无法归属的采购入库，请先核实异常来源后再操作。");
         var ids = selected.Select(x => x.Uid).ToHashSet();
+        // 删行仅受选定行所关联整头的异常影响；同头其他坏行仍阻断，整单操作不缩小历史检查范围。
+        var affectedInbound = operation == ProcurementReversalOperation.DeleteLines
+            ? facts.InboundLines.Any(line => ids.Contains(line.SourceLineId) && facts.UnattributedInboundHeadIds.Contains(line.InboundDocumentId))
+            : facts.HasUnattributedInbound;
+        if (affectedInbound) preview.Blockers.Add("存在来源无法归属的采购入库，请先核实异常来源后再操作。");
         preview.Lines = selected.OrderBy(x => x.LineNumber).Select(x => new ProcurementReversalLineDto
         { PurchaseOrderLineId = x.Uid, Version = x.Version, LineNumber = x.LineNumber, Sku = x.Sku, Quantity = x.Quantity }).ToList();
         var own = facts.Links.Where(x => x.TargetHeadId == head.Uid || facts.Lines.Any(l => l.Uid == x.TargetLineId)).ToList();

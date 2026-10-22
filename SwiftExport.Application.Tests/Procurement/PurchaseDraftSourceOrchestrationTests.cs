@@ -9,6 +9,7 @@ using SwiftExport.Application.Contexts;
 using SwiftExport.Application.Interfaces;
 using SwiftExport.Contracts.DTOs.DemandPlanning.NetDemand;
 using SwiftExport.Contracts.DTOs.Procurement.PurchaseDrafts;
+using SwiftExport.Contracts.DTOs.Errors;
 using SwiftExport.Contracts.SysEnums;
 using SwiftExport.Core.Entities.DemandPlanning;
 using SwiftExport.Core.Entities.Procurement;
@@ -26,6 +27,75 @@ namespace SwiftExport.Application.Tests.Procurement;
 [TestClass]
 public sealed class PurchaseDraftSourceOrchestrationTests
 {
+    /// <summary>实际需求创建入口接受四位、范围内及零价；在事务前拒绝五位、非正数量、负价和金额越界。</summary>
+    [TestMethod]
+    [DataRow("four",true)]
+    [DataRow("zero-price",true)]
+    [DataRow("quantity-max",true)]
+    [DataRow("unit-max",true)]
+    [DataRow("tax-max",true)]
+    [DataRow("quantity-five",false)]
+    [DataRow("unit-five",false)]
+    [DataRow("tax-five",false)]
+    [DataRow("zero-quantity",false)]
+    [DataRow("negative-quantity",false)]
+    [DataRow("negative-unit",false)]
+    [DataRow("negative-tax",false)]
+    [DataRow("quantity-range",false)]
+    [DataRow("unit-range",false)]
+    [DataRow("tax-range",false)]
+    [DataRow("unit-amount-overflow",false)]
+    [DataRow("tax-amount-overflow",false)]
+    public async Task DemandCreationValidatesQuantityPricesAndAmountsBeforeReplay(string scenario,bool accepted)
+    {
+        var f=new Fixture();var command=f.Command();command.Sources.RemoveAt(1);var item=command.Sources[0].Items[0];
+        switch(scenario)
+        {
+            case "four":item.PurchaseQty=1.2345m;item.UnitPrice=1.2345m;item.TaxPrice=2.3456m;break;
+            case "zero-price":item.UnitPrice=0;item.TaxPrice=0;break;
+            case "quantity-max":item.PurchaseQty=99999999999999.9999m;break;
+            case "unit-max":item.UnitPrice=99999999999999.9999m;break;
+            case "tax-max":item.TaxPrice=99999999999999.9999m;break;
+            case "quantity-five":item.PurchaseQty=1.00001m;break;
+            case "unit-five":item.UnitPrice=1.00001m;break;
+            case "tax-five":item.TaxPrice=1.00001m;break;
+            case "zero-quantity":item.PurchaseQty=0;break;
+            case "negative-quantity":item.PurchaseQty=-1;break;
+            case "negative-unit":item.UnitPrice=-1;break;
+            case "negative-tax":item.TaxPrice=-1;break;
+            case "quantity-range":item.PurchaseQty=100000000000000m;break;
+            case "unit-range":item.UnitPrice=100000000000000m;break;
+            case "tax-range":item.TaxPrice=100000000000000m;break;
+            case "unit-amount-overflow":item.PurchaseQty=2;item.UnitPrice=99999999999999.9999m;break;
+            case "tax-amount-overflow":item.PurchaseQty=2;item.TaxPrice=99999999999999.9999m;break;
+        }
+        if(accepted)await f.SeedReplayAsync(command);
+        var locks=f.ReceiptLocks;
+        var result=await f.Service.CreateAsync(command);
+        Assert.AreEqual(accepted,result.Success,result.Message);
+        if(accepted)Assert.AreEqual(NetDemandCommandOutcomeEnum.AlreadyApplied,result.Data.Sources.Single().Outcome);
+        else{Assert.AreEqual(ServiceErrorCodes.Validation,result.Error.Code);Assert.AreEqual(0,f.Connection.Begins);Assert.AreEqual(locks,f.ReceiptLocks);}
+        Assert.IsNull(f.Session.Transaction);
+    }
+
+    /// <summary>需求采购在事务前拒绝物理列无法无损保存的两种单价，不依赖数据库舍入。</summary>
+    [TestMethod]
+    [DataRow(true)]
+    [DataRow(false)]
+    public async Task ExcessPricePrecisionIsRejectedBeforeSourceTransaction(bool unitPrice)
+    {
+        var f = new Fixture();
+        var command = f.Command();
+        var item = command.Sources[0].Items[0];
+        if (unitPrice) item.UnitPrice = 1.000049m;
+        else item.TaxPrice = 1.000049m;
+        var result = await f.Service.CreateAsync(command);
+        Assert.IsFalse(result.Success);
+        Assert.AreEqual("VALIDATION", result.Error.Code);
+        Assert.AreEqual(0, f.Connection.Begins);
+        Assert.IsNull(f.Session.Transaction);
+    }
+
     /// <summary>历史回执格式未知即使读取事务已回滚，仍保持结果未知协议，不允许按新请求重建。</summary>
     [TestMethod]
     public async Task UnknownReceiptFormatStaysUnknownAfterReadRollback()
@@ -167,6 +237,7 @@ public sealed class PurchaseDraftSourceOrchestrationTests
         public readonly DbSession Session;
         public readonly PurchaseDraftCreationService Service;
         private readonly PurchaseDraftCommandTestContext commands;
+        public int ReceiptLocks=>commands.ReceiptLocks;
         /// <summary>保留原成功回执身份，仅将格式置为当前不能解读，验证不得重新执行业务。</summary>
         public void InvalidateReceiptFormat(){foreach(var receipt in commands.Receipts.Values)receipt.ResultVersion=999;}
         public readonly PurchaseOrderHead Head = new()
@@ -290,7 +361,7 @@ public sealed class PurchaseDraftSourceOrchestrationTests
     }
 
     /// <summary>记录每个来源独立的开始、提交和回滚。</summary>
-    private sealed class ConnectionStub : IDbConnection
+    internal sealed class ConnectionStub : IDbConnection
     {
         public int Begins, Commits, Rollbacks;
         [AllowNull] public string ConnectionString { get; set; } = "";

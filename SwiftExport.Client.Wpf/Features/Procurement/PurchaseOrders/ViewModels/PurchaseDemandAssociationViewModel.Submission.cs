@@ -2,6 +2,7 @@ using CommunityToolkit.Mvvm.Input;
 using SwiftExport.Contracts.DTOs.Errors;
 using SwiftExport.Contracts.DTOs.Procurement.OrderManagement;
 using SwiftExport.Contracts.SysEnums;
+using SwiftExport.Contracts.Wrappers;
 using SwiftExportClient.Features.Procurement.PurchaseOrders.Models;
 
 namespace SwiftExportClient.Features.Procurement.PurchaseOrders.ViewModels;
@@ -61,12 +62,14 @@ public sealed partial class PurchaseDemandAssociationViewModel
     private bool CanRetry() => !_disposed && HasPermission && !IsBusy && HasPendingCommand;
     [RelayCommand(CanExecute = nameof(CanRetry))]
     private Task RetryAsync() => CanRetry() ? RunBusyAsync(SendFrozenCoreAsync, "重试原关联命令...") : Task.CompletedTask;
-    /// <summary>每次从冻结负载还原相同命令；只有完整成功或明确拒绝才解除未决门禁。</summary>
+    /// <summary>每次还原相同冻结命令；曾经未知后仅完整成功消解，后续拒绝不否认上次可能已经写入。</summary>
     private async Task SendFrozenCoreAsync()
     {
         if (_pending is not { } pending) return;
         var command = pending.CreateRequest();
-        var result = await _runner.RunAsync(() => _api.AssociateDemandsAsync(pending.OrderId, command), "提交关联失败");
+        ServiceResult<ProcurementOrderCommandResult> result;
+        try { result = await _runner.RunAsync(() => _api.AssociateDemandsAsync(pending.OrderId, command), "提交关联失败"); }
+        catch { pending.MarkUnknown(); throw; }
         if (_disposed) return;
         if (result.Success)
         {
@@ -74,9 +77,10 @@ public sealed partial class PurchaseDemandAssociationViewModel
             if (receipt is null || receipt.PurchaseOrderId != pending.OrderId || receipt.Version != command.ExpectedVersion + 1
                 || receipt.LifecycleStatus != PurchaseOrderLifecycleStatusEnum.Active
                 || receipt.ConfirmationStatus != Context?.ConfirmationStatus
-                || receipt.Lines.Count == 0 || receipt.Lines.Select(x => x.PurchaseOrderLineId).Distinct().Count() != receipt.Lines.Count
+                || receipt.Lines is null || receipt.Lines.Count == 0 || receipt.Lines.Any(x => x is null || x.PurchaseOrderLineId == Guid.Empty || x.Version <= 0)
+                || receipt.Lines.Select(x => x.PurchaseOrderLineId).Distinct().Count() != receipt.Lines.Count
                 || command.Items.Any(item => !receipt.Lines.Any(x => x.PurchaseOrderLineId == item.PurchaseOrderLineId && x.Version == item.ExpectedLineVersion + 1)))
-            { StatusText = "回执不完整，提交结果尚未明确；请重试原命令。"; return; }
+            { pending.MarkUnknown(); StatusText = "回执不完整，提交结果尚未明确；请重试原命令。"; return; }
             var order = pending.OrderId;
             _pending = null; ClearPlan(); Reason = string.Empty; _minimumReadVersion = receipt.Version; RefreshRequired = true; NotifyCommands();
             await LoadContextCoreAsync(order, replaceOrder: false);
@@ -86,15 +90,16 @@ public sealed partial class PurchaseDemandAssociationViewModel
             return;
         }
         var code = result.Error?.Code;
-        if (code is ServiceErrorCodes.Validation or ServiceErrorCodes.BusinessBlocked or ServiceErrorCodes.VersionConflict
+        // 授权和请求格式等拒绝可能发生在历史回执读取前；未知后保守冻结，不能据本次拒绝解锁。
+        if (!pending.WasUnknown && code is (ServiceErrorCodes.Validation or ServiceErrorCodes.BusinessBlocked or ServiceErrorCodes.VersionConflict
             or ServiceErrorCodes.CommandConflict or ServiceErrorCodes.Forbidden or ServiceErrorCodes.Unauthenticated
-            or ServiceErrorCodes.NotFound or ServiceErrorCodes.StateBlocked)
+            or ServiceErrorCodes.NotFound or ServiceErrorCodes.StateBlocked))
         {
             _pending = null; InvalidatePreview();
             NeedsReload = code is ServiceErrorCodes.VersionConflict or ServiceErrorCodes.CommandConflict or ServiceErrorCodes.NotFound or ServiceErrorCodes.StateBlocked;
             StatusText = NeedsReload ? $"{result.Message} 暂存意图已保留，请重读并逐条复核。" : result.Message;
         }
-        else StatusText = "提交结果尚未明确，请重试原命令；当前分配和原因已冻结。";
+        else { pending.MarkUnknown(); StatusText = "提交结果尚未明确，请重试原命令；当前分配和原因已冻结。"; }
         NotifyCommands();
     }
 }

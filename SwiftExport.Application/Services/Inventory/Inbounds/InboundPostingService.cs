@@ -258,12 +258,12 @@ public sealed class InboundPostingService(
         // C. 已有库存流水时阻止新命令再次过账；原 CommandId 的合法重试已在执行器处重放。
         // 来源无法证明时不能可靠计算采购收货量；目标仓库还必须存在且可用。
         if (await executionReads.HasLedgerAsync(h.Uid, token)) Block("该入库单已有正式库存流水，不能再次过账。");
-        if (await sourceRepository.HasUnprovenReceiptAsync(token)) Block("存在无法证明采购来源的正式入库历史，请先核实。");
+        var ids = detail.Lines.Select(x => x.SourceLineId).Distinct().ToArray();
+        if (await sourceRepository.HasUnprovenReceiptAsync(ids, token)) Block("相关采购来源存在无法证明的正式入库历史，请先核实。");
         var name = await executionReads.ReadActiveWarehouseNameAsync(h.WarehouseSiteId, token);
         if (name is null) Block("目标仓库不存在、已删除或已停用。");
         else preview.WarehouseName = name;
         // D. 将采购来源匹配、可收货量等采购专属规则交给来源验证器。
-        var ids = detail.Lines.Select(x => x.SourceLineId).Distinct().ToArray();
         InboundPurchasePostingValidator.Validate(detail, await sourceRepository.ReadPostingSourcesAsync(ids, token), preview);
         // E. 同一产品可能来自多条采购行，按产品合并数量后计算目标仓库的预计余额。
         foreach (var group in detail.Lines.GroupBy(x => x.ProductId))

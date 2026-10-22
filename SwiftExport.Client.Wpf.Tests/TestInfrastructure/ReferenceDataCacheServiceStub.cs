@@ -173,10 +173,22 @@ internal sealed class ReferenceDataCacheServiceStub : IReferenceDataCacheService
 
     public void AddDictionaryValue(SysDictDataDto item) => _dictionaryValues.Add(item);
 
-    public Task<CacheRefreshResult> EnsureLoadedAsync()
+    /// <summary>控制首次加载的延续，可模拟空缓存填充、加载延迟或异常。</summary>
+    public Func<Task>? BeforeEnsureLoadedAsync { get; set; }
+
+    /// <summary>模拟客户缓存加载完成，保持绑定集合实例并发布集合变化。</summary>
+    public void SetCustomers(IEnumerable<CustomerDto> customers)
+    {
+        _customers.Clear();
+        foreach (var customer in customers) _customers.Add(customer);
+    }
+
+    /// <inheritdoc/>
+    public async Task<CacheRefreshResult> EnsureLoadedAsync()
     {
         EnsureLoadedCallCount++;
-        return Task.FromResult(_ensureResult);
+        if (BeforeEnsureLoadedAsync is not null) await BeforeEnsureLoadedAsync();
+        return _ensureResult;
     }
     public Task<CacheRefreshResult> RefreshAllAsync() => throw new NotSupportedException();
     public Task<CacheRefreshResult> RefreshProductColorsAsync() => throw new NotSupportedException();

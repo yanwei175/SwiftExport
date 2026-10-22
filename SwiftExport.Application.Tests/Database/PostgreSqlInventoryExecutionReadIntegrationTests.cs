@@ -65,7 +65,7 @@ public sealed partial class PostgreSqlInboundQueryMigrationTests
     {
         f.Purchase.ConfirmationStatus=SwiftExport.Contracts.SysEnums.ConfirmationStatusEnum.已确认;f.PurchaseLine.MaterialType="成品";await f.Seed();
         var user=new WorkspaceUser();var repository=new PostgreSqlInboundSourceRepository(new RepositoryBaseContext(f.Session,NullLoggerFactory.Instance,new AuditStampService(user),user));
-        Assert.IsFalse(await repository.HasUnprovenReceiptAsync(default));
+        Assert.IsFalse(await repository.HasUnprovenReceiptAsync([f.PurchaseLine.Uid],default));
         var sources=await repository.GetSourcesAsync([f.PurchaseLine.Uid],default);Assert.AreEqual(f.PurchaseLine.Quantity,sources.Single().OriginalQty);
         var page=await repository.SearchSourcesAsync(new SwiftExport.Contracts.DTOs.Inventory.Inbounds.Sources.InboundSourceSearchRequest{Keyword=f.Prefix},default);
         Assert.AreEqual(1,page.TotalCount);Assert.AreEqual(f.PurchaseLine.Uid,page.Items.Single().SourceLineId);
@@ -366,7 +366,8 @@ public sealed partial class PostgreSqlInboundQueryMigrationTests
         Assert.AreEqual("PCS", readBalance?.UnitSnapshot);
         await f.Session.Connection.ExecuteAsync("UPDATE public.warehouse_site SET is_active=FALSE WHERE uid=@Uid", new { Uid = f.Warehouse }, f.Transaction);
         Assert.IsNull(outbound ? await outboundReads.ReadActiveWarehouseNameAsync(f.Warehouse, default) : await inboundReads.ReadActiveWarehouseNameAsync(f.Warehouse, default));
-        Assert.IsTrue(outbound ? await outboundReads.ReverseWarehouseExistsAsync(f.Warehouse, default) : await inboundReads.ReverseWarehouseExistsAsync(f.Warehouse, default));
+        // 本轮仅调整入库预览；出库反向仍保持其既有仓库规则，不借此扩大修改范围。
+        Assert.AreEqual(outbound, outbound ? await outboundReads.ReverseWarehouseExistsAsync(f.Warehouse, default) : await inboundReads.ReverseWarehouseExistsAsync(f.Warehouse, default));
         await f.Session.Connection.ExecuteAsync("UPDATE public.inventory_balance SET is_deleted=TRUE WHERE uid=@Uid", new { balance.Uid }, f.Transaction);
         Assert.AreEqual(0m, outbound ? await outboundReads.ReadBalanceAsync(f.Warehouse, f.Product.Uid, default) : await inboundReads.ReadBalanceAsync(f.Warehouse, f.Product.Uid, default));
         Assert.IsTrue((outbound ? await outboundReads.ReadReverseBalanceAsync(f.Warehouse, f.Product.Uid, default) : await inboundReads.ReadReverseBalanceAsync(f.Warehouse, f.Product.Uid, default))?.IsDeleted);

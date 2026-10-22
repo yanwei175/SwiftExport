@@ -139,16 +139,11 @@ public sealed partial class PurchaseCandidateItemModel : ObservableObject, INoti
 
     /// <summary>当前行是否仍属于服务端待采购范围；缺失行只允许取消勾选。</summary>
     public bool IsAvailableForPurchase => string.IsNullOrWhiteSpace(RecoveryValidationMessage);
-    private string QuantityValidationMessage => PurchaseQty <= 0
-        ? "采购数量必须大于 0。"
-        : PurchaseQty > RemainingQty
-            ? $"采购数量超过当前可创建数量 {RemainingQty:N4}，请修改后重新校验。"
-            : string.Empty;
-    /// <summary>合并恢复状态、数量边界和服务端阻断后的最终行提示。</summary>
+    /// <summary>合并恢复状态、数量价格及金额边界和服务端阻断后的最终行提示。</summary>
     public string ValidationDisplayMessage => string.Join("；", new[]
         {
             RecoveryValidationMessage,
-            QuantityValidationMessage,
+            PurchaseDraftInputValidation.Validate(PurchaseQty, RemainingQty, UnitPrice, TaxPrice),
             ValidationMessage,
         }.Where(static message => !string.IsNullOrWhiteSpace(message)));
     public bool HasValidationError => !string.IsNullOrWhiteSpace(ValidationDisplayMessage);
@@ -169,16 +164,18 @@ public sealed partial class PurchaseCandidateItemModel : ObservableObject, INoti
     public partial bool IsChecked { get; set; }
 
     partial void OnIsCheckedChanged(bool value) => SelectionChanged?.Invoke(this, EventArgs.Empty);
-    partial void OnPurchaseQtyChanged(decimal value)
+    partial void OnPurchaseQtyChanged(decimal value) => NotifyNumericValidationChanged(nameof(PurchaseQty));
+    partial void OnUnitPriceChanged(decimal value) => NotifyNumericValidationChanged(nameof(UnitPrice));
+    partial void OnTaxPriceChanged(decimal value) => NotifyNumericValidationChanged(nameof(TaxPrice));
+    /// <summary>数量或价格变化会影响行级提示和金额准入，统一通知后再使本地准备失效。</summary>
+    private void NotifyNumericValidationChanged(string propertyName)
     {
         OnPropertyChanged(nameof(ValidationDisplayMessage));
         OnPropertyChanged(nameof(HasValidationError));
         OnPropertyChanged(nameof(HasErrors));
-        ErrorsChanged?.Invoke(this, new DataErrorsChangedEventArgs(nameof(PurchaseQty)));
+        ErrorsChanged?.Invoke(this, new DataErrorsChangedEventArgs(propertyName));
         ValueChanged?.Invoke(this, EventArgs.Empty);
     }
-    partial void OnUnitPriceChanged(decimal value) => ValueChanged?.Invoke(this, EventArgs.Empty);
-    partial void OnTaxPriceChanged(decimal value) => ValueChanged?.Invoke(this, EventArgs.Empty);
     partial void OnPlannedDeliveryDateChanged(DateTime? value) => ValueChanged?.Invoke(this, EventArgs.Empty);
     partial void OnPurchaseSupplierSelectionChanged(ProcurementSupplierCandidateDto? value)
     {

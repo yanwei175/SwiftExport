@@ -44,7 +44,7 @@ namespace SwiftExport.Contracts.DTOs.Procurement.OrderManagement
         public decimal? DiscountRate { get; set; }
         /// <summary>手工金额调整记录，不参与导入金额计算。</summary>
         public decimal? DiscountAmount { get; set; }
-        /// <summary>价格调整备注。</summary>
+        /// <summary>价格调整备注，手工创建与导入均可填写，创建时最多500个字符。</summary>
         public string DiscountRemark { get; set; }
 
         public List<CreateIndependentPurchaseOrderLineCommand> Lines { get; set; } = new List<CreateIndependentPurchaseOrderLineCommand>();

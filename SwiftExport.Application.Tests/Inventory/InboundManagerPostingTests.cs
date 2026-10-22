@@ -231,11 +231,18 @@ public sealed partial class InboundManagerServiceTests
                 IsCustomerSupplied = CustomerSupplied, SourceNo = "PO-1" }]),
             "ReadActiveWarehouseNameAsync" => Task.FromResult(ActiveWarehouse ? "仓库" : null),
             "ReadBalanceAsync" => Task.FromResult(0m),
-            "HasUnprovenReceiptAsync" => Task.FromResult(Unproven),
+            "HasUnprovenReceiptAsync" => ReadUnprovenHistory((IReadOnlyList<Guid>)args[0]!),
             "LockPurchaseSourcesAsync" => LockSource(),
             "MarkPostedAsync" => MarkPosted(),
             _ => ReverseRepository(method)
         };
+
+        /// <summary>证明人工入库只提交其实际采购来源范围，不恢复无界历史查询。</summary>
+        private Task<bool> ReadUnprovenHistory(IReadOnlyList<Guid> ids)
+        {
+            CollectionAssert.AreEquivalent(SavedLines.Select(x=>x.SourceLineId).Distinct().ToArray(),ids.ToArray());
+            return Task.FromResult(Unproven);
+        }
 
         private async Task LockSource()
         {

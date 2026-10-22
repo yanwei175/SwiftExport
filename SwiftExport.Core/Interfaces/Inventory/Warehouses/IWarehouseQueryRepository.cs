@@ -18,6 +18,8 @@ public interface IWarehouseQueryRepository
     Task<PagedResponseBase<WarehouseSitePickerDto>> GetPickerPagedAsync(PagedRequestBase request, CancellationToken cancellationToken = default);
     /// <summary>分页读取活动供应商候选。</summary>
     Task<PagedResponseBase<WarehouseSupplierLookupDto>> SearchSupplierLookupAsync(PagedRequestBase request, CancellationToken cancellationToken = default);
+    /// <summary>读取库存及入库筛选用供应商身份、编码和名称；包含停用，排除软删，不依赖业务记录。</summary>
+    Task<PagedResponseBase<InventorySupplierLookupDto>> SearchSupplierFilterOptionsAsync(PagedRequestBase request, CancellationToken cancellationToken = default);
     /// <summary>分页查询未删除虚拟仓。</summary>
     Task<PagedResponseBase<WarehouseSiteDto>> SearchAsync(WarehouseSiteSearchRequest request, CancellationToken cancellationToken = default);
     /// <summary>读取虚拟仓显示资料。</summary>

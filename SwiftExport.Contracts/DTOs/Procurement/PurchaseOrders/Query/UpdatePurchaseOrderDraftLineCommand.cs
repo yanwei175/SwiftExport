@@ -9,7 +9,9 @@ namespace SwiftExport.Contracts.DTOs.Procurement.PurchaseOrderDetailDto
         public int ExpectedVersion { get; set; }
         public string SupplierSku { get; set; }
         public string DescriptionZh { get; set; }
+        /// <summary>未税单价，必须明确填写，允许零价，非负且最多四位小数；保存时由服务端重算未税金额。</summary>
         public decimal? UnitPrice { get; set; }
+        /// <summary>含税单价，必须明确填写，允许零价，非负且最多四位小数；保存时由服务端重算含税金额。</summary>
         public decimal? TaxPrice { get; set; }
         public DateTime? PlannedDeliveryDate { get; set; }
         public string SubNote { get; set; }

@@ -4,7 +4,8 @@
              xmlns:controls="clr-namespace:SwiftExportClient.Resources.Controls"
              xmlns:purchaseComponents="clr-namespace:SwiftExportClient.Features.Procurement.PurchaseOrders.Components"
              xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
-             xmlns:rowDrag="clr-namespace:SwiftExportClient.Resources.Behaviors">
+             xmlns:rowDrag="clr-namespace:SwiftExportClient.Resources.Behaviors"
+             Loaded="OnLoaded" Unloaded="OnUnloaded" DataContextChanged="OnDataContextChanged">
     <UserControl.Resources>
 
     </UserControl.Resources>
@@ -215,7 +216,7 @@
                         <ui:TextBox Grid.Column="2" Grid.Row="6" PlaceholderText="业务员" Text="{Binding Header.SalesPerson}" IsReadOnly="True"/>
                         <ui:TextBox Grid.Column="2" Grid.Row="8" PlaceholderText="特殊要求"
                                     Grid.RowSpan="3" Grid.ColumnSpan="5"
-                                    Text="{Binding Header.Remark,UpdateSourceTrigger=PropertyChanged}" IsEnabled="{Binding Header.CanEditDraft}" AcceptsReturn="True" MinHeight="56"/>
+                                    Text="{Binding Header.Remark,UpdateSourceTrigger=PropertyChanged}" IsEnabled="{Binding CanEditHeader}" AcceptsReturn="True" MinHeight="56"/>
 
                         <TextBlock Grid.Column="4" Grid.Row="0" Text="下单日期"/>
                         <TextBlock Grid.Column="4" Grid.Row="2" Text="期望交期"/>
@@ -266,7 +267,7 @@
                         <ui:TextBox Grid.Column="10" Grid.Row="4" PlaceholderText="起泡器" Text="{Binding Header.AeratorType}" IsReadOnly="True"/>
                         <ui:TextBox Grid.Column="10" Grid.Row="6" PlaceholderText="托盘" Text="{Binding Header.PalletType}" IsReadOnly="True"/>
                         <ui:TextBox Grid.Column="10" Grid.Row="8" PlaceholderText="币种" Text="{Binding Header.Currency,Mode=OneWay}" IsReadOnly="True"/>
-                        <ui:TextBox Grid.Column="10" Grid.Row="10" PlaceholderText="包装商务要求" Text="{Binding Header.PackagingRequirements,UpdateSourceTrigger=PropertyChanged}" IsEnabled="{Binding Header.CanEditDraft}"/>
+                        <ui:TextBox Grid.Column="10" Grid.Row="10" PlaceholderText="包装商务要求" Text="{Binding Header.PackagingRequirements,UpdateSourceTrigger=PropertyChanged}" IsEnabled="{Binding CanEditHeader}"/>
 
 
 
@@ -284,7 +285,7 @@
                         <ui:TextBox Grid.Column="18" Grid.Row="8"
                                     PlaceholderText="折扣备注"
                                     Text="{Binding Header.DiscountRemark,UpdateSourceTrigger=PropertyChanged}"
-                                    IsEnabled="{Binding Header.CanEditDraft}" AcceptsReturn="True"/>
+                                    IsEnabled="{Binding CanEditHeader}" AcceptsReturn="True"/>
 
                         <TextBlock Grid.Column="16" Grid.RowSpan="7" Text="光标"/>
                         <ui:TextBox Grid.Column="18" Grid.RowSpan="7"
@@ -313,7 +314,7 @@
                         <Button Content="新增采购行" Command="{Binding AddLineCommand}" Margin="0,0,4,0"/>
                         <Button Content="删除新增行" Command="{Binding RemoveLineCommand}" CommandParameter="{Binding Lines.SelectedItem}"/>
                     </StackPanel>
-                    <DataGrid Grid.Row="2" ItemsSource="{Binding Lines.Items}"
+                    <DataGrid x:Name="LinesGrid" Grid.Row="2" ItemsSource="{Binding Lines.Items}"
                                   AutoGenerateColumns="False"
                                       FontSize="{DynamicResource SwiftExportDefaltFontSize}"
                                   RowHeight="{StaticResource DataGridRowHeightMedium}"
@@ -326,7 +327,7 @@
                             <Style TargetType="DataGrid" BasedOn="{StaticResource SwiftExportDataGrid}">
                                 <Setter Property="IsReadOnly" Value="True"/>
                                 <Style.Triggers>
-                                    <DataTrigger Binding="{Binding Header.CanEditDraft}" Value="True">
+                                    <DataTrigger Binding="{Binding CanEdit}" Value="True">
                                         <Setter Property="IsReadOnly" Value="False"/>
                                     </DataTrigger>
                                     <DataTrigger Binding="{Binding IsCreateMode}" Value="True">
@@ -453,14 +454,27 @@
                             </DataGridTemplateColumn>
 
                             <DataGridTextColumn ElementStyle="{StaticResource SwiftExportDataGridNumberTextBlock}"
+                                                     EditingElementStyle="{StaticResource SwiftExportDataGridNumberTextBox}"
                                                      Header="未税单价"
-                                                    Binding="{Binding UnitPrice,UpdateSourceTrigger=PropertyChanged,StringFormat=N2}"
-                                                    Width="85"/>
+                                                    Binding="{Binding UnitPrice,Mode=TwoWay,UpdateSourceTrigger=PropertyChanged,StringFormat=0.####,ValidatesOnExceptions=True}"
+                                                    Width="110"/>
+
+                            <DataGridTextColumn ElementStyle="{StaticResource SwiftExportDataGridNumberTextBlock}"
+                                                     EditingElementStyle="{StaticResource SwiftExportDataGridNumberTextBox}"
+                                                      Header="含税单价"
+                                                    Binding="{Binding TaxPrice,Mode=TwoWay,UpdateSourceTrigger=PropertyChanged,StringFormat=0.####,ValidatesOnExceptions=True}"
+                                                    Width="110"/>
 
                             <DataGridTextColumn ElementStyle="{StaticResource SwiftExportDataGridNumberTextBlock}"
                                                      Header="未税总价"
-                                                    Binding="{Binding UnitAmount,StringFormat=N2}"
-                                                     Width="95"
+                                                    Binding="{Binding UnitAmount,StringFormat=0.####}"
+                                                     Width="110"
+                                                    IsReadOnly="True"/>
+
+                            <DataGridTextColumn ElementStyle="{StaticResource SwiftExportDataGridNumberTextBlock}"
+                                                      Header="含税总价"
+                                                    Binding="{Binding TaxAmount,StringFormat=0.####}"
+                                                     Width="110"
                                                     IsReadOnly="True"/>
 
                             <DataGridTextColumn ElementStyle="{StaticResource SwiftExportDataGridDateTextBlock}"

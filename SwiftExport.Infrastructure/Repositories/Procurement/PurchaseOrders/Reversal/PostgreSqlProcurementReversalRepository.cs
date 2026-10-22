@@ -18,6 +18,19 @@ namespace SwiftExport.Infrastructure.Repositories.Procurement.PurchaseOrders.Rev
 /// <summary>采购确认、反向和补关联共用的 PostgreSQL 事实锁及反向持久化；保持原锁序和副作用，不接管联合准备或事务。</summary>
 public sealed class PostgreSqlProcurementReversalRepository(RepositoryBaseContext context) : IProcurementReversalRepository
 {
+    /// <summary>返回全部采购行关联的异常入库头，检查同头全部有效行，供删行按关联头定位而不缩小事实锁。</summary>
+    private const string UnattributedInboundSql = """
+        SELECT h.uid FROM public.inbound_document h
+            JOIN public.inbound_document_line l ON l.inbound_document_id=h.uid
+            LEFT JOIN LATERAL (SELECT p.uid FROM public.purchase_order_line p WHERE p.uid=l.source_line_id FOR SHARE) p ON TRUE
+            WHERE h.is_deleted=FALSE AND l.is_deleted=FALSE
+                AND EXISTS(SELECT 1 FROM public.inbound_document_line scope
+                    WHERE scope.inbound_document_id=h.uid AND scope.source_line_id=ANY(@lineIds) FOR SHARE OF scope)
+                AND ((h.posting_status IN(1,8) AND h.document_type IN(11,12))
+                    OR (h.document_type=10 AND p.uid IS NULL AND (h.posting_status IN(1,8) OR h.lifecycle_status=0)))
+            ORDER BY h.uid,l.uid FOR SHARE OF h,l;
+        """;
+
     /// <summary>本仓储固定 SQL，保留原字段顺序、参数及写入条件。</summary>
     private const string GrossDemandColumns = """
         "uid" AS "Uid",
@@ -320,17 +333,10 @@ public sealed class PostgreSqlProcurementReversalRepository(RepositoryBaseContex
         facts.HasDownstreamHistory = await context.Session.Connection.ExecuteScalarAsync<bool>(Command(
             $"SELECT {PurchaseDraftDeletionSql.DownstreamHistory("@uid")};",new {uid},ct));
 
-        // 可空采购行侧在 LATERAL 内共享锁实际行，外层只锁非空头行；不对外连接或 EXISTS 结果直接加更新锁。
-        facts.HasUnattributedInbound = await context.Session.Connection.ExecuteScalarAsync<bool>(Command("""
-            SELECT EXISTS(SELECT 1 FROM public.inbound_document h
-                JOIN public.inbound_document_line l ON l.inbound_document_id=h.uid
-                LEFT JOIN LATERAL (SELECT p.uid FROM public.purchase_order_line p WHERE p.uid=l.source_line_id FOR SHARE) p ON TRUE
-                WHERE h.is_deleted=FALSE AND l.is_deleted=FALSE
-                    AND ((h.posting_status IN(1,8) AND h.document_type IN(11,12))
-                        OR (h.document_type=10 AND p.uid IS NULL AND (h.posting_status IN(1,8) OR h.lifecycle_status=0)))
-                FOR SHARE OF h,l);
-            """, null, ct));
         var lineIds = facts.Lines.Select(line => line.Uid).ToArray();
+        // 先限定相关入库头，再检查同头坏行，不能让无关头阻断，也不能仅过滤采购行而漏掉同头孤立来源。
+        facts.UnattributedInboundHeadIds = (await context.Session.Connection.QueryAsync<Guid>(Command(
+            UnattributedInboundSql, Ids("lineIds", lineIds), ct))).ToHashSet();
         if (lineIds.Length == 0) return (facts, null);
         facts.Inbounds = (await context.Session.Connection.QueryAsync<InboundDocument>(Command($"""
             SELECT h."uid" AS "Uid", h."version" AS "Version", h."is_deleted" AS "IsDeleted", h."created_date" AS "CreatedDate", h."created_by" AS "CreatedBy", h."updated_date" AS "UpdatedDate", h."updated_by" AS "UpdatedBy", h."document_no" AS "DocumentNo", h."document_type" AS "DocumentType", h."creation_mode" AS "CreationMode", h."lifecycle_status" AS "LifecycleStatus", h."posting_status" AS "PostingStatus", h."warehouse_site_id" AS "WarehouseSiteId", h."warehouse_code_snapshot" AS "WarehouseCodeSnapshot", h."warehouse_name_snapshot" AS "WarehouseNameSnapshot", h."receipt_date" AS "ReceiptDate", h."remark" AS "Remark", h."posted_date" AS "PostedDate", h."posted_by" AS "PostedBy", h."reversed_date" AS "ReversedDate", h."reversed_by" AS "ReversedBy", h."reverse_reason" AS "ReverseReason", h."trigger_packing_list_id" AS "TriggerPackingListId", h."command_id" AS "CommandId" FROM public.inbound_document h

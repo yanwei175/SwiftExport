@@ -51,16 +51,18 @@ public sealed partial class PostgreSqlInboundQueryMigrationTests
         request.PostingStatus=null;request.DocumentType=(InboundDocumentTypeEnum)999;Assert.AreEqual(0,(await f.Repository.SearchAsync(request,default)).TotalCount);
     });
 
-    /// <summary>源商业投影按正式净收与其他草稿SQL计算，不扣草稿、不过滤采购删史和产品删图。</summary>
+    /// <summary>可信正式收货按净额与草稿提示读取；已删采购目标的正式历史必须阻断，不能算成零。</summary>
     [TestMethod,TestCategory("PostgreSqlInboundQueryIntegration"),DataRow(false),DataRow(true)]
     public Task RealPg_DetailCommercialHistory(bool deletedMasters) => Rollback(async f =>
     {
+        f.Purchase.ConfirmationStatus=SwiftExport.Contracts.SysEnums.ConfirmationStatusEnum.已确认;
         await f.Seed(deletedMasters);var current=f.Head("current");current.Remark=null;current.ReceiptDate=new(2026,10,5,13,14,15);
         await f.Add(current);await f.Add(f.Line(current,2,3));await f.Add(f.Line(current,1,2));
-        var posted=f.Head("posted");posted.PostingStatus=InboundPostingStatusEnum.Posted;posted.LifecycleStatus=(InventoryDocumentLifecycleStatusEnum)9;await f.Add(posted);await f.Add(f.Line(posted,1,30));
+        var posted=f.Head("posted");posted.PostingStatus=InboundPostingStatusEnum.Posted;posted.PostedDate=f.Today;posted.LifecycleStatus=(InventoryDocumentLifecycleStatusEnum)9;await f.Add(posted);await f.Add(f.Line(posted,1,30));
         var other=f.Head("draft");other.CreationMode=InboundCreationModeEnum.Automatic;other.TriggerPackingListId=Guid.NewGuid();await f.Add(other);await f.Add(f.Line(other,1,12));await f.Add(f.Line(other,2,4));
         var inactive=f.Head("inactive");inactive.LifecycleStatus=(InventoryDocumentLifecycleStatusEnum)9;await f.Add(inactive);await f.Add(f.Line(inactive,1,40));
-        var reversed=f.Head("reversed");reversed.PostingStatus=InboundPostingStatusEnum.Reversed;reversed.ReversedDate=f.Today;reversed.ReverseReason="已证明反向";await f.Add(reversed);var reverseLine=f.Line(reversed,1,7);await f.Add(reverseLine);await f.Pair(reversed,reverseLine);
+        var reversed=f.Head("reversed");reversed.PostingStatus=InboundPostingStatusEnum.Reversed;reversed.PostedDate=f.Today;reversed.ReversedDate=f.Today;reversed.ReverseReason="已证明反向";await f.Add(reversed);var reverseLine=f.Line(reversed,1,7);await f.Add(reverseLine);await f.Pair(reversed,reverseLine);
+        if(deletedMasters){await Assert.ThrowsAsync<UnverifiedReceiptHistoryException>(()=>f.Repository.GetDetailAsync(current.Uid,default));return;}
         var result=await f.Repository.GetDetailAsync(current.Uid,default);Assert.IsNotNull(result);Assert.AreEqual(current.ReceiptDate,result.Header.ReceiptDate);Assert.AreEqual("",result.Header.Remark);
         CollectionAssert.AreEqual(new[]{1,2},result.Lines.Select(x=>x.LineNumber).ToArray());
         foreach(var line in result.Lines){Assert.AreEqual(100m,line.OriginalQty);Assert.AreEqual(70m,line.RemainingReceivableQty);Assert.AreEqual(1,line.OtherDraftCount);Assert.AreEqual(16m,line.OtherDraftQuantity);Assert.AreEqual(7,line.SourceVersion);Assert.AreEqual(f.Purchase.OrderNo,line.SourceNo);Assert.AreEqual("采购BO",line.BoNo);Assert.AreEqual("采购关联型号",line.LinkSku);Assert.AreEqual("当前图",line.ImagePath);Assert.AreEqual("历史SKU",line.SkuSnapshot);Assert.AreEqual("历史描述",line.DescriptionSnapshot);Assert.AreEqual("PCS",line.UnitSnapshot);}
@@ -86,11 +88,12 @@ public sealed partial class PostgreSqlInboundQueryMigrationTests
     [TestMethod,TestCategory("PostgreSqlInboundQueryIntegration"),DataRow(25,75),DataRow(120,0)]
     public Task RealPg_DetailOwnReceiptAndClamp(int received,int remaining) => Rollback(async f =>
     {
-        await f.Seed();var h=f.Head("ownposted");h.PostingStatus=InboundPostingStatusEnum.Posted;await f.Add(h);await f.Add(f.Line(h,1,received));
+        f.Purchase.ConfirmationStatus=SwiftExport.Contracts.SysEnums.ConfirmationStatusEnum.已确认;
+        await f.Seed();var h=f.Head("ownposted");h.PostingStatus=InboundPostingStatusEnum.Posted;h.PostedDate=f.Today;await f.Add(h);await f.Add(f.Line(h,1,received));
         var result=await f.Repository.GetDetailAsync(h.Uid,default);Assert.IsNotNull(result);Assert.AreEqual((decimal)remaining,result.Lines.Single().RemainingReceivableQty);
     });
 
-    /// <summary>正式净额排软删头/行和其他来源，草稿只提示活动有效头且排本单，不借迁移改变筛选。</summary>
+    /// <summary>同来源正式头或行软删属于未知证据，不能忽略后把剩余数量作为可信结果。</summary>
     [TestMethod,TestCategory("PostgreSqlInboundQueryIntegration")]
     public Task RealPg_ReceiptAndDraftExcludedFacts() => Rollback(async f =>
     {
@@ -100,7 +103,7 @@ public sealed partial class PostgreSqlInboundQueryMigrationTests
         var foreign=f.Head("foreign-posted");foreign.PostingStatus=InboundPostingStatusEnum.Posted;await f.Add(foreign);var foreignLine=f.Line(foreign,1,70);foreignLine.SourceLineId=Guid.NewGuid();await f.Add(foreignLine);
         var closed=f.Head("closed-draft");closed.LifecycleStatus=(InventoryDocumentLifecycleStatusEnum)8;await f.Add(closed);await f.Add(f.Line(closed,1,90));
         var draft=f.Head("open-draft");await f.Add(draft);await f.Add(f.Line(draft,1,4));var deleted=f.Line(draft,2,80);deleted.IsDeleted=true;await f.Add(deleted);
-        var result=await f.Repository.GetDetailAsync(current.Uid,default);Assert.IsNotNull(result);var line=result.Lines.Single();Assert.AreEqual(90m,line.RemainingReceivableQty);Assert.AreEqual(1,line.OtherDraftCount);Assert.AreEqual(4m,line.OtherDraftQuantity);
+        await Assert.ThrowsAsync<UnverifiedReceiptHistoryException>(()=>f.Repository.GetDetailAsync(current.Uid,default));
     });
 
     /// <summary>缺头、已删头和没有有效行都按完整头行入口读取，不擅自拒绝合法空详情。</summary>
@@ -111,13 +114,16 @@ public sealed partial class PostgreSqlInboundQueryMigrationTests
         var result=await f.Repository.GetDetailAsync(h.Uid,default);if(deleted)Assert.IsNull(result);else{Assert.IsNotNull(result);Assert.HasCount(0,result.Lines);}
     });
 
-    /// <summary>合法正数量可疑历史全局阻断无关/缺头详情，Search不调用Guard；业务信号不终止调用方事务。</summary>
+    /// <summary>同头可疑历史只阻断关联采购行，无关空头和缺头照常读取；业务信号不终止父事务。</summary>
     [TestMethod,TestCategory("PostgreSqlInboundQueryIntegration"),DataRow(false),DataRow(true)]
-    public Task RealPg_GlobalGuardVersusSearch(bool missingTarget) => Rollback(async f =>
+    public Task RealPg_ScopedGuardVersusSearch(bool missingTarget) => Rollback(async f =>
     {
         await f.Seed();var bad=f.Head("bad-history");bad.PostingStatus=InboundPostingStatusEnum.Posted;await f.Add(bad);var suspicious=f.Line(bad,1,1);suspicious.OriginalLineId=Guid.NewGuid();await f.Add(suspicious);
         var target=f.Head("target");await f.Add(target);Assert.AreEqual(2,(await f.Repository.SearchAsync(f.Search(),default)).TotalCount);
-        await Assert.ThrowsAsync<UnverifiedReceiptHistoryException>(()=>f.Repository.GetDetailAsync(missingTarget?Guid.NewGuid():target.Uid,default));
+        var result=await f.Repository.GetDetailAsync(missingTarget?Guid.NewGuid():target.Uid,default);
+        if(missingTarget)Assert.IsNull(result);else Assert.IsNotNull(result);
+        await f.Add(f.Line(target,1,1));
+        await Assert.ThrowsAsync<UnverifiedReceiptHistoryException>(()=>f.Repository.GetDetailAsync(target.Uid,default));
         Assert.AreEqual(1,await f.Session.Connection.ExecuteScalarAsync<int>("SELECT 1",transaction:f.Transaction));
     });
 

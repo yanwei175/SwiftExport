@@ -246,7 +246,7 @@ public sealed class InboundReversalService(
                 ExpectedQuantity = after
             });
         }
-        if (!await executionReads.ReverseWarehouseExistsAsync(h.WarehouseSiteId, token)) Block("原仓库不存在或已删除。");
+        if (!await executionReads.ReverseWarehouseExistsAsync(h.WarehouseSiteId, token)) Block("原仓库不存在、已删除或已停用。");
         preview.CanReverse = preview.Blockers.Count == 0;
         return (preview, facts);
     }

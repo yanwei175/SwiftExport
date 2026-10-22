@@ -37,13 +37,14 @@ public sealed class PurchaseOrderManagerQueryService(
     {
         if (request is null
             || request.PageIndex < 1
-            || request.PageSize is < 1 or > 200
+            || request.PageSize is < 1 or > PurchaseOrderManagerSearchRequest.MaxPageSize
             || (long)(request.PageIndex - 1) * request.PageSize > int.MaxValue
             || HasOversizedText(request.Keyword)
             || HasOversizedText(request.CustomerCode)
             || request.SupplierId == Guid.Empty
             || request.CustomerCodes is null || request.SupplierIds is null
-            || request.CustomerCodes.Count>500 || request.SupplierIds.Count>500
+            || request.CustomerCodes.Count>PurchaseOrderManagerSearchRequest.MaxPartyFilterCount
+            || request.SupplierIds.Count>PurchaseOrderManagerSearchRequest.MaxPartyFilterCount
             || request.CustomerCodes.Any(value=>string.IsNullOrWhiteSpace(value)||HasOversizedText(value))
             || request.SupplierIds.Any(value=>value==Guid.Empty)
             || request.OrderDateFrom?.Date > request.OrderDateTo?.Date
@@ -57,6 +58,6 @@ public sealed class PurchaseOrderManagerQueryService(
             throw new InvalidOperationException("采购管理筛选参数无效。");
     }
 
-    /// <summary>管理页模糊查询统一限制为一百字符；空文本不构成限制。</summary>
-    private static bool HasOversizedText(string? value) => value?.Length > 100;
+    /// <summary>按共享查询契约限制文本长度；空文本不构成限制。</summary>
+    private static bool HasOversizedText(string? value) => value?.Length > PurchaseOrderManagerSearchRequest.MaxTextLength;
 }

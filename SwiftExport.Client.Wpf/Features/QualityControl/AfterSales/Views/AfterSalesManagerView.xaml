@@ -1,23 +1,35 @@
-<UserControl x:Name="Root" x:Class="SwiftExportClient.Features.QualityControl.AfterSales.Views.AfterSalesManagerView"
-             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:controls="clr-namespace:SwiftExportClient.Resources.Controls"
-             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-             xmlns:d="http://schemas.microsoft.com/expression/blend/2008" xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
-             xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
-             xmlns:customerComponents="clr-namespace:SwiftExportClient.Features.Customers.Components"
-             xmlns:supplierComponents="clr-namespace:SwiftExportClient.Features.Suppliers.Components"
-             mc:Ignorable="d" d:DesignHeight="760" d:DesignWidth="1300">
-    
+<UserControl
+    x:Class="SwiftExportClient.Features.QualityControl.AfterSales.Views.AfterSalesManagerView"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:controls="clr-namespace:SwiftExportClient.Resources.Controls"
+    xmlns:customerComponents="clr-namespace:SwiftExportClient.Features.Customers.Components"
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    xmlns:supplierComponents="clr-namespace:SwiftExportClient.Features.Suppliers.Components"
+    xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
+    x:Name="Root"
+    d:DesignHeight="760"
+    d:DesignWidth="1300"
+    mc:Ignorable="d">
+
     <Grid Margin="12" RowDefinitions="Auto,8,Auto,8,*,8,Auto">
-        
-        <!--条件筛选区域-->
+
+        <!--  条件筛选区域  -->
         <Grid RowDefinitions="Auto,8, *">
             <Grid ColumnDefinitions="3*,3*,3*">
-                <TextBlock Text="售后投诉" Style="{StaticResource SubtitleTextBlock}" VerticalAlignment="Center"/>
-                <!--搜索框-->
-                <ui:TextBox x:Name="SearchTextBox" Grid.Column="1" VerticalAlignment="Stretch"
-                            Text="{Binding Keyword,UpdateSourceTrigger=PropertyChanged}" 
-                            Icon="{ui:SymbolIcon Symbol=Search24}"
-                            PlaceholderText="售后单号、客户型号、AQ型号或SKU">
+                <TextBlock
+                    VerticalAlignment="Center"
+                    Style="{StaticResource SubtitleTextBlock}"
+                    Text="售后投诉" />
+                <!--  搜索框  -->
+                <ui:TextBox
+                    x:Name="SearchTextBox"
+                    Grid.Column="1"
+                    VerticalAlignment="Stretch"
+                    Icon="{ui:SymbolIcon Symbol=Search24}"
+                    PlaceholderText="售后单号、客户型号、AQ型号或SKU"
+                    Text="{Binding Keyword, UpdateSourceTrigger=PropertyChanged}">
                     <ui:TextBox.InputBindings>
                         <KeyBinding Key="Enter" Command="{Binding SearchCommand}" />
                     </ui:TextBox.InputBindings>
@@ -25,12 +37,21 @@
 
                 <StackPanel Grid.Column="2" Orientation="Horizontal">
 
-                    <ui:Button Grid.Column="2"  Appearance="Primary" Margin="8,0,0,0"
-                            Content="查询" VerticalAlignment="Stretch"
-                            Command="{Binding SearchCommand}" MinWidth="70"/>
+                    <ui:Button
+                        Grid.Column="2"
+                        MinWidth="70"
+                        Margin="8,0,0,0"
+                        VerticalAlignment="Stretch"
+                        Appearance="Primary"
+                        Command="{Binding SearchCommand}"
+                        Content="查询" />
 
-                    <ui:Button Content="刷新" Command="{Binding RefreshCommand}" Margin="8,0,0,0"
-                            VerticalAlignment="Stretch" MinWidth="70"/>
+                    <ui:Button
+                        MinWidth="70"
+                        Margin="8,0,0,0"
+                        VerticalAlignment="Stretch"
+                        Command="{Binding RefreshCommand}"
+                        Content="刷新" />
 
                 </StackPanel>
 
@@ -40,76 +61,101 @@
             <StackPanel Grid.Row="2">
                 <DockPanel LastChildFill="True">
                     <WrapPanel HorizontalAlignment="Left">
-                        
-                        <ui:Button Margin="0,0,8,0" MinWidth="70"
-                                   Appearance="Primary"
-                                   Command="{Binding CreateCommand}"
-                                   Content="新建售后单"
-                                   ToolTip="新建售后单">
-                        </ui:Button>
 
-                        <ui:Button Margin="0,0,8,0" MinWidth="70"
-                                   Content="打开详情"
-                                   Command="{Binding OpenDetailCommand}"
-                                   ToolTip="打开详情">
-                        </ui:Button>
+                        <ui:Button
+                            MinWidth="70"
+                            Margin="0,0,8,0"
+                            Appearance="Primary"
+                            Command="{Binding CreateCommand}"
+                            Content="新建售后单"
+                            ToolTip="新建售后单" />
 
-                        <customerComponents:CustomerAutoSuggestComboBox Grid.Column="2" Margin="0,0,8,0"
-                                                                           ItemsSource="{Binding CustomerOptions}"
-                                                                           SelectedCustomer="{Binding SelectedCustomer,Mode=TwoWay}"
-                                                                           AutomationProperties.Name="客户筛选"/>
+                        <ui:Button
+                            MinWidth="70"
+                            Margin="0,0,8,0"
+                            Command="{Binding OpenDetailCommand}"
+                            Content="打开详情"
+                            ToolTip="打开详情" />
 
-                        <supplierComponents:SupplierAutoSuggestComboBox Grid.Column="4" Margin="0,0,8,0"
-                                                                           ItemsSource="{Binding SupplierOptions}"
-                                                                           SelectedSupplier="{Binding SelectedSupplier,Mode=TwoWay}"
-                                                                           AutomationProperties.Name="责任方筛选"/>
+                        <customerComponents:CustomerAutoSuggestComboBox
+                            Grid.Column="2"
+                            Margin="0,0,8,0"
+                            AutomationProperties.Name="客户筛选"
+                            ItemsSource="{Binding CustomerOptions}"
+                            SelectedCustomer="{Binding SelectedCustomer, Mode=TwoWay}" />
 
-                        <ComboBox VerticalContentAlignment="Center" Margin="0,0,8,0" 
-                                  ItemsSource="{Binding DocumentStatusOptions}" 
-                                  SelectedItem="{Binding SelectedDocumentStatus}" 
-                                  DisplayMemberPath="Text" 
-                                  AutomationProperties.Name="生命周期筛选"/>
+                        <supplierComponents:SupplierAutoSuggestComboBox
+                            Grid.Column="4"
+                            Margin="0,0,8,0"
+                            AutomationProperties.Name="责任方筛选"
+                            ItemsSource="{Binding SupplierOptions}"
+                            SelectedSupplier="{Binding SelectedSupplier, Mode=TwoWay}" />
 
-                        <ComboBox VerticalContentAlignment="Center" Margin="0,0,8,0"
-                                  ItemsSource="{Binding ConfirmationOptions}" 
-                                  SelectedItem="{Binding SelectedConfirmationStatus}" 
-                                  DisplayMemberPath="Text" 
-                                  AutomationProperties.Name="实物确认筛选"/>
+                        <ComboBox
+                            Margin="0,0,8,0"
+                            VerticalContentAlignment="Center"
+                            AutomationProperties.Name="生命周期筛选"
+                            DisplayMemberPath="Text"
+                            ItemsSource="{Binding DocumentStatusOptions}"
+                            SelectedItem="{Binding SelectedDocumentStatus}" />
 
-                        <TextBlock Text=" 受理日期起 : " Style="{DynamicResource LabelTextBlock}" VerticalAlignment="Center"/>
-                        <DatePicker SelectedDate="{Binding DateFrom}" AutomationProperties.Name="受理日期起" Margin="0,0,8,0"/>
+                        <ComboBox
+                            Margin="0,0,8,0"
+                            VerticalContentAlignment="Center"
+                            AutomationProperties.Name="实物确认筛选"
+                            DisplayMemberPath="Text"
+                            ItemsSource="{Binding ConfirmationOptions}"
+                            SelectedItem="{Binding SelectedConfirmationStatus}" />
 
-                        <TextBlock Text=" 受理日期止 : " Style="{DynamicResource LabelTextBlock}" VerticalAlignment="Center"/>
-                        <DatePicker SelectedDate="{Binding DateTo}" AutomationProperties.Name="受理日期止" Margin="0,0,8,0"/>
+                        <TextBlock
+                            VerticalAlignment="Center"
+                            Style="{DynamicResource LabelTextBlock}"
+                            Text=" 受理日期起 : " />
+                        <DatePicker
+                            Margin="0,0,8,0"
+                            AutomationProperties.Name="受理日期起"
+                            SelectedDate="{Binding DateFrom}" />
+
+                        <TextBlock
+                            VerticalAlignment="Center"
+                            Style="{DynamicResource LabelTextBlock}"
+                            Text=" 受理日期止 : " />
+                        <DatePicker
+                            Margin="0,0,8,0"
+                            AutomationProperties.Name="受理日期止"
+                            SelectedDate="{Binding DateTo}" />
 
 
-                        <ToggleButton x:Name="OptionsToggleButton" Content="更多条件" Margin="0,0,8,0" HorizontalAlignment="Left" />
-                    
+                        <ToggleButton
+                            x:Name="OptionsToggleButton"
+                            Margin="0,0,8,0"
+                            HorizontalAlignment="Left"
+                            Content="更多条件" />
+
                     </WrapPanel>
 
-                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
-                    </StackPanel>
+                    <StackPanel HorizontalAlignment="Right" Orientation="Horizontal" />
 
                 </DockPanel>
 
-                <Popup IsOpen="{Binding IsChecked, Mode=TwoWay,ElementName=OptionsToggleButton}"
-                       Placement="Bottom"
-                       PlacementTarget="{Binding RelativeSource={RelativeSource AncestorType={x:Type StackPanel}}}"
-                       Width="{Binding PlacementTarget.ActualWidth, RelativeSource={RelativeSource Self}}"
-                       VerticalOffset="4"
-                       AllowsTransparency="True"
-                       PopupAnimation="Fade"
-                       StaysOpen="True">
-                    <Border Padding="8"
+                <Popup
+                    Width="{Binding PlacementTarget.ActualWidth, RelativeSource={RelativeSource Self}}"
+                    AllowsTransparency="True"
+                    IsOpen="{Binding IsChecked, Mode=TwoWay, ElementName=OptionsToggleButton}"
+                    Placement="Bottom"
+                    PlacementTarget="{Binding RelativeSource={RelativeSource AncestorType={x:Type StackPanel}}}"
+                    PopupAnimation="Fade"
+                    StaysOpen="True"
+                    VerticalOffset="4">
+                    <Border
+                        Padding="8"
                         Background="{DynamicResource UserLayerOnMicaBaseAltFillColorTertiaryBrush}"
                         BorderBrush="{DynamicResource UserCardStrokeColorDefaultSolidBrush}"
                         BorderThickness="1"
                         CornerRadius="4">
-                        <StackPanel Orientation="Horizontal" MinHeight="120">
+                        <StackPanel MinHeight="120" Orientation="Horizontal">
 
-                            <Grid RowDefinitions="Auto,Auto,Auto" ColumnDefinitions="Auto,130,Auto,Auto">
-
-                            </Grid>
+                            <Grid ColumnDefinitions="Auto,130,Auto,Auto" RowDefinitions="Auto,Auto,Auto" />
                         </StackPanel>
                     </Border>
                 </Popup>
@@ -117,59 +163,98 @@
             </StackPanel>
         </Grid>
 
-        <DataGrid Grid.Row="4" 
-                  RowHeight="{DynamicResource DataGridRowHeightSmall}"
-                    ItemsSource="{Binding Orders}" 
-                    SelectedItem="{Binding SelectedOrder,Mode=TwoWay}"
-                    AutoGenerateColumns="False" 
-                    IsReadOnly="True" 
-                    SelectionMode="Single" 
-                    SelectionUnit="FullRow"
-                    EnableRowVirtualization="True" 
-                    EnableColumnVirtualization="True" 
-                    Style="{StaticResource SwiftExportDataGrid}"
-                    AutomationProperties.Name="售后服务单列表">
+        <DataGrid
+            Grid.Row="4"
+            AutoGenerateColumns="False"
+            AutomationProperties.Name="售后服务单列表"
+            EnableColumnVirtualization="True"
+            EnableRowVirtualization="True"
+            IsReadOnly="True"
+            ItemsSource="{Binding Orders}"
+            RowHeight="{DynamicResource DataGridRowHeightSmall}"
+            SelectedItem="{Binding SelectedOrder, Mode=TwoWay}"
+            SelectionMode="Single"
+            SelectionUnit="FullRow"
+            Style="{StaticResource SwiftExportDataGrid}">
             <DataGrid.InputBindings>
-                <MouseBinding MouseAction="LeftDoubleClick" Command="{Binding OpenDetailCommand}"/>
+                <MouseBinding Command="{Binding OpenDetailCommand}" MouseAction="LeftDoubleClick" />
             </DataGrid.InputBindings>
             <DataGrid.Columns>
-                <DataGridTextColumn Header="客户投诉单号" Binding="{Binding CustomerComplaintNo}" 
-                                    ElementStyle="{StaticResource SwiftExportDataGridWarpTextBlock}"
-                                    Width="140"/>
+                <DataGridTextColumn
+                    Width="140"
+                    Binding="{Binding CustomerComplaintNo}"
+                    ElementStyle="{StaticResource SwiftExportDataGridWarpTextBlock}"
+                    Header="客户投诉单号" />
 
-                <DataGridTextColumn Header="售后单号" ElementStyle="{StaticResource SwiftExportDataGridWarpTextBlock}"
-                    Binding="{Binding AfterSalesNo}" Width="140"/>
+                <DataGridTextColumn
+                    Width="140"
+                    Binding="{Binding AfterSalesNo}"
+                    ElementStyle="{StaticResource SwiftExportDataGridWarpTextBlock}"
+                    Header="售后单号" />
 
-                <DataGridTextColumn Header="客户" ElementStyle="{StaticResource SwiftExportDataGridWarpTextBlock}"
-                    Binding="{Binding CustomerDisplay}" Width="180"/>
+                <DataGridTextColumn
+                    Width="180"
+                    Binding="{Binding CustomerDisplay}"
+                    ElementStyle="{StaticResource SwiftExportDataGridWarpTextBlock}"
+                    Header="客户" />
 
-                <DataGridTextColumn Header="受理日期" ElementStyle="{StaticResource SwiftExportDataGridDateTextBlock}"
-                    Binding="{Binding AcceptedDate,StringFormat=yyyy-MM-dd}" Width="100"/>
+                <DataGridTextColumn
+                    Width="100"
+                    Binding="{Binding AcceptedDate, StringFormat=yyyy-MM-dd}"
+                    ElementStyle="{StaticResource SwiftExportDataGridDateTextBlock}"
+                    Header="受理日期" />
 
-                <DataGridTextColumn Header="负责人" ElementStyle="{StaticResource SwiftExportDataGridWarpTextBlock}"
-                    Binding="{Binding OwnerName}" Width="100"/>
+                <DataGridTextColumn
+                    Width="100"
+                    Binding="{Binding OwnerName}"
+                    ElementStyle="{StaticResource SwiftExportDataGridWarpTextBlock}"
+                    Header="负责人" />
 
-                <DataGridTextColumn Header="问题型号摘要" ElementStyle="{StaticResource SwiftExportDataGridWarpTextBlock}"
-                    Binding="{Binding IssueModels}" Width="180"/>
+                <DataGridTextColumn
+                    Width="180"
+                    Binding="{Binding IssueModels}"
+                    ElementStyle="{StaticResource SwiftExportDataGridWarpTextBlock}"
+                    Header="问题型号摘要" />
 
-                <DataGridTextColumn Header="责任方摘要" ElementStyle="{StaticResource SwiftExportDataGridWarpTextBlock}"
-                    Binding="{Binding ResponsibleSuppliers}" Width="160"/>
+                <DataGridTextColumn
+                    Width="160"
+                    Binding="{Binding ResponsibleSuppliers}"
+                    ElementStyle="{StaticResource SwiftExportDataGridWarpTextBlock}"
+                    Header="责任方摘要" />
 
-                <DataGridTextColumn Header="生命周期" ElementStyle="{StaticResource SwiftExportDataGridWarpTextBlock}"
-                    Binding="{Binding DocumentStatusText}" Width="85"/>
+                <DataGridTextColumn
+                    Width="85"
+                    Binding="{Binding DocumentStatusText}"
+                    ElementStyle="{StaticResource SwiftExportDataGridWarpTextBlock}"
+                    Header="生命周期" />
 
-                <DataGridTextColumn Header="实物需求" ElementStyle="{StaticResource SwiftExportDataGridWarpTextBlock}"
-                    Binding="{Binding ConfirmationStatusText}" Width="95"/>
+                <DataGridTextColumn
+                    Width="95"
+                    Binding="{Binding ConfirmationStatusText}"
+                    ElementStyle="{StaticResource SwiftExportDataGridWarpTextBlock}"
+                    Header="实物需求" />
 
-                <DataGridTextColumn Header="人民币金额" ElementStyle="{StaticResource SwiftExportDataGridNumberTextBlock}"
-                                    Binding="{Binding AmountText}" Width="125"/>
+                <DataGridTextColumn
+                    Width="125"
+                    Binding="{Binding AmountText}"
+                    ElementStyle="{StaticResource SwiftExportDataGridNumberTextBlock}"
+                    Header="人民币金额" />
 
             </DataGrid.Columns>
         </DataGrid>
-        
+
         <Grid Grid.Row="6" ColumnDefinitions="*,Auto">
-            <TextBlock Text="{Binding ResultSummary}" VerticalAlignment="Center" AutomationProperties.LiveSetting="Polite"/>
-            <controls:PageNavigator Grid.Column="1" TotalCount="{Binding TotalCount}" PageIndex="{Binding PageIndex,Mode=OneWay}" PageSize="{Binding PageSize,Mode=OneWay}" PageChangeCommand="{Binding PageChangeCommand}" IsEnabled="{Binding IsNotBusy}"/>
+            <TextBlock
+                VerticalAlignment="Center"
+                AutomationProperties.LiveSetting="Polite"
+                Text="{Binding ResultSummary}" />
+            <controls:PageNavigator
+                Grid.Column="1"
+                IsEnabled="{Binding IsNotBusy}"
+                PageChangeCommand="{Binding PageChangeCommand}"
+                PageSize="{Binding PageSize, Mode=OneWay}"
+                TotalCount="{Binding TotalCount}"
+                PageIndex="{Binding PageIndex, Mode=OneWay}" />
         </Grid>
     </Grid>
 </UserControl>

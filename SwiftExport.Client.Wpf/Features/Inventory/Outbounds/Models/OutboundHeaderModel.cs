@@ -87,7 +87,15 @@ public sealed partial class OutboundHeaderModel : BaseLineModel<OutboundHeaderDe
     public event EventHandler? DetailStateChanged;
 
     /// <summary>仅开放人工活动草稿编辑。</summary>
-    public bool CanEdit => !IsPersistencePending && IsDetailLoaded && TriggerPackingListId is null && DocumentType == OutboundDocumentTypeEnum.StockIssue && LifecycleStatus == InventoryDocumentLifecycleStatusEnum.Active && PostingStatus == OutboundPostingStatusEnum.Unposted;
+    public bool CanEdit => !HasVersionConflict && !IsPersistencePending && IsDetailLoaded && TriggerPackingListId is null && DocumentType == OutboundDocumentTypeEnum.StockIssue && LifecycleStatus == InventoryDocumentLifecycleStatusEnum.Active && PostingStatus == OutboundPostingStatusEnum.Unposted;
+
+    /// <summary>页面提供账号、权限、只读和忙碌输入许可，不属于持久化单据数据。</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(CanEditInPage))]
+    public partial bool PageAllowsEditing { get; set; } = true;
+
+    /// <summary>单元格模板须同时符合单据资格及当前页面输入许可。</summary>
+    public bool CanEditInPage => CanEdit && PageAllowsEditing;
 
     /// <summary>已发送命令待确认或待详情回填时禁止编辑；只在当前会话存在。</summary>
     [ObservableProperty]
@@ -95,7 +103,9 @@ public sealed partial class OutboundHeaderModel : BaseLineModel<OutboundHeaderDe
     public partial bool IsPersistencePending { get; set; }
 
     /// <summary>发生整单版本冲突后须显式重新读取，不能自动升级版本覆盖服务器。</summary>
-    [ObservableProperty] public partial bool HasVersionConflict { get; set; }
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(CanEdit))]
+    public partial bool HasVersionConflict { get; set; }
     /// <summary>人工单固定普通库存出库类型，不允许切换成客户交付。</summary>
     public bool CanChangeDocumentType => false;
 
@@ -103,14 +113,14 @@ public sealed partial class OutboundHeaderModel : BaseLineModel<OutboundHeaderDe
     public OutboundHeaderModel()
     {
         Lines.ListStateChanged += (_, _) => { OnPropertyChanged(nameof(TotalQuantity)); OnPropertyChanged(nameof(CanChangeDocumentType)); DetailStateChanged?.Invoke(this, EventArgs.Empty); };
-        PropertyChanged += (_, e) => { if (e.PropertyName is nameof(CanEdit) or nameof(IsNew)) OnPropertyChanged(nameof(CanChangeDocumentType)); };
+        PropertyChanged += (_, e) => { if (e.PropertyName is nameof(CanEdit) or nameof(IsNew)) { OnPropertyChanged(nameof(CanChangeDocumentType)); OnPropertyChanged(nameof(CanEditInPage)); } };
     }
 
     /// <inheritdoc/>
     public override string? ValidateRow()
     {
-        if (!CanEdit) return "仅允许保存已加载的人工活动草稿。";
         if (HasVersionConflict) return "单据版本冲突，请选中该单并点击刷新，确认放弃修改后重载。";
+        if (!CanEdit) return "仅允许保存已加载的人工活动草稿。";
         if (DocumentType != OutboundDocumentTypeEnum.StockIssue) return "当前仅支持普通库存出库草稿。";
         if (WarehouseSiteId == Guid.Empty || ShipmentDate == default) return "请选择出库仓库和出库日期。";
         if (Remark?.Length > 500) return "备注最多 500 字。";
@@ -122,7 +132,7 @@ public sealed partial class OutboundHeaderModel : BaseLineModel<OutboundHeaderDe
 
     /// <inheritdoc/>
     protected override bool IsTrackingIgnoredProperty(string? name) =>
-        base.IsTrackingIgnoredProperty(name) || name is nameof(TotalQuantity) or nameof(CanEdit) or nameof(CanChangeDocumentType) or nameof(IsDetailLoaded) or nameof(SummaryQuantity) or nameof(IsPersistencePending) or nameof(HasVersionConflict);
+        base.IsTrackingIgnoredProperty(name) || name is nameof(TotalQuantity) or nameof(CanEdit) or nameof(CanEditInPage) or nameof(PageAllowsEditing) or nameof(CanChangeDocumentType) or nameof(IsDetailLoaded) or nameof(SummaryQuantity) or nameof(IsPersistencePending) or nameof(HasVersionConflict);
 
     /// <inheritdoc/>
     protected override void LoadFromDto(OutboundHeaderDetailDto dto) => dto.Adapt(this);

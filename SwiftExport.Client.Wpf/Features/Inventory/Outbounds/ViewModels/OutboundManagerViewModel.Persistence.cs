@@ -6,6 +6,9 @@ using SwiftExport.Contracts.DTOs.Inventory.Outbounds;
 using SwiftExport.Contracts.Wrappers;
 using SwiftExportClient.Features.Inventory.Outbounds.Models;
 using SwiftExportClient.Features.Inventory.Outbounds.Services;
+using SwiftExport.Contracts.DTOs.Auth;
+using SwiftExport.Contracts.SysEnums.Inventory;
+using System.Windows.Data;
 
 namespace SwiftExportClient.Features.Inventory.Outbounds.ViewModels;
 
@@ -20,7 +23,25 @@ public sealed partial class OutboundManagerViewModel
     /// <summary>请求 View 提交原生 Grid 编辑；转换或验证失败可设置 Cancel 阻止发送。</summary>
     public event CancelEventHandler? CommitEditsRequested;
 
-    private bool CanSave() => CanEdit() && _persistence is not null && HasUnsavedChanges;
+    private bool CanSave() => CanEdit() && _persistence is not null && _pendingWrites.Count == 0
+        && Headers.Items.Any(x => x.IsDirty || x.Lines.HasChanges)
+        && Headers.Items.Where(x => x.IsDirty || x.Lines.HasChanges).All(row => row.CanEdit && HasDraftPermission(row));
+
+    /// <summary>本地移除按创建权限，持久化删除按删除权限，整组准入在首个请求前核对。</summary>
+    private bool CanDeleteSelection() => CanEdit() && _pendingWrites.Count == 0 && DeletionRows() is { Length: > 0 } rows
+        && rows.All(row => row.CanEdit) && HasDeletePermissions(rows);
+    private OutboundHeaderModel[] DeletionRows() => (Headers.CheckedItems.Count > 0 ? Headers.CheckedItems
+        : SelectedItem is null ? [] : new[] { SelectedItem }).ToArray();
+    private bool HasDeletePermissions(IEnumerable<OutboundHeaderModel> rows) => !IsReadOnly && HasViewPermission
+        && rows.All(row => row.IsNew ? HasDraftPermission(row) : _postingUser?.HasPermission(PermissionKeys.InventoryOutboundDelete) == true);
+
+    /// <summary>已知成功只读回填需要查看权限；未知重放必须保留原账号并拥有原操作权限。</summary>
+    private bool HasRecoveryPermission(OutboundPendingWrite pending) => !_disposed && HasViewPermission && pending.UserKey == CurrentUserKey
+        && (pending.AcceptedResult is not null || _postingUser?.HasPermission(pending.Create is not null ? PermissionKeys.InventoryOutboundCreate
+            : pending.Update is not null ? PermissionKeys.InventoryOutboundEdit : pending.Delete is not null ? PermissionKeys.InventoryOutboundDelete
+            : pending.Post is not null ? PermissionKeys.InventoryOutboundPost : PermissionKeys.InventoryOutboundReverse) == true);
+    private bool CanRecover(OutboundPendingWrite pending) => IsNotBusy && _persistence is not null && HasRecoveryPermission(pending);
+    private bool IsCurrentWriteContext(OutboundPendingWrite pending, int session) => !_disposed && session == _userSession && pending.UserKey == CurrentUserKey;
 
     /// <summary>发送前验证全部明细并补齐各单出库原因；取消不提交，逐单写入失败保留后续编辑。</summary>
     [RelayCommand(CanExecute = nameof(CanSave))]
@@ -29,6 +50,7 @@ public sealed partial class OutboundManagerViewModel
         if (!CanSave() || !CommitGridEdits()) return;
         if (RequirePendingRecovery()) return;
         var rows = Headers.Items.Where(x => x.IsDirty || x.Lines.HasChanges).ToArray();
+        var session = _userSession;
         ValidationSummary = null;
         foreach (var row in rows)
         {
@@ -50,36 +72,40 @@ public sealed partial class OutboundManagerViewModel
                 { ValidationSummary = $"{DisplayName(row)}：请先填写出库原因。"; return; }
                 SelectedItem = row;
                 var result = await _issueReasonDialogs.CollectAsync(DisplayName(row), _lifetime.Token);
-                if (_disposed) return;
+                if (_disposed || session != _userSession || IsReadOnly || !HasViewPermission || !rows.All(HasDraftPermission)) return;
                 if (result.Result != SwiftExportClient.Services.UI.DialogResult.Primary)
                 { ResultSummary = "已取消保存，未发送任何草稿；当前编辑已保留。"; return; }
                 if (string.IsNullOrWhiteSpace(result.Reason) || result.Reason.Length > 500)
                 { ValidationSummary = "出库原因必填，最多 500 字。"; return; }
                 row.IssueReason = result.Reason;
             }
-            if (_disposed) return;
+            if (_disposed || session != _userSession || IsReadOnly || !HasViewPermission || !rows.All(HasDraftPermission)) return;
             var saved = 0;
             foreach (var row in rows)
             {
+                if (_disposed || session != _userSession || IsReadOnly || !HasViewPermission || !HasDraftPermission(row)) return;
                 var draft = row.Adapt<OutboundDraftData>();
                 var pending = row.IsNew
                     ? new OutboundPendingWrite { DocumentId = row.Uid, Create = new() { CommandId = Guid.NewGuid(), Draft = draft } }
                     : new OutboundPendingWrite { DocumentId = row.Uid, Update = new() { CommandId = Guid.NewGuid(), ExpectedVersion = row.Version, Draft = draft } };
                 BeginPending(row, pending);
                 if (!await CompletePendingAsync(row, pending))
-                { if (!_disposed) { SelectedItem = row; ResultSummary = $"已完成 {saved} 张；{DisplayName(row)}：{ResultSummary}"; } return; }
+                { if (IsCurrentWriteContext(pending, session)) { SelectedItem = row; ResultSummary = $"已完成 {saved} 张；{DisplayName(row)}：{ResultSummary}"; } return; }
                 saved++;
+                if (pending.HasLaterDetail) { ResultSummary = LaterDetailMessage(row); return; }
             }
             if (!_disposed) ResultSummary = $"已保存 {saved} 张出库草稿，库存未变化。列表总数为上次查询快照。";
         }, "逐单保存出库草稿");
     }
 
     /// <summary>本地新增直接移除；已有草稿须填写共同原因，服务端明确成功才移除页面记录。</summary>
-    [RelayCommand(CanExecute = nameof(CanEdit))]
+    [RelayCommand(CanExecute = nameof(CanDeleteSelection))]
     private async Task DeleteSelectedAsync()
     {
-        if (!CanEdit() || !CommitGridEdits() || RequirePendingRecovery()) return;
-        var rows = (Headers.CheckedItems.Count > 0 ? Headers.CheckedItems : SelectedItem is null ? [] : new[] { SelectedItem }).ToArray();
+        if (!CanDeleteSelection() || !CommitGridEdits() || RequirePendingRecovery()) return;
+        var selected = DeletionRows().ToHashSet();
+        var rows = CollectionViewSource.GetDefaultView(Headers.Items).Cast<OutboundHeaderModel>().Where(selected.Contains).ToArray();
+        var session = _userSession;
         if (rows.Length == 0) return;
         var blocked = rows.FirstOrDefault(x => !x.CanEdit || x.HasVersionConflict);
         if (blocked is not null)
@@ -96,11 +122,12 @@ public sealed partial class OutboundManagerViewModel
                 if (string.IsNullOrWhiteSpace(reason) || reason.Length > 500) return;
             }
             else if (!await _dialogs.ConfirmAsync("删除本地出库草稿", $"确认移除 {rows.Length} 张未保存草稿及其明细？", cancellationToken: _lifetime.Token)) return;
-            if (_disposed) return;
+            if (_disposed || session != _userSession || !HasDeletePermissions(rows)) return;
             var deleted = 0;
             foreach (var row in rows)
             {
-                if (row.IsNew) Headers.RemoveCompletely(row);
+                if (_disposed || session != _userSession || !HasDeletePermissions(rows)) return;
+                if (row.IsNew) RemoveHeaderAndPreserveSelection(row);
                 else
                 {
                     var pending = new OutboundPendingWrite
@@ -110,44 +137,47 @@ public sealed partial class OutboundManagerViewModel
                     };
                     BeginPending(row, pending);
                     if (!await CompletePendingAsync(row, pending))
-                    { if (!_disposed) { SelectedItem = row; ResultSummary = $"已删除 {deleted} 张；{DisplayName(row)}：{ResultSummary}"; } return; }
+                    { if (IsCurrentWriteContext(pending, session)) ResultSummary = $"已删除 {deleted} 张；{DisplayName(row)}：{ResultSummary}"; return; }
                 }
                 deleted++;
             }
             if (_disposed) return;
-            if (SelectedItem is not null && !Headers.Items.Contains(SelectedItem)) SelectedItem = Headers.Items.FirstOrDefault();
             ResultSummary = $"已删除 {deleted} 张草稿；持久化单据保留软删除及审计记录。列表总数为上次查询快照。";
             NotifyEditState();
         }, "删除出库草稿");
+        await LoadSelectedDetailAsync();
     }
 
     /// <summary>刷新按钮显式恢复当前待确认命令；已收到成功结果时只重试详情。</summary>
     private async Task RecoverSelectedAsync()
     {
-        if (!CanEdit() || _persistence is null || SelectedItem is not { } row || !_pendingWrites.TryGetValue(row, out var pending)) return;
-        await RunWriteAsync(async () =>
+        var row = SelectedItem is { } selected && _pendingWrites.ContainsKey(selected) ? selected : _pendingWrites.Keys.FirstOrDefault();
+        if (row is null || !_pendingWrites.TryGetValue(row, out var pending) || !CanRecover(pending)) return;
+        await RunBusyAsync(async () =>
         {
             if (pending.Delete is not null && pending.AcceptedResult is null
                 && !await _dialogs.ConfirmAsync("重试待确认删除", "将使用原删除原因、版本和命令标识重试，确认是否继续？", cancellationToken: _lifetime.Token)) return;
-            if (_disposed) return;
+            if (!HasRecoveryPermission(pending)) return;
             if (await CompletePendingAsync(row, pending) && !_disposed)
             {
-                if (!Headers.Items.Contains(row)) SelectedItem = Headers.Items.FirstOrDefault();
-                ResultSummary = "原命令结果已确认；剩余未保存单据请继续点击保存。";
+                ResultSummary = pending.HasLaterDetail ? LaterDetailMessage(row) : "原命令结果已确认；剩余未保存单据请继续点击保存。";
             }
         }, "确认原出库命令");
+        await LoadSelectedDetailAsync();
     }
 
     /// <summary>冲突后只重新读取当前单，用户拒绝或读取失败均保留原编辑和旧版本。</summary>
     private async Task ReloadConflictedAsync()
     {
         if (!CanEdit() || _persistence is null || SelectedItem is not { } row || !CommitGridEdits()) return;
+        var session = _userSession;
         await RunBusyAsync(async () =>
         {
             if (!await _dialogs.ConfirmAsync("重新加载冲突单据", "确认放弃当前单据的本地修改并读取服务器版本？其他单据的修改会保留。", cancellationToken: _lifetime.Token)) return;
-            if (_disposed) return;
+            if (_disposed || session != _userSession || !HasViewPermission) return;
+            var revision = _editRevision;
             var result = await _persistence.GetAsync(row.Uid, _lifetime.Token);
-            if (_disposed) return;
+            if (_disposed || session != _userSession || !HasViewPermission || revision != _editRevision) return;
             if (!result.Success || !ValidDetail(result.Data, row.Uid))
             { ResultSummary = result.Message + " 原编辑和版本已保留。"; return; }
             row.Load(result.Data.Header);
@@ -163,6 +193,7 @@ public sealed partial class OutboundManagerViewModel
     /// <summary>发出请求前登记快照，即使未知异常也不能把已发送意图当作未发送。</summary>
     private void BeginPending(OutboundHeaderModel row, OutboundPendingWrite pending)
     {
+        pending.UserKey = CurrentUserKey;
         _pendingWrites.Add(row, pending);
         row.IsPersistencePending = true;
         NotifyEditState();
@@ -171,6 +202,8 @@ public sealed partial class OutboundManagerViewModel
     /// <summary>只按明确成功接纳版本；结果未知后的后续失败不能清除待确认状态。</summary>
     private async Task<bool> CompletePendingAsync(OutboundHeaderModel row, OutboundPendingWrite pending)
     {
+        var session = _userSession;
+        if (!HasRecoveryPermission(pending)) return false;
         try
         {
             if (pending.AcceptedResult is null)
@@ -181,13 +214,13 @@ public sealed partial class OutboundManagerViewModel
                     : pending.Post is not null ? await SendPostAsync(pending)
                     : pending.Reverse is not null ? await SendReverseAsync(pending)
                     : await _persistence!.DeleteAsync(pending.DocumentId, pending.Delete!, CancellationToken.None);
-                if (_disposed) return false;
                 if (!result.Success)
                 {
                     var code = result.Error?.Code;
                     var uncertain = code is null or OutboundErrorCodes.OutcomeUnknown or OutboundErrorCodes.CommandBusy
                         or ServiceErrorCodes.Unexpected or ServiceErrorCodes.ServiceUnavailable or ServiceErrorCodes.CommandConflict;
                     pending.WasUncertain |= uncertain;
+                    if (!IsCurrentWriteContext(pending, session)) return false;
                     if (!pending.WasUncertain)
                     {
                         EndPending(row);
@@ -198,10 +231,12 @@ public sealed partial class OutboundManagerViewModel
                     return false;
                 }
                 var accepted = result.Data;
+                var expectedVersion = pending.Update?.ExpectedVersion ?? pending.Delete?.ExpectedVersion ?? pending.Post?.ExpectedVersion ?? pending.Reverse?.ExpectedVersion;
                 if (accepted is null || accepted.Uid == Guid.Empty || accepted.Version <= 0
-                    || (pending.Create is null && accepted.Uid != pending.DocumentId) || accepted.IsDeleted != (pending.Delete is not null))
-                { pending.WasUncertain = true; ResultSummary = "命令成功响应身份不完整或不匹配，请点击刷新确认原命令。"; return false; }
+                    || (pending.Create is null && (accepted.Uid != pending.DocumentId || accepted.Version != expectedVersion + 1)) || accepted.IsDeleted != (pending.Delete is not null))
+                { pending.WasUncertain = true; if (IsCurrentWriteContext(pending, session)) ResultSummary = "命令成功响应身份不完整或不匹配，请点击刷新确认原命令。"; return false; }
                 pending.AcceptedResult = accepted;
+                if (!IsCurrentWriteContext(pending, session)) return false;
                 // 创建所得身份立即保留，但未取得服务器行身份前绝不清除编辑或再次创建。
                 row.Uid = accepted.Uid;
                 row.Version = accepted.Version;
@@ -215,20 +250,23 @@ public sealed partial class OutboundManagerViewModel
                         row.ReversedDate = reversed.ReversedDate; row.ReversedBy = reversed.ReversedBy; row.ReverseReason = reversed.ReverseReason;
                     }
             }
+            if (!IsCurrentWriteContext(pending, session) || !HasViewPermission) return false;
             if (pending.Delete is not null)
             {
                 EndPending(row);
-                Headers.RemoveCompletely(row);
+                RemoveHeaderAndPreserveSelection(row);
                 return true;
             }
             var detailResult = await _persistence!.GetAsync(pending.AcceptedResult.Uid, CancellationToken.None);
-            if (_disposed) return false;
+            if (!IsCurrentWriteContext(pending, session) || !HasViewPermission) return false;
             var detail = detailResult.Data;
             if (!detailResult.Success || !ValidDetail(detail, pending.AcceptedResult.Uid)
                 || detail!.Header.Version < pending.AcceptedResult.Version
-                || (pending.Post is not null && detail.Header.PostingStatus != SwiftExport.Contracts.SysEnums.Inventory.OutboundPostingStatusEnum.Posted)
+                || (pending.Post is not null && detail.Header.PostingStatus is not (OutboundPostingStatusEnum.Posted or OutboundPostingStatusEnum.Reversed))
+                || (pending.Post is not null && detail.Header.Version == pending.AcceptedResult.Version && detail.Header.PostingStatus != OutboundPostingStatusEnum.Posted)
                 || (pending.Reverse is not null && detail.Header.PostingStatus != SwiftExport.Contracts.SysEnums.Inventory.OutboundPostingStatusEnum.Reversed))
-            { ResultSummary = $"{(pending.Reverse is not null ? "已反过账" : pending.Post is null ? "已保存" : "已过账")}，但详情刷新失败：{detailResult.Message}。请点击刷新，仅重试详情。"; return false; }
+            { ResultSummary = $"{(pending.Reverse is not null ? "已反过账" : pending.Post is null ? "已保存" : "已过账")}，原命令已成功，但详情未核实：{detailResult.Message}。请点击刷新，仅重试详情。"; return false; }
+            pending.HasLaterDetail = detail.Header.Version > pending.AcceptedResult.Version;
             row.Load(detail.Header);
             row.Lines.LoadFromDtos(detail.Lines);
             row.IsDetailLoaded = true;
@@ -240,7 +278,7 @@ public sealed partial class OutboundManagerViewModel
         {
             System.Diagnostics.Trace.TraceError("出库命令接纳异常：{0}", ex.GetType().Name);
             pending.WasUncertain = true;
-            if (!_disposed) ResultSummary = pending.AcceptedResult is null
+            if (IsCurrentWriteContext(pending, session)) ResultSummary = pending.AcceptedResult is null
                 ? "结果未确认，原命令已保留，请点击刷新重试。" : "命令已成功，详情接纳失败，请点击刷新仅重试详情。";
             return false;
         }
@@ -250,11 +288,25 @@ public sealed partial class OutboundManagerViewModel
     private void EndPending(OutboundHeaderModel row)
     { _pendingWrites.Remove(row); row.IsPersistencePending = false; NotifyEditState(); }
 
+    /// <summary>删除按当前显示顺序定位；当前行仍存活时保留，只在被删时选择前一幸存行或后继。</summary>
+    private void RemoveHeaderAndPreserveSelection(OutboundHeaderModel row)
+    {
+        var displayed = CollectionViewSource.GetDefaultView(Headers.Items).Cast<OutboundHeaderModel>().ToArray();
+        var anchor = SelectedItem;
+        var index = Array.IndexOf(displayed, row);
+        if (index < 0) return;
+        Headers.RemoveCompletely(row);
+        SelectedItem = anchor is not null && Headers.Items.Contains(anchor) ? anchor
+            : displayed.Take(index).LastOrDefault(Headers.Items.Contains) ?? displayed.Skip(index + 1).FirstOrDefault(Headers.Items.Contains);
+    }
+
+    /// <summary>区分原命令成功与当前详情后续变化，不能用新状态重发原写入。</summary>
+    private static string LaterDetailMessage(OutboundHeaderModel row) => $"原命令已成功；单据随后已变化，现已接纳版本 {row.Version}，当前状态 {row.PostingStatus}。";
+
     /// <summary>待确认意图未解决前禁止用普通查询、删除或新保存替代该意图。</summary>
     private bool RequirePendingRecovery()
     {
         if (_pendingWrites.Count == 0) return false;
-        SelectedItem = _pendingWrites.Keys.First();
         ResultSummary = "存在待确认命令或待回填详情，请选中该单并点击刷新；原请求已保留。";
         return true;
     }
@@ -270,7 +322,8 @@ public sealed partial class OutboundManagerViewModel
     private static string DisplayName(OutboundHeaderModel row) => string.IsNullOrWhiteSpace(row.DocumentNo) ? "新增草稿" : row.DocumentNo;
 
     private static bool ValidDetail(OutboundManagerDetailDto? detail, Guid uid) => detail?.Header is not null
-        && detail.Header.Uid == uid && detail.Lines is not null
+        && detail.Header.Uid == uid && detail.Header.Version > 0 && Enum.IsDefined(detail.Header.PostingStatus)
+        && Enum.IsDefined(detail.Header.LifecycleStatus) && !detail.Header.IsDeleted && detail.Lines is not null
         && detail.Lines.All(x => x.Uid != Guid.Empty && x.OutboundDocumentId == uid)
         && detail.Lines.Select(x => x.Uid).Distinct().Count() == detail.Lines.Count;
 }

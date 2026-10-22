@@ -25,7 +25,7 @@ namespace SwiftExport.Client.Wpf.Tests.Features.Inventory;
 
 /// <summary>验证库存只读页面的 Trace 身份隔离与离页生命周期。</summary>
 [TestClass]
-public sealed class InventoryReadOnlyViewModelTests
+public sealed partial class InventoryReadOnlyViewModelTests
 {
     /// <summary>库存流水枚举值保持兼容，并为每个成员提供约定的中文说明。</summary>
     [TestMethod]
@@ -71,7 +71,7 @@ public sealed class InventoryReadOnlyViewModelTests
     public async Task Ledger_PageChangeAndSearch_ShouldUseRequestedPageAndResetToFirstPage()
     {
         var inventory = new InventoryApiStub();
-        using var viewModel = new InventoryLedgerViewModel(inventory, new WarehouseApiStub(), new Runner(), new ReferenceDataCacheServiceStub());
+        using var viewModel = new InventoryLedgerViewModel(inventory, new WarehouseApiStub(), new Runner());
         await viewModel.InitializeAsync();
 
         await viewModel.PageChangeCommand.ExecuteAsync(new PageChangeRequest { OldIndex = 1, NewIndex = 3, OldSize = 50, NewSize = 100 });
@@ -90,7 +90,7 @@ public sealed class InventoryReadOnlyViewModelTests
     public async Task Ledger_DisposeDuringSearch_ShouldRejectLateResponse()
     {
         var inventory = new InventoryApiStub();
-        using var viewModel = new InventoryLedgerViewModel(inventory, new WarehouseApiStub(), new Runner(), new ReferenceDataCacheServiceStub());
+        using var viewModel = new InventoryLedgerViewModel(inventory, new WarehouseApiStub(), new Runner());
         await viewModel.InitializeAsync();
         inventory.DelayedLedgerResult = new TaskCompletionSource<ServiceResult<PagedResponseBase<InventoryLedgerItemDto>>>(TaskCreationOptions.RunContinuationsAsynchronously);
 
@@ -123,7 +123,8 @@ public sealed class InventoryReadOnlyViewModelTests
         DatePickerAssistTests.RunWithApplication(async () =>
         {
             ApplicationResourceLoader.Load();
-            using var viewModel = new InventoryLedgerViewModel(new InventoryApiStub(), new WarehouseApiStub(), new Runner(), new ReferenceDataCacheServiceStub());
+            var api = new InventoryApiStub();
+            using var viewModel = new InventoryLedgerViewModel(api, new WarehouseApiStub(), new Runner());
             var view = new InventoryLedgerView { DataContext = viewModel };
             var window = new Window
             {
@@ -137,6 +138,10 @@ public sealed class InventoryReadOnlyViewModelTests
                 var filter = FindVisualDescendants<ComboBox>(view)
                     .Single(combo => BindingOperations.GetBinding(combo, ComboBox.ItemsSourceProperty)?.Path.Path == nameof(viewModel.TransactionTypes));
 
+                filter.UpdateLayout();
+                Assert.AreEqual(0, filter.SelectedIndex);
+                Assert.IsTrue(FindVisualDescendants<TextBlock>(filter).Any(text => text.Text == "全部"));
+
                 filter.IsDropDownOpen = true;
                 await Dispatcher.Yield(DispatcherPriority.Loaded);
                 filter.UpdateLayout();
@@ -147,12 +152,27 @@ public sealed class InventoryReadOnlyViewModelTests
                 filter.SelectedIndex = 1;
                 await Dispatcher.Yield(DispatcherPriority.DataBind);
                 Assert.AreEqual(InventoryTransactionTypeEnum.PurchaseReceiptInbound, viewModel.TransactionType);
+                await viewModel.SearchCommand.ExecuteAsync(null);
+                Assert.AreEqual(InventoryTransactionTypeEnum.PurchaseReceiptInbound, api.LastLedgerRequest!.TransactionType);
 
                 filter.SelectedIndex = 0;
                 filter.IsDropDownOpen = false;
                 await Dispatcher.Yield(DispatcherPriority.DataBind);
                 filter.UpdateLayout();
                 Assert.IsNull(viewModel.TransactionType);
+                Assert.IsTrue(FindVisualDescendants<TextBlock>(filter).Any(text => text.Text == "全部"));
+                await viewModel.SearchCommand.ExecuteAsync(null);
+                Assert.IsNull(api.LastLedgerRequest!.TransactionType);
+
+                // 程序回填也必须选中真实候选，不能仅修改请求值而留下过期显示。
+                viewModel.TransactionType = InventoryTransactionTypeEnum.Reversal;
+                await Dispatcher.Yield(DispatcherPriority.DataBind);
+                filter.UpdateLayout();
+                Assert.IsTrue(FindVisualDescendants<TextBlock>(filter).Any(text => text.Text == "反向流水"));
+                viewModel.TransactionType = null;
+                await Dispatcher.Yield(DispatcherPriority.DataBind);
+                filter.UpdateLayout();
+                Assert.AreEqual(0, filter.SelectedIndex);
                 Assert.IsTrue(FindVisualDescendants<TextBlock>(filter).Any(text => text.Text == "全部"));
             }
             finally
@@ -167,7 +187,7 @@ public sealed class InventoryReadOnlyViewModelTests
     public async Task BalanceTrace_SwitchSelection_ShouldRejectPreviousResponse()
     {
         var api = new InventoryApiStub();
-        using var viewModel = new InventoryBalancesViewModel(api, new WarehouseApiStub(), new Runner(), new MessageStub(), new ReferenceDataCacheServiceStub());
+        using var viewModel = new InventoryBalancesViewModel(api, new WarehouseApiStub(), new Runner(), new MessageStub());
         var first = new InventoryBalanceDto { Uid = Guid.NewGuid() };
         var second = new InventoryBalanceDto { Uid = Guid.NewGuid() };
         viewModel.SelectedItem = first;
@@ -194,7 +214,7 @@ public sealed class InventoryReadOnlyViewModelTests
     {
         var inventory = new InventoryApiStub();
         var warehouse = new WarehouseApiStub();
-        var viewModel = new InventoryLedgerViewModel(inventory, warehouse, new Runner(), new ReferenceDataCacheServiceStub());
+        var viewModel = new InventoryLedgerViewModel(inventory, warehouse, new Runner());
         viewModel.Dispose();
 
         await viewModel.InitializeAsync();
@@ -205,11 +225,24 @@ public sealed class InventoryReadOnlyViewModelTests
 
     private sealed class InventoryApiStub : IInventoryApi
     {
+        /// <inheritdoc/>
+        public Task<ServiceResult<PagedResponseBase<InventorySupplierLookupDto>>> GetSupplierOptionsAsync(PagedRequestBase request, CancellationToken cancellationToken = default)
+        {
+            SupplierRequests.Add(request);
+            return SuppliersHandler?.Invoke(request) ?? Task.FromResult(ServiceResult<PagedResponseBase<InventorySupplierLookupDto>>.Ok(new() { Items = [] }));
+        }
+        public List<PagedRequestBase> SupplierRequests { get; } = [];
+        public Func<PagedRequestBase, Task<ServiceResult<PagedResponseBase<InventorySupplierLookupDto>>>>? SuppliersHandler { get; set; }
+        /// <summary>库存页候选只使用库存权限接口，不调用仓库管理查询。</summary>
+        public Task<ServiceResult<PagedResponseBase<SwiftExport.Contracts.DTOs.Inventory.WareHouseSite.Picker.WarehouseSitePickerDto>>> GetWarehouseOptionsAsync(PagedRequestBase request, CancellationToken cancellationToken = default)
+            => Task.FromResult(ServiceResult<PagedResponseBase<SwiftExport.Contracts.DTOs.Inventory.WareHouseSite.Picker.WarehouseSitePickerDto>>.Ok(new() { PageIndex = request.PageIndex, PageSize = request.PageSize }));
         public TaskCompletionSource<ServiceResult<InventoryBalanceTraceDto>> TraceResult { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
         public int LedgerSearchCount { get; private set; }
         public InventoryLedgerSearchRequest? LastLedgerRequest { get; private set; }
         public TaskCompletionSource<ServiceResult<PagedResponseBase<InventoryLedgerItemDto>>>? DelayedLedgerResult { get; set; }
-        public Task<ServiceResult<PagedResponseBase<InventoryBalanceDto>>> SearchBalancesAsync(InventoryBalanceSearchRequest request, CancellationToken cancellationToken = default) => Task.FromResult(ServiceResult<PagedResponseBase<InventoryBalanceDto>>.Ok(new PagedResponseBase<InventoryBalanceDto>()));
+        public InventoryBalanceSearchRequest? LastBalanceRequest { get; private set; }
+        public Task<ServiceResult<PagedResponseBase<InventoryBalanceDto>>> SearchBalancesAsync(InventoryBalanceSearchRequest request, CancellationToken cancellationToken = default)
+        { LastBalanceRequest = request; return Task.FromResult(ServiceResult<PagedResponseBase<InventoryBalanceDto>>.Ok(new PagedResponseBase<InventoryBalanceDto>())); }
         public Task<ServiceResult<PagedResponseBase<InventoryLedgerItemDto>>> SearchLedgerAsync(InventoryLedgerSearchRequest request, CancellationToken cancellationToken = default)
         {
             LedgerSearchCount++;
@@ -246,10 +279,11 @@ public sealed class InventoryReadOnlyViewModelTests
 
     private sealed class MessageStub : IMessageService
     {
+        public List<string> Errors { get; } = [];
         public void ShowInfo(string title, string message) { }
         public void ShowSuccess(string title, string message) { }
         public void ShowWarning(string title, string message) { }
-        public void ShowError(string title, string message) { }
+        public void ShowError(string title, string message) => Errors.Add(title + "：" + message);
     }
 
     private static string Root()

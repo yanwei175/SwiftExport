@@ -90,6 +90,30 @@ public sealed class PostgreSqlWarehouseQueryRepository(RepositoryBaseContext con
         return new() { Items = rows.AsList(), TotalCount = total, PageIndex = pageIndex, PageSize = pageSize };
     }
 
+    /// <summary>历史筛选候选包含停用供应商，仅排软删；不查询采购、库存或联系方式，保持三个身份显示字段。</summary>
+    public async Task<PagedResponseBase<InventorySupplierLookupDto>> SearchSupplierFilterOptionsAsync(PagedRequestBase request, CancellationToken cancellationToken = default)
+    {
+        var pageIndex = Math.Max(1, request.PageIndex);
+        var pageSize = Math.Clamp(request.PageSize <= 0 ? 20 : request.PageSize, 1, InventoryQueryLimits.MaxPageSize);
+        var parameters = new DynamicParameters();
+        parameters.Add("Keyword", string.IsNullOrWhiteSpace(request.Keyword) ? null : $"%{EscapeLike(request.Keyword.Trim())}%", System.Data.DbType.String);
+        // 本用例采用 bigint 偏移，避免大页码的 int 乘法溢出；既有仓库管理分页规则不变。
+        parameters.Add("Offset", ((long)pageIndex - 1) * pageSize, System.Data.DbType.Int64);
+        parameters.Add("PageSize", pageSize, System.Data.DbType.Int32);
+        const string filter = """
+            WHERE COALESCE(s.is_deleted,FALSE)=FALSE
+              AND (CAST(@Keyword AS text) IS NULL OR s.supplier_code COLLATE public.erp_dictionary_ci LIKE CAST(@Keyword AS text) ESCAPE '~'
+                   OR s.supplier_name COLLATE public.erp_dictionary_ci LIKE CAST(@Keyword AS text) ESCAPE '~')
+            """;
+        var total = await context.Session.Connection.ExecuteScalarAsync<int>(new CommandDefinition(
+            $"SELECT COUNT(1)::integer FROM public.supplier s {filter};", parameters, context.Session.Transaction, cancellationToken: cancellationToken));
+        var rows = await context.Session.Connection.QueryAsync<InventorySupplierLookupDto>(new CommandDefinition($"""
+            SELECT s.uid AS "Uid",s.supplier_code AS "SupplierCode",s.supplier_name AS "SupplierName"
+            FROM public.supplier s {filter} ORDER BY s.supplier_code COLLATE public.erp_dictionary_ci,s.uid LIMIT @PageSize OFFSET @Offset;
+            """, parameters, context.Session.Transaction, cancellationToken: cancellationToken));
+        return new() { Items = rows.AsList(), TotalCount = total, PageIndex = pageIndex, PageSize = pageSize };
+    }
+
     /// <summary>管理查询保留停用仓及可空状态筛选；显示回退快照，但关键词仅匹配供应商实时字段。</summary>
     public async Task<PagedResponseBase<WarehouseSiteDto>> SearchAsync(WarehouseSiteSearchRequest request, CancellationToken cancellationToken = default)
     {

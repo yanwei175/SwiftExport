@@ -1,23 +1,29 @@
-<UserControl x:Class="SwiftExportClient.Features.Products.Attributes.Views.ProductAttributeManagerView"
-             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
-             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-             xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
-             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
-             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
-             mc:Ignorable="d" d:Width="1920" d:Height="680"
-             xmlns:mvvm="clr-namespace:SwiftExportClient.Mvvm"
-             xmlns:vm="clr-namespace:SwiftExportClient.Features.Products.Attributes.ViewModels"
-             d:DataContext="{d:DesignInstance vm:ProductAttributeManagerViewModel}"
-             xmlns:filter="clr-namespace:SwiftExportClient.Resources.Controls.Filter"
-             xmlns:gridcore="clr-namespace:SwiftExportClient.Resources.Behaviors"
-             Loaded="OnLoaded" Unloaded="OnUnloaded" DataContextChanged="OnDataContextChanged"
-             PreviewMouseLeftButtonDown="OnPreviewMouseDown" PreviewKeyDown="OnPreviewKeyDown"
-             PreviewLostKeyboardFocus="OnPreviewLostKeyboardFocus">
+<UserControl
+    x:Class="SwiftExportClient.Features.Products.Attributes.Views.ProductAttributeManagerView"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:filter="clr-namespace:SwiftExportClient.Resources.Controls.Filter"
+    xmlns:gridcore="clr-namespace:SwiftExportClient.Resources.Behaviors"
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    xmlns:mvvm="clr-namespace:SwiftExportClient.Mvvm"
+    xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
+    xmlns:vm="clr-namespace:SwiftExportClient.Features.Products.Attributes.ViewModels"
+    d:DataContext="{d:DesignInstance vm:ProductAttributeManagerViewModel}"
+    d:Height="680"
+    d:Width="1920"
+    DataContextChanged="OnDataContextChanged"
+    Loaded="OnLoaded"
+    PreviewKeyDown="OnPreviewKeyDown"
+    PreviewLostKeyboardFocus="OnPreviewLostKeyboardFocus"
+    PreviewMouseLeftButtonDown="OnPreviewMouseDown"
+    Unloaded="OnUnloaded"
+    mc:Ignorable="d">
     <UserControl.Resources>
         <DataTemplate x:Key="DefinitionRowState">
             <TextBlock>
                 <TextBlock.Style>
-                    <Style TargetType="TextBlock" BasedOn="{StaticResource SwiftExportDataGridWarpTextBlock}">
+                    <Style BasedOn="{StaticResource SwiftExportDataGridWarpTextBlock}" TargetType="TextBlock">
                         <Setter Property="Text" Value="已保存" />
                         <Style.Triggers>
                             <DataTrigger Binding="{Binding State}" Value="{x:Static mvvm:LineState.Added}">
@@ -41,16 +47,43 @@
             <RowDefinition Height="Auto" />
         </Grid.RowDefinitions>
         <StackPanel Margin="0,0,0,16">
-            <TextBlock Text="自定义属性" FontSize="24" FontWeight="SemiBold" />
-            <TextBlock Text="属性组和值在所有关联模板中共用；每个产品对象独立选择属性值。" Margin="0,4,0,0" TextWrapping="Wrap" />
-            <TextBlock Text="{Binding EditStateMessage}" Margin="0,4,0,0" TextWrapping="Wrap" />
+            <TextBlock
+                FontSize="24"
+                FontWeight="SemiBold"
+                Text="自定义属性" />
+            <TextBlock
+                Margin="0,4,0,0"
+                Text="属性组和值在所有关联模板中共用；每个产品对象独立选择属性值。"
+                TextWrapping="Wrap" />
+            <TextBlock
+                Margin="0,4,0,0"
+                Text="{Binding EditStateMessage}"
+                TextWrapping="Wrap" />
         </StackPanel>
-        <StackPanel Grid.Row="1" Orientation="Horizontal" Margin="0,0,0,16">
-            <ui:Button Content="保存全部" Command="{Binding SaveCommand}" Appearance="Primary" AutomationProperties.Name="保存全部属性组、值和模板关联" />
-            <ui:Button Content="刷新" Command="{Binding RefreshCommand}" Margin="8,0,0,0" AutomationProperties.Name="刷新自定义属性和模板候选" MinWidth="70"/>
-            <ui:Button Content="撤销编辑" Command="{Binding RejectCommand}" Margin="8,0,0,0" />
-            <ui:Button Content="管理属性模板" Command="{Binding ManageAttributeProfilesCommand}" Margin="8,0,0,0"
-                    AutomationProperties.Name="在独立页签管理产品属性模板" />
+        <StackPanel
+            Grid.Row="1"
+            Margin="0,0,0,16"
+            Orientation="Horizontal">
+            <ui:Button
+                Appearance="Primary"
+                AutomationProperties.Name="保存全部属性组、值和模板关联"
+                Command="{Binding SaveCommand}"
+                Content="保存全部" />
+            <ui:Button
+                MinWidth="70"
+                Margin="8,0,0,0"
+                AutomationProperties.Name="刷新自定义属性和模板候选"
+                Command="{Binding RefreshCommand}"
+                Content="刷新" />
+            <ui:Button
+                Margin="8,0,0,0"
+                Command="{Binding RejectCommand}"
+                Content="撤销编辑" />
+            <ui:Button
+                Margin="8,0,0,0"
+                AutomationProperties.Name="在独立页签管理产品属性模板"
+                Command="{Binding ManageAttributeProfilesCommand}"
+                Content="管理属性模板" />
         </StackPanel>
         <Grid Grid.Row="2">
             <Grid.ColumnDefinitions>
@@ -63,89 +96,150 @@
                     <RowDefinition Height="Auto" />
                     <RowDefinition Height="*" />
                 </Grid.RowDefinitions>
-                <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
-                    <TextBlock Text="属性组" FontWeight="SemiBold" VerticalAlignment="Center" Margin="0,0,12,0" />
-                    <Button Content="新增组" Command="{Binding AddGroupCommand}" />
-                    <Button Content="删除组" Command="{Binding DeleteGroupCommand}" Margin="8,0,0,0" />
+                <StackPanel Margin="0,0,0,8" Orientation="Horizontal">
+                    <TextBlock
+                        Margin="0,0,12,0"
+                        VerticalAlignment="Center"
+                        FontWeight="SemiBold"
+                        Text="属性组" />
+                    <Button Command="{Binding AddGroupCommand}" Content="新增组" />
+                    <Button
+                        Margin="8,0,0,0"
+                        Command="{Binding DeleteGroupCommand}"
+                        Content="删除组" />
                 </StackPanel>
 
-                <DataGrid x:Name="GroupGrid" Grid.Row="1" ItemsSource="{Binding Groups.Items}"
-                          SelectedItem="{Binding SelectedGroup, Mode=TwoWay}" AutoGenerateColumns="False"
-                          Style="{StaticResource SwiftExportDataGrid}"
-                          gridcore:GridRowHeader.ShowRowNumber="True"
-                          CanUserAddRows="False" CanUserDeleteRows="False" SelectionUnit="FullRow" SelectionMode="Single"
-                          IsReadOnly="{Binding AreGridsReadOnly}" IsEnabled="{Binding IsInteractionEnabled}"
-                          EnableRowVirtualization="True" EnableColumnVirtualization="True"
-                          VirtualizingPanel.IsVirtualizing="True" VirtualizingPanel.VirtualizationMode="Recycling"
-                          AutomationProperties.Name="共享属性组定义">
+                <DataGrid
+                    x:Name="GroupGrid"
+                    Grid.Row="1"
+                    gridcore:GridRowHeader.ShowRowNumber="True"
+                    AutoGenerateColumns="False"
+                    AutomationProperties.Name="共享属性组定义"
+                    CanUserAddRows="False"
+                    CanUserDeleteRows="False"
+                    EnableColumnVirtualization="True"
+                    EnableRowVirtualization="True"
+                    IsEnabled="{Binding IsInteractionEnabled}"
+                    IsReadOnly="{Binding AreGridsReadOnly}"
+                    ItemsSource="{Binding Groups.Items}"
+                    SelectedItem="{Binding SelectedGroup, Mode=TwoWay}"
+                    SelectionMode="Single"
+                    SelectionUnit="FullRow"
+                    Style="{StaticResource SwiftExportDataGrid}"
+                    VirtualizingPanel.IsVirtualizing="True"
+                    VirtualizingPanel.VirtualizationMode="Recycling">
                     <DataGrid.Columns>
 
-                        <DataGridTemplateColumn Header="状态" Width="64" IsReadOnly="True" CellTemplate="{StaticResource DefinitionRowState}" />
+                        <DataGridTemplateColumn
+                            Width="64"
+                            CellTemplate="{StaticResource DefinitionRowState}"
+                            Header="状态"
+                            IsReadOnly="True" />
 
-                        <DataGridTextColumn Header="编码" Width="160" Binding="{Binding GroupCode, UpdateSourceTrigger=PropertyChanged}"
-                                            ElementStyle="{StaticResource SwiftExportDataGridWarpTextBlock}"
-                                            EditingElementStyle="{StaticResource SwiftExportDataGridTextBox}"/>
+                        <DataGridTextColumn
+                            Width="160"
+                            Binding="{Binding GroupCode, UpdateSourceTrigger=PropertyChanged}"
+                            EditingElementStyle="{StaticResource SwiftExportDataGridTextBox}"
+                            ElementStyle="{StaticResource SwiftExportDataGridWarpTextBlock}"
+                            Header="编码" />
 
-                        <DataGridTextColumn Header="名称" Width="*" Binding="{Binding GroupName, UpdateSourceTrigger=PropertyChanged}"
-                                            ElementStyle="{StaticResource SwiftExportDataGridWarpTextBlock}"
-                                            EditingElementStyle="{StaticResource SwiftExportDataGridTextBox}"/>
+                        <DataGridTextColumn
+                            Width="*"
+                            Binding="{Binding GroupName, UpdateSourceTrigger=PropertyChanged}"
+                            EditingElementStyle="{StaticResource SwiftExportDataGridTextBox}"
+                            ElementStyle="{StaticResource SwiftExportDataGridWarpTextBlock}"
+                            Header="名称" />
 
-                        <DataGridTemplateColumn ClipboardContentBinding="{Binding SelectionMode, Mode=OneWay}" Header="选择方式" Width="96">
+                        <DataGridTemplateColumn
+                            Width="96"
+                            ClipboardContentBinding="{Binding SelectionMode, Mode=OneWay}"
+                            Header="选择方式">
                             <DataGridTemplateColumn.CellTemplate>
                                 <DataTemplate>
-                                    <ComboBox ItemsSource="{Binding DataContext.SelectionModes, RelativeSource={RelativeSource AncestorType=DataGrid}}"
-                                              VerticalContentAlignment="Center"
-                                              DisplayMemberPath="Value" SelectedValuePath="Key"
-                                              SelectedValue="{Binding SelectionMode, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
-                                              IsEnabled="{Binding DataContext.CanEditDefinitions, RelativeSource={RelativeSource AncestorType=DataGrid}}"
-                                              AutomationProperties.Name="属性组选项选择方式" />
+                                    <ComboBox
+                                        VerticalContentAlignment="Center"
+                                        AutomationProperties.Name="属性组选项选择方式"
+                                        DisplayMemberPath="Value"
+                                        IsEnabled="{Binding DataContext.CanEditDefinitions, RelativeSource={RelativeSource AncestorType=DataGrid}}"
+                                        ItemsSource="{Binding DataContext.SelectionModes, RelativeSource={RelativeSource AncestorType=DataGrid}}"
+                                        SelectedValue="{Binding SelectionMode, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                        SelectedValuePath="Key" />
                                 </DataTemplate>
                             </DataGridTemplateColumn.CellTemplate>
                         </DataGridTemplateColumn>
 
-                        <DataGridTextColumn Header="排序" Width="64"
-                                            Binding="{Binding SortOrder, UpdateSourceTrigger=PropertyChanged, ValidatesOnExceptions=True}"
-                                            ElementStyle="{StaticResource SwiftExportDataGridNumberTextBlock}"
-                                            EditingElementStyle="{StaticResource SwiftExportDataGridNumberTextBox}"/>
+                        <DataGridTextColumn
+                            Width="64"
+                            Binding="{Binding SortOrder, UpdateSourceTrigger=PropertyChanged, ValidatesOnExceptions=True}"
+                            EditingElementStyle="{StaticResource SwiftExportDataGridNumberTextBox}"
+                            ElementStyle="{StaticResource SwiftExportDataGridNumberTextBlock}"
+                            Header="排序" />
                     </DataGrid.Columns>
                 </DataGrid>
             </Grid>
-            <TabControl x:Name="GroupDetailsTabs" Grid.Column="2" SelectedIndex="{Binding SelectedTabIndex, Mode=TwoWay}">
+            <TabControl
+                x:Name="GroupDetailsTabs"
+                Grid.Column="2"
+                SelectedIndex="{Binding SelectedTabIndex, Mode=TwoWay}">
                 <TabItem Header="属性值">
                     <Grid Margin="0,12,0,0">
                         <Grid.RowDefinitions>
                             <RowDefinition Height="Auto" />
                             <RowDefinition Height="*" />
                         </Grid.RowDefinitions>
-                        <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
-                            <Button Content="新增值选项" Command="{Binding AddOptionCommand}" />
-                            <Button Content="删除值选项" Command="{Binding DeleteOptionCommand}" Margin="8,0,0,0" />
+                        <StackPanel Margin="0,0,0,8" Orientation="Horizontal">
+                            <Button Command="{Binding AddOptionCommand}" Content="新增值选项" />
+                            <Button
+                                Margin="8,0,0,0"
+                                Command="{Binding DeleteOptionCommand}"
+                                Content="删除值选项" />
                         </StackPanel>
-                        <DataGrid x:Name="OptionGrid" Grid.Row="1" ItemsSource="{Binding CurrentOptions}"
-                                  SelectedItem="{Binding SelectedOption, Mode=TwoWay}"
-                                  Style="{StaticResource SwiftExportDataGrid}"
-                                  gridcore:GridRowHeader.ShowRowNumber="True"
-                                  AutoGenerateColumns="False"
-                                  CanUserAddRows="False" CanUserDeleteRows="False" SelectionUnit="FullRow" SelectionMode="Single"
-                                  IsReadOnly="{Binding AreGridsReadOnly}" IsEnabled="{Binding IsInteractionEnabled}"
-                                  EnableRowVirtualization="True" EnableColumnVirtualization="True"
-                                  VirtualizingPanel.IsVirtualizing="True" VirtualizingPanel.VirtualizationMode="Recycling"
-                                  AutomationProperties.Name="当前属性组的属性值定义">
+                        <DataGrid
+                            x:Name="OptionGrid"
+                            Grid.Row="1"
+                            gridcore:GridRowHeader.ShowRowNumber="True"
+                            AutoGenerateColumns="False"
+                            AutomationProperties.Name="当前属性组的属性值定义"
+                            CanUserAddRows="False"
+                            CanUserDeleteRows="False"
+                            EnableColumnVirtualization="True"
+                            EnableRowVirtualization="True"
+                            IsEnabled="{Binding IsInteractionEnabled}"
+                            IsReadOnly="{Binding AreGridsReadOnly}"
+                            ItemsSource="{Binding CurrentOptions}"
+                            SelectedItem="{Binding SelectedOption, Mode=TwoWay}"
+                            SelectionMode="Single"
+                            SelectionUnit="FullRow"
+                            Style="{StaticResource SwiftExportDataGrid}"
+                            VirtualizingPanel.IsVirtualizing="True"
+                            VirtualizingPanel.VirtualizationMode="Recycling">
                             <DataGrid.Columns>
-                                <DataGridTemplateColumn Header="状态" Width="64" IsReadOnly="True" CellTemplate="{StaticResource DefinitionRowState}" />
+                                <DataGridTemplateColumn
+                                    Width="64"
+                                    CellTemplate="{StaticResource DefinitionRowState}"
+                                    Header="状态"
+                                    IsReadOnly="True" />
 
-                                <DataGridTextColumn Header="编码" Width="112" Binding="{Binding OptionCode, UpdateSourceTrigger=PropertyChanged}"
-                                                    ElementStyle="{StaticResource SwiftExportDataGridWarpTextBlock}"
-                                                    EditingElementStyle="{StaticResource SwiftExportDataGridTextBox}"/>
+                                <DataGridTextColumn
+                                    Width="112"
+                                    Binding="{Binding OptionCode, UpdateSourceTrigger=PropertyChanged}"
+                                    EditingElementStyle="{StaticResource SwiftExportDataGridTextBox}"
+                                    ElementStyle="{StaticResource SwiftExportDataGridWarpTextBlock}"
+                                    Header="编码" />
 
-                                <DataGridTextColumn Header="名称" Width="*" Binding="{Binding OptionName, UpdateSourceTrigger=PropertyChanged}"
-                                                    ElementStyle="{StaticResource SwiftExportDataGridWarpTextBlock}"
-                                                    EditingElementStyle="{StaticResource SwiftExportDataGridTextBox}"/>
+                                <DataGridTextColumn
+                                    Width="*"
+                                    Binding="{Binding OptionName, UpdateSourceTrigger=PropertyChanged}"
+                                    EditingElementStyle="{StaticResource SwiftExportDataGridTextBox}"
+                                    ElementStyle="{StaticResource SwiftExportDataGridWarpTextBlock}"
+                                    Header="名称" />
 
-                                <DataGridTextColumn Header="排序" Width="64"
-                                                    Binding="{Binding SortOrder, UpdateSourceTrigger=PropertyChanged, ValidatesOnExceptions=True}"
-                                                    ElementStyle="{StaticResource SwiftExportDataGridNumberTextBlock}"
-                                                    EditingElementStyle="{StaticResource SwiftExportDataGridNumberTextBox}"/>
+                                <DataGridTextColumn
+                                    Width="64"
+                                    Binding="{Binding SortOrder, UpdateSourceTrigger=PropertyChanged, ValidatesOnExceptions=True}"
+                                    EditingElementStyle="{StaticResource SwiftExportDataGridNumberTextBox}"
+                                    ElementStyle="{StaticResource SwiftExportDataGridNumberTextBlock}"
+                                    Header="排序" />
 
                             </DataGrid.Columns>
                         </DataGrid>
@@ -160,38 +254,53 @@
                         </Grid.RowDefinitions>
                         <StackPanel>
 
-                        <TextBlock Text="{Binding SelectedGroup.GroupName, StringFormat=当前属性组：{0}}" FontWeight="SemiBold" Margin="0,0,0,12" />
+                            <TextBlock
+                                Margin="0,0,0,12"
+                                FontWeight="SemiBold"
+                                Text="{Binding SelectedGroup.GroupName, StringFormat=当前属性组：{0}}" />
 
-                        <filter:MultiSelectLookupButton x:Name="ProfilePicker" Header="直接关联模板"
-                                                        ItemsSource="{Binding ProfileCandidates}"
-                                                        SelectedItems="{Binding SelectedProfileSelection.SelectedProfiles, Mode=OneWay}"
-                                                        DisplayMemberPath="ProfileName"
-                                                        FilterMemberPaths="ProfileName,ProfileCode"
-                                                        SelectedValuePath="Uid"
-                                                        Placeholder="搜索模板名称或代码"
-                                                        ShowSearchBox="True"
-                                                        IsEnabled="{Binding CanEditCurrentGroup}"
-                                                        HorizontalAlignment="Stretch"
-                                                        AutomationProperties.Name="当前属性组直接关联的模板" />
+                            <filter:MultiSelectLookupButton
+                                x:Name="ProfilePicker"
+                                HorizontalAlignment="Stretch"
+                                AutomationProperties.Name="当前属性组直接关联的模板"
+                                DisplayMemberPath="ProfileName"
+                                FilterMemberPaths="ProfileName,ProfileCode"
+                                Header="直接关联模板"
+                                IsEnabled="{Binding CanEditCurrentGroup}"
+                                ItemsSource="{Binding ProfileCandidates}"
+                                Placeholder="搜索模板名称或代码"
+                                SelectedItems="{Binding SelectedProfileSelection.SelectedProfiles, Mode=OneWay}"
+                                SelectedValuePath="Uid"
+                                ShowSearchBox="True" />
 
-                        <TextBlock Text="勾选适用的属性模板，同一组可供多个模板共用。" TextWrapping="Wrap" Margin="0,12,0,8" />
+                            <TextBlock
+                                Margin="0,12,0,8"
+                                Text="勾选适用的属性模板，同一组可供多个模板共用。"
+                                TextWrapping="Wrap" />
 
-                        <TextBlock Text="下拉框的“确定”只更新当前组草稿；请使用“保存全部”提交整页变更。" TextWrapping="Wrap" Margin="0,0,0,16" />
+                            <TextBlock
+                                Margin="0,0,0,16"
+                                Text="下拉框的“确定”只更新当前组草稿；请使用“保存全部”提交整页变更。"
+                                TextWrapping="Wrap" />
 
                         </StackPanel>
-                        <ListBox x:Name="SelectedProfilesList" Grid.Row="1"
-                                 ItemsSource="{Binding SelectedProfileSelection.SelectedProfiles}"
-                                 BorderThickness="0" Background="Transparent" Padding="0"
-                                 ScrollViewer.HorizontalScrollBarVisibility="Disabled"
-                                 ScrollViewer.VerticalScrollBarVisibility="Auto"
-                                 AutomationProperties.Name="当前属性组已直接关联的属性模板">
+                        <ListBox
+                            x:Name="SelectedProfilesList"
+                            Grid.Row="1"
+                            Padding="0"
+                            AutomationProperties.Name="当前属性组已直接关联的属性模板"
+                            Background="Transparent"
+                            BorderThickness="0"
+                            ItemsSource="{Binding SelectedProfileSelection.SelectedProfiles}"
+                            ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                            ScrollViewer.VerticalScrollBarVisibility="Auto">
                             <ListBox.ItemsPanel>
                                 <ItemsPanelTemplate>
                                     <WrapPanel />
                                 </ItemsPanelTemplate>
                             </ListBox.ItemsPanel>
                             <ListBox.ItemContainerStyle>
-                                <Style TargetType="ListBoxItem" BasedOn="{StaticResource SwiftExportListBoxItemStyle}">
+                                <Style BasedOn="{StaticResource SwiftExportListBoxItemStyle}" TargetType="ListBoxItem">
                                     <Setter Property="Padding" Value="0" />
                                     <Setter Property="Margin" Value="0,0,8,8" />
                                     <Setter Property="MaxWidth" Value="{Binding ActualWidth, RelativeSource={RelativeSource AncestorType=WrapPanel}}" />
@@ -206,8 +315,12 @@
                                 </DataTemplate>
                             </ListBox.ItemTemplate>
                         </ListBox>
-                        <TextBlock Grid.Row="1" Text="尚未直接关联属性模板。" TextWrapping="Wrap"
-                                   VerticalAlignment="Top" IsHitTestVisible="False">
+                        <TextBlock
+                            Grid.Row="1"
+                            VerticalAlignment="Top"
+                            IsHitTestVisible="False"
+                            Text="尚未直接关联属性模板。"
+                            TextWrapping="Wrap">
                             <TextBlock.Style>
                                 <Style TargetType="TextBlock">
                                     <Setter Property="Visibility" Value="Collapsed" />
@@ -225,7 +338,10 @@
         </Grid>
         <StackPanel Grid.Row="3" Margin="0,12,0,0">
             <TextBlock Text="{Binding PendingChangeSummary}" TextWrapping="Wrap" />
-            <TextBlock Text="{Binding StatusMessage}" TextWrapping="Wrap" AutomationProperties.LiveSetting="Polite" />
+            <TextBlock
+                AutomationProperties.LiveSetting="Polite"
+                Text="{Binding StatusMessage}"
+                TextWrapping="Wrap" />
             <TextBlock Text="{Binding ValidationSummary}" TextWrapping="Wrap" />
         </StackPanel>
     </Grid>

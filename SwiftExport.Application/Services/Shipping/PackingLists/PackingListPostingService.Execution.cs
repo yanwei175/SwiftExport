@@ -154,7 +154,7 @@ public sealed partial class PackingListPostingService(ServiceBaseContext context
         var ids = facts.Links.Where(x => roots.Contains(x.NetDemandId) && !x.IsDeleted && x.AllocatedQty > x.ReleasedQty)
             .Select(x => x.TargetLineId).Distinct().Order().ToArray();
         var capacity = ids.Length == 0 ? [] : await inboundRepository.ReadPostingSourcesAsync(ids, token);
-        var unproven = ids.Length > 0 && await inboundRepository.HasUnprovenReceiptAsync(token);
+        var unproven = ids.Length > 0 && await inboundRepository.HasUnprovenReceiptAsync(ids, token);
         return new PackingListPostingFactsResolver().Resolve(facts, capacity, date, unproven, token);
     }
 

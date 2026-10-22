@@ -141,7 +141,7 @@ public sealed partial class AutomaticPostingPorts(AutomaticPostingScope scope, I
     {
         var all = request.Groups.SelectMany(g => g.Lines.Select(l => (Group: g, Line: l))).ToArray();
         var ids = all.Select(x => x.Line.PurchaseLineId!.Value).Distinct().Order().ToArray();
-        if (await sourceRepository.HasUnprovenReceiptAsync(token)) Fail(InventoryErrorCodes.ReceiptHistoryInvalid, "存在无法证明来源的正式收货历史。");
+        if (await sourceRepository.HasUnprovenReceiptAsync(ids, token)) Fail(InventoryErrorCodes.ReceiptHistoryInvalid, "相关采购来源存在无法证明的正式收货历史。");
         var sources = (await sourceRepository.ReadPostingSourcesAsync(ids, token)).ToDictionary(x => x.SourceLineId);
         foreach (var group in all.GroupBy(x => x.Line.PurchaseLineId!.Value))
         {

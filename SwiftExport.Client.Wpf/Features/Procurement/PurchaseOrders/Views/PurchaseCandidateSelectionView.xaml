@@ -354,7 +354,7 @@
             fill:DataGridFillDownBehavior.Field="PurchaseQty"
             Header="本次采购"
             Width="70"
-            Binding="{Binding PurchaseQty, Mode=TwoWay, UpdateSourceTrigger=LostFocus, StringFormat=N1}"
+            Binding="{Binding PurchaseQty, Mode=TwoWay, UpdateSourceTrigger=LostFocus, StringFormat=0.####}"
             ElementStyle="{StaticResource SwiftExportDataGridNumberTextBlock}"
             EditingElementStyle="{StaticResource SwiftExportDataGridNumberTextBox}" />
           <DataGridTextColumn
@@ -363,14 +363,14 @@
             Width="70"
             ElementStyle="{StaticResource SwiftExportDataGridNumberTextBlock}"
             EditingElementStyle="{StaticResource SwiftExportDataGridNumberTextBox}"
-            Binding="{Binding UnitPrice, Mode=TwoWay, UpdateSourceTrigger=LostFocus, StringFormat=N2}" />
+            Binding="{Binding UnitPrice, Mode=TwoWay, UpdateSourceTrigger=LostFocus, StringFormat=0.####}" />
           <DataGridTextColumn
             fill:DataGridFillDownBehavior.Field="TaxPrice"
             Header="含税价"
             Width="70"
             ElementStyle="{StaticResource SwiftExportDataGridNumberTextBlock}"
             EditingElementStyle="{StaticResource SwiftExportDataGridNumberTextBox}"
-            Binding="{Binding TaxPrice, Mode=TwoWay, UpdateSourceTrigger=LostFocus, StringFormat=N2}" />
+            Binding="{Binding TaxPrice, Mode=TwoWay, UpdateSourceTrigger=LostFocus, StringFormat=0.####}" />
           <DataGridTemplateColumn
             fill:DataGridFillDownBehavior.Field="PlannedDeliveryDate"
             ClipboardContentBinding="{Binding PlannedDeliveryDate, Mode=OneWay}"

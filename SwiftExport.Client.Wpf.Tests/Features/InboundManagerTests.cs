@@ -15,6 +15,43 @@ namespace SwiftExport.Client.Wpf.Tests.Features;
 [TestClass]
 public sealed class InboundManagerTests
 {
+    /// <summary>编辑状态随真实单据资格更新，冲突阻止仓库和获取操作，显示变化不污染草稿。</summary>
+    [TestMethod]
+    public void EditingStatus_FollowsDraftAndReadonlyBoundaries()
+    {
+        using var vm = new InboundManagerViewModel(new WarehouseStub(), new SourceStub(), new DialogStub(), postingUser: InboundTestUsers.Create());
+        vm.AddNewHeaderRowCommand.Execute(null);
+        var row = vm.SelectedItem!;
+        Assert.AreEqual("新建草稿，可编辑", row.EditingStatus);
+        Assert.IsFalse(row.CanChangeDocumentType);
+        row.Load(new InboundHeaderDetailDto { Uid = row.Uid, Version = 1 });
+        Assert.AreEqual("已保存草稿，可编辑", row.EditingStatus);
+        Assert.IsTrue(vm.OpenInboundSourceDialogCommand.CanExecute(null));
+        var notifications = new List<string?>();
+        row.PropertyChanged += (_, e) => notifications.Add(e.PropertyName);
+        row.HasVersionConflict = true;
+        Assert.AreEqual("版本冲突，请刷新", row.EditingStatus);
+        Assert.IsFalse(row.CanEditInPage);
+        Assert.IsFalse(vm.OpenWarehousePickerCommand.CanExecute(row));
+        Assert.IsFalse(vm.OpenInboundSourceDialogCommand.CanExecute(null));
+        CollectionAssert.Contains(notifications, nameof(InboundHeaderModel.EditingStatus));
+        Assert.IsFalse(row.IsDirty);
+        row.HasVersionConflict = false;
+        row.IsPersistencePending = true;
+        Assert.AreEqual("结果待恢复", row.EditingStatus);
+        Assert.IsFalse(row.CanEditInPage);
+        row.IsPersistencePending = false;
+        row.PageAllowsEditing = false;
+        Assert.AreEqual("当前页面不可编辑", row.EditingStatus);
+        Assert.IsFalse(row.CanEditInPage);
+        Assert.IsFalse(row.IsDirty);
+        row.PostingStatus = InboundPostingStatusEnum.Posted;
+        Assert.AreEqual("已过账，只读", row.EditingStatus);
+        row.PostingStatus = InboundPostingStatusEnum.Reversed;
+        Assert.AreEqual("已反过账，只读", row.EditingStatus);
+        Assert.IsFalse(row.CanEdit);
+    }
+
     /// <summary>重复草稿信息仅用于提示，更新查询快照不能把已有行标记为修改。</summary>
     [TestMethod]
     public void DraftWarning_DoesNotReserveOrDirtyRow()
@@ -71,7 +108,7 @@ public sealed class InboundManagerTests
     public async Task SourceSelection_MapsSnapshotAndSkipsDuplicates()
     {
         var source = new SourceStub();
-        using var vm = new InboundManagerViewModel(new WarehouseStub(), source, new DialogStub());
+        using var vm = new InboundManagerViewModel(new WarehouseStub(), source, new DialogStub(), postingUser: InboundTestUsers.Create());
         vm.AddNewHeaderRowCommand.Execute(null);
         var header = vm.SelectedItem!;
         source.Result = [new InboundSourceCandidateDto { DocumentType = InboundDocumentTypeEnum.PurchaseReceipt, SourceLineId = Guid.NewGuid(), SourceVersion = 9, ProductId = Guid.NewGuid(), Sku = "SKU-A", Unit = "PCS", RemainingReceivableQty = 10 }];
@@ -136,7 +173,7 @@ public sealed class InboundManagerTests
     public async Task WarehousePicker_CancelPreservesSelection()
     {
         var picker = new WarehouseStub { Result = new WarehouseSitePickerDto { Uid = Guid.NewGuid(), Code = "W1", Name = "仓库 A", IsActive = true } };
-        using var vm = new InboundManagerViewModel(picker, new SourceStub(), new DialogStub());
+        using var vm = new InboundManagerViewModel(picker, new SourceStub(), new DialogStub(), postingUser: InboundTestUsers.Create());
         vm.AddNewHeaderRowCommand.Execute(null);
         var first = vm.SelectedItem!;
         await vm.OpenWarehousePickerCommand.ExecuteAsync(first);
@@ -154,7 +191,6 @@ public sealed class InboundManagerTests
         Assert.IsTrue(vm.HasUnsavedChanges);
         Assert.IsFalse(vm.SaveCommand.CanExecute(null));
         Assert.IsFalse(vm.PostCommand.CanExecute(null));
-        Assert.IsFalse(vm.AddNewLineRowCommand.CanExecute(null));
     }
 
     /// <summary>来源壳关闭不会增加明细，拒绝关闭时保留本地草稿。</summary>
@@ -162,7 +198,7 @@ public sealed class InboundManagerTests
     public async Task SourceShell_DoesNotFabricateRows()
     {
         var source = new SourceStub();
-        using var vm = new InboundManagerViewModel(new WarehouseStub(), source, new DialogStub());
+        using var vm = new InboundManagerViewModel(new WarehouseStub(), source, new DialogStub(), postingUser: InboundTestUsers.Create());
         vm.AddNewHeaderRowCommand.Execute(null);
         await vm.OpenInboundSourceDialogCommand.ExecuteAsync(null);
         Assert.AreEqual(1, source.OpenCount);

@@ -46,11 +46,33 @@ public sealed partial class PackingListManagerViewModel(IPackingListApi api, IAp
     /// <inheritdoc/>
     public Task<bool> CanCloseAsync(CancellationToken token) => Task.FromResult(!IsBusy && !_confirming);
     /// <inheritdoc/>
-    public Task InitializeAsync() { if (_initialized) return Task.CompletedTask; _initialized = true; return QueryAsync(1, true); }
+    public async Task InitializeAsync()
+    {
+        if (_initialized || _disposed) return;
+        _initialized = true;
+        var queryId = _queryId;
+        // 绑定缓存集合不等于加载缓存；首次进入须确保候选已准备，失败仍允许查询箱单。
+        var cacheLoaded = false;
+        try { cacheLoaded = (await cache.EnsureLoadedAsync()).Success; }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Trace.TraceError("箱单管理客户缓存加载异常：{0}", ex.GetType().Name);
+        }
+        if (_disposed) return;
+        if (!cacheLoaded)
+            messages.ShowWarning("客户筛选", "客户缓存未完整加载，客户候选可能不完整。请刷新客户资料后重试。");
+        // 缓存加载期间用户已经查询时，不再用初始查询覆盖其结果。
+        if (queryId == _queryId) await QueryAsync(1, true);
+    }
     partial void OnSelectedHeaderChanged(PackingListManagerRowModel? value) => _ = LoadLinesAsync(value);
     [RelayCommand(AllowConcurrentExecutions = true)] private Task SearchAsync() => QueryAsync(1, true);
     [RelayCommand(AllowConcurrentExecutions = true)] private Task RefreshAsync() => QueryAsync(Search.PageIndex, false);
-    [RelayCommand] private void ClearFilters() { Search.PostingStatus = null; Search.Keyword = null; Search.CustomerId = null; Search.InvoiceDateFrom = null; Search.InvoiceDateTo = null; }
+    /// <summary>清空待应用条件；当前结果及已应用查询快照保持不变，点击查询后才按不限重查。</summary>
+    [RelayCommand] private void ClearFilters()
+    {
+        Search.PostingStatuses.Clear(); Search.SelectedCustomers.Clear(); Search.Keyword = null;
+        Search.InvoiceDateFrom = null; Search.InvoiceDateTo = null;
+    }
     [RelayCommand(AllowConcurrentExecutions = true)]
     private Task PageChangeAsync(PageChangeRequest? request)
     { if (request is null) return Task.CompletedTask; return QueryAsync(request.NewIndex, false, request.NewSize); }
@@ -97,11 +119,11 @@ public sealed partial class PackingListManagerViewModel(IPackingListApi api, IAp
             ValidationSummary = null; ResultSummary = "草稿已删除。"; OnPropertyChanged(nameof(PageStatus));
         }, "删除草稿…");
     }
-    /// <summary>替代型查询同时检查取消和请求身份，失败保留当前结果。</summary>
+    /// <summary>替代型查询使用独立多选快照并检查取消和请求身份；分页沿用已应用条件，失败保留当前结果。</summary>
     private async Task QueryAsync(int page, bool applyFilters, int? pageSize = null)
     {
         if (_disposed || IsBusy || _confirming) return;
-        var request = applyFilters || _applied is null ? Search.Adapt<PackingListManagerSearchRequest>() : _applied.Adapt<PackingListManagerSearchRequest>();
+        var request = applyFilters || _applied is null ? Search.Adapt<PackingListManagerSearchRequest>() : Snapshot(_applied);
         request.PageIndex = Math.Max(1, page); request.PageSize = pageSize ?? Search.PageSize;
         if (request.InvoiceDateFrom > request.InvoiceDateTo) { ValidationSummary = "开始日期不能晚于结束日期。"; return; }
         _query?.Cancel(); using var query = new CancellationTokenSource(); _query = query;
@@ -113,7 +135,7 @@ public sealed partial class PackingListManagerViewModel(IPackingListApi api, IAp
             if (!result.Success || result.Data is null) { ValidationSummary = result.Message; return; }
             var selectedId = SelectedHeader?.Uid;
             SelectedHeader = null; Headers.LoadFromDtos(result.Data.Items);
-            _applied = request; Search.PageIndex = request.PageIndex; Search.PageSize = request.PageSize; TotalCount = result.Data.TotalCount;
+            _applied = Snapshot(request); Search.PageIndex = request.PageIndex; Search.PageSize = request.PageSize; TotalCount = result.Data.TotalCount;
             SelectedHeader = Headers.Items.FirstOrDefault(x => x.Uid == selectedId) ?? Headers.Items.FirstOrDefault();
             ValidationSummary = null; ResultSummary = "查询完成。"; OnPropertyChanged(nameof(PageStatus));
         }
@@ -121,6 +143,15 @@ public sealed partial class PackingListManagerViewModel(IPackingListApi api, IAp
         catch (Exception ex) { if (!_disposed && id == _queryId) await HandleExceptionAsync(ex); }
         finally { if (ReferenceEquals(_query, query)) { _query = null; IsLoading = false; } }
     }
+    /// <summary>请求和已应用条件各自持有集合，避免下一次翻页或调用方改动旧请求时串改筛选。</summary>
+    private static PackingListManagerSearchRequest Snapshot(PackingListManagerSearchRequest source)
+    {
+        var snapshot = source.Adapt<PackingListManagerSearchRequest>();
+        snapshot.CustomerIds = source.CustomerIds?.ToList();
+        snapshot.PostingStatuses = source.PostingStatuses?.ToList();
+        return snapshot;
+    }
+
     private async Task LoadLinesAsync(PackingListManagerRowModel? row)
     {
         _detailQuery?.Cancel(); var id = ++_detailId; Lines.Clear();

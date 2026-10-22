@@ -42,7 +42,7 @@ public sealed class ProcurementReversalSession
         if (added) Changed?.Invoke(this, EventArgs.Empty);
         return added;
     }
-    /// <summary>只发送冻结负载；明确业务拒绝或有效成功才解除未决状态，未知响应保留。</summary>
+    /// <summary>只发送冻结负载；明确业务拒绝或有效成功解除状态，认证拒绝仅能消解从未结果未知的命令。</summary>
     public async Task<ServiceResult<ProcurementOrderCommandResult>> SendAsync(string user, Guid uid, IProcurementOrderApi api)
     {
         var key = (user, uid);
@@ -67,27 +67,44 @@ public sealed class ProcurementReversalSession
                     || (pending.Operation is ProcurementReversalOperation.DeleteLines or ProcurementReversalOperation.DeleteDraft && result.Data.ConfirmationStatus != ConfirmationStatusEnum.待确认)
                     || (pending.Operation == ProcurementReversalOperation.DeleteDraft && !result.Data.IsDeleted)
                     || (pending.Operation == ProcurementReversalOperation.CancelConfirmation && (result.Data.ConfirmationStatus != ConfirmationStatusEnum.待确认 || result.Data.ConfirmationId.HasValue)))
-                    return ServiceResult<ProcurementOrderCommandResult>.Fail(ServiceErrorCodes.OutcomeUnknown, "响应不完整，请重试原命令确认结果。");
+                    return RetainUnknown(key, pending, "响应不完整，请重试原命令确认结果。");
                 if (pending.Operation == ProcurementReversalOperation.DeleteLines)
                 {
                     var removed = JsonSerializer.Deserialize<DeleteProcurementDraftLinesCommand>(pending.CommandJson)!.Lines.Select(x => x.PurchaseOrderLineId).ToHashSet();
                     if (result.Data.Lines.Any(x => removed.Contains(x.PurchaseOrderLineId)))
-                        return ServiceResult<ProcurementOrderCommandResult>.Fail(ServiceErrorCodes.OutcomeUnknown, "回执仍包含被删行，请重试原命令确认结果。");
+                        return RetainUnknown(key, pending, "回执仍包含被删行，请重试原命令确认结果。");
                 }
                 if (pending.Operation == ProcurementReversalOperation.DeleteDraft)
                 {
                     var deleted = JsonSerializer.Deserialize<DeleteProcurementDraftCommand>(pending.CommandJson)!.Lines;
                     if (deleted.Count != result.Data.Lines.Count || deleted.Any(line => !result.Data.Lines.Any(x => x.PurchaseOrderLineId == line.PurchaseOrderLineId && x.Version == line.Version + 1)))
-                        return ServiceResult<ProcurementOrderCommandResult>.Fail(ServiceErrorCodes.OutcomeUnknown, "删除行回执不完整，请重试原提交确认结果。");
+                        return RetainUnknown(key, pending, "删除行回执不完整，请重试原提交确认结果。");
                 }
                 _pending.TryRemove(key, out _);
             }
-            else if (result.Error?.Code is ServiceErrorCodes.Validation or ServiceErrorCodes.VersionConflict or ServiceErrorCodes.BusinessBlocked
-                or ServiceErrorCodes.Forbidden or ServiceErrorCodes.Unauthenticated or ServiceErrorCodes.CommandConflict)
-                _pending.TryRemove(key, out _);
+            else
+            {
+                var code = result.Error?.Code;
+                var definitive = code is ServiceErrorCodes.Validation or ServiceErrorCodes.VersionConflict or ServiceErrorCodes.BusinessBlocked or ServiceErrorCodes.CommandConflict
+                    || (!pending.WasUnknown && code is ServiceErrorCodes.Forbidden or ServiceErrorCodes.Unauthenticated);
+                if (definitive) _pending.TryRemove(key, out _);
+                else _pending[key] = pending with { WasUnknown = true };
+            }
             return result;
         }
-        // 传输异常由现有 API/页面异常设施记录；保持原负载供显式重试。
+        catch
+        {
+            // 传输异常不能证明服务端未执行；保留原负载并记录未知历史，后续撤权不能消解它。
+            _pending[key] = pending with { WasUnknown = true };
+            throw;
+        }
         finally { _sending.TryRemove(key, out _); Changed?.Invoke(this, EventArgs.Empty); }
+    }
+
+    /// <summary>不完整成功回执仍可能已经写入，标记未知历史而不改变命令身份和序列化负载。</summary>
+    private ServiceResult<ProcurementOrderCommandResult> RetainUnknown((string User, Guid Order) key, PendingProcurementReversal pending, string message)
+    {
+        _pending[key] = pending with { WasUnknown = true };
+        return ServiceResult<ProcurementOrderCommandResult>.Fail(ServiceErrorCodes.OutcomeUnknown, message);
     }
 }

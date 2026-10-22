@@ -47,7 +47,8 @@ public sealed class PackingListManagerModelTests
     public void Search_ShouldNotifyWithoutOwningCommands()
     {
         var search = new PackingListManagerSearchModel();
-        Assert.IsNull(search.PostingStatus);
+        Assert.HasCount(0, search.PostingStatuses);
+        Assert.HasCount(0, search.SelectedCustomers);
         Assert.AreEqual(1, search.PageIndex);
         Assert.AreEqual(20, search.PageSize);
         var names = new List<string?>();

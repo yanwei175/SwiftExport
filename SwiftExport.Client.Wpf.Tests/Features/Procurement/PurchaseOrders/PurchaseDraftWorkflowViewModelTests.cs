@@ -292,17 +292,20 @@ public sealed partial class PurchaseDraftWorkflowViewModelTests
     {
         public bool Read { get; set; } = read;
         public bool CreateAllowed { get; set; } = true;
+        public bool EditAllowed { get; set; } = true;
         public string UserId { get; private set; } = "draft-user";
         public event EventHandler? CurrentUserChanged;
         public bool IsAuthenticated => true;
         public MeDto? CurrentUser => new() { UserId = UserId };
         public string DisplayName => "测试用户";
         public IReadOnlyList<string> Roles => [];
-        public IReadOnlyList<string> Permissions => (Read ? new[] { PermissionKeys.ProcurementOrderRead } : []).Concat(CreateAllowed ? new[] { PermissionKeys.ProcurementOrderCreate } : []).ToArray();
+        public IReadOnlyList<string> Permissions => (Read ? new[] { PermissionKeys.ProcurementOrderRead } : [])
+            .Concat(CreateAllowed ? new[] { PermissionKeys.ProcurementOrderCreate } : [])
+            .Concat(EditAllowed ? new[] { PermissionKeys.ProcurementOrderEdit } : []).ToArray();
         public bool IsAdmin => false;
         public bool HasPermission(string key) => Permissions.Contains(key);
-        public void SetCurrentUser(MeDto user) { UserId = user.UserId; Read = user.Permissions.Contains(PermissionKeys.ProcurementOrderRead); CreateAllowed = user.Permissions.Contains(PermissionKeys.ProcurementOrderCreate); CurrentUserChanged?.Invoke(this, EventArgs.Empty); }
-        public void Clear() { UserId = string.Empty; Read = false; CreateAllowed = false; CurrentUserChanged?.Invoke(this, EventArgs.Empty); }
+        public void SetCurrentUser(MeDto user) { UserId = user.UserId; Read = user.Permissions.Contains(PermissionKeys.ProcurementOrderRead); CreateAllowed = user.Permissions.Contains(PermissionKeys.ProcurementOrderCreate); EditAllowed = user.Permissions.Contains(PermissionKeys.ProcurementOrderEdit); CurrentUserChanged?.Invoke(this, EventArgs.Empty); }
+        public void Clear() { UserId = string.Empty; Read = false; CreateAllowed = false; EditAllowed = false; CurrentUserChanged?.Invoke(this, EventArgs.Empty); }
     }
     private sealed class DirectApiCallRunner : IApiCallRunner
     {

@@ -156,11 +156,11 @@ public sealed partial class PurchaseDraftWorkflowViewModel : ViewModelBaseEx, ID
             foreach (var group in Items.GroupBy(x => (x.SourceType, x.SourceUid, x.SupplierId)))
             {
                 var options = new List<PurchaseDraftTargetChoiceModel> { new() { TargetMode = PurchaseDraftTargetModeEnum.CreateNew, DisplayText = "新建采购草稿" } };
-                var response = _currentUser?.HasPermission(PermissionKeys.ProcurementOrderRead) == true
+                var response = CanAppendDraft
                     ? await _runner.RunAsync(() => _api.GetAppendCandidatesAsync(group.Key.SourceType, group.Key.SourceUid, group.Key.SupplierId, cts.Token), cts.Token, "加载追加草稿候选失败")
-                    : ServiceResult<List<SafePurchaseDraftCandidateDto>>.Fail(ServiceErrorCodes.Forbidden, "无采购读取权限，仅可新建草稿");
+                    : ServiceResult<List<SafePurchaseDraftCandidateDto>>.Fail(ServiceErrorCodes.Forbidden, "追加草稿需要采购读取、创建及编辑权限");
                 if (_disposed || !_active || session != _session || cts.IsCancellationRequested || !ReferenceEquals(_appendCancellation, cts)) return;
-                if (response.Success && response.Data is not null)
+                if (CanAppendDraft && response.Success && response.Data is not null)
                     options.AddRange(response.Data.Select(x => new PurchaseDraftTargetChoiceModel { TargetMode = PurchaseDraftTargetModeEnum.AppendExisting, ExistingPurchaseOrderId = x.PurchaseOrderId, ExpectedPurchaseOrderVersion = x.Version, DisplayText = $"追加到 {x.OrderNo}" }));
                 else StatusText += $" {response.Message}；仍可明确选择新建草稿。";
                 var old = oldTargets.FirstOrDefault(x => x.SourceType == group.Key.SourceType && x.SourceUid == group.Key.SourceUid && x.SupplierId == group.Key.SupplierId)?.SelectedChoice;
@@ -315,11 +315,14 @@ public sealed partial class PurchaseDraftWorkflowViewModel : ViewModelBaseEx, ID
     /// <summary>刷新候选时保留已成功来源标记，防止将同一来源重新加入新提交。</summary>
     public IReadOnlyList<string> GetCompletedSourceKeys() => Results.Where(x => IsSourceCompleted(x.SourceType, x.SourceUid))
         .Select(x => $"{x.SourceType.Trim().ToUpperInvariant()}|{x.SourceUid:N}").Distinct().ToArray();
+    /// <summary>追加目标需要可读取、可创建且可编辑；新建不额外要求读取或编辑权限。</summary>
+    private bool CanAppendDraft => _currentUser?.HasPermission(PermissionKeys.ProcurementOrderRead) == true
+        && _currentUser.HasPermission(PermissionKeys.ProcurementOrderCreate) && _currentUser.HasPermission(PermissionKeys.ProcurementOrderEdit);
     private string? ValidateItems(bool includeTargets = true) => Items.Count == 0 ? "请至少选择一条物料。" : Items.Any(x => x.SupplierId == Guid.Empty) ? "请明确选择实际采购供应商。"
         : Items.Any(x => x.IsCustomerSupplied && !x.DeliveryTargetSupplierId.HasValue) ? "请明确选择客供件送达供应商。"
-        : includeTargets && Targets.Any(x => !x.IsCreateNew) && _currentUser?.HasPermission(PermissionKeys.ProcurementOrderRead) != true ? "追加草稿需要采购读取权限；仍可明确选择新建草稿。"
+        : includeTargets && Targets.Any(x => !x.IsCreateNew) && !CanAppendDraft ? "追加草稿需要采购读取、创建及编辑权限；仍可明确选择新建草稿。"
         : includeTargets && Targets.Any(x => x.SelectedChoice?.IsAvailable == false) ? "原追加目标当前不可用，请重新加载或明确选择新建草稿。"
-        : Items.Select(x => x.QuantityError).FirstOrDefault(x => x is not null);
+        : Items.Select(x => x.InputError).FirstOrDefault(x => x is not null);
     private void OnTargetChanged(object? sender, EventArgs e) => NotifyState();
     private void OnCurrentUserChanged(object? sender, EventArgs e)
     {
@@ -333,6 +336,7 @@ public sealed partial class PurchaseDraftWorkflowViewModel : ViewModelBaseEx, ID
     }
     private bool CanCreate() => _active && !_disposed && !IsCreateInProgress && IsNotBusy && CanWrite && _ownerUser == CurrentUserKey
         && (_currentUser?.HasPermission(PermissionKeys.ProcurementOrderCreate) ?? true)
+        && (!Targets.Any(x => !x.IsCreateNew) || CanAppendDraft)
         && (_pendingJson is not null ? _pendingRetained : HasValidPreparation);
     private void MarkUnknown() { HasUnknownCreateResult = true; IsStale = true; StatusText = "创建结果待核实。请查看本次反馈并重试原提交，或保留关闭后再恢复；不要新建替代请求。"; NotifyState(); }
     private void NotifyState()

@@ -80,6 +80,8 @@ public sealed class PurchaseDraftWriteModelBuilder
             if (previewLine.Contributions.Sum(x => x.PurchaseQty) != previewLine.PurchaseQty)
                 throw new InvalidOperationException("采购预览行数量与来源贡献数量不守恒。");
 
+            // 写入前拒绝缺价及超出物理精度的价格，不将未知报价默认为免费。
+            var amounts = ProcurementOrderPolicy.CalculateAmounts(previewLine.PurchaseQty, previewLine.UnitPrice, previewLine.TaxPrice);
             var purchaseLineId = GuidSequentialGenerator.NewGuid();
             var singleContribution = previewLine.Contributions.Count == 1
                 ? previewLine.Contributions[0]
@@ -98,13 +100,13 @@ public sealed class PurchaseDraftWriteModelBuilder
                 SupplierSku = previewLine.SupplierSku,
                 DescriptionZh = previewLine.Description,
                 UnitSnapshot = previewLine.Unit,
-                UnitPrice = previewLine.UnitPrice ?? 0m,
-                TaxPrice = previewLine.TaxPrice ?? 0m,
+                UnitPrice = previewLine.UnitPrice,
+                TaxPrice = previewLine.TaxPrice,
                 Quantity = previewLine.PurchaseQty,
                 // 上方已校验全部采购数量由来源贡献承担，不得留下历史未知的空值。
                 UnlinkedQty = 0m,
-                UnitAmount = (previewLine.UnitPrice ?? 0m) * previewLine.PurchaseQty,
-                TaxAmount = (previewLine.TaxPrice ?? 0m) * previewLine.PurchaseQty,
+                UnitAmount = amounts.UnitAmount,
+                TaxAmount = amounts.TaxAmount,
                 PlannedDeliveryDate = previewLine.PlannedDeliveryDate,
                 DeliveryTargetSupplierId = previewLine.DeliveryTargetSupplierId,
                 DeliverySupplierCodeSnapshot = previewLine.DeliveryTargetSupplierCode,

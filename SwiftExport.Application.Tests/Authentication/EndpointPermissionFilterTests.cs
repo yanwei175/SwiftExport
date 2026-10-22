@@ -56,7 +56,7 @@ public sealed class EndpointPermissionFilterTests
         var routes = ReadMap("SingleKeys");
         // 新增来源内匹配端点沿用基础查看权限；所选关注项另有组合权限定向验证。
         // 已整合基线含删除草稿/预览、追加候选及已退役预览入口的变动。
-        Assert.AreEqual(252, routes.Count);
+        Assert.AreEqual(257, routes.Count);
         Assert.AreEqual("Procurement.Order.Edit",routes["ProcurementOrderReversalController.DeleteDraftAsync"]);
         Assert.AreEqual("Procurement.Order.Read",routes["PurchaseDraftSourceController.GetAppendCandidatesAsync"]);
         Assert.IsFalse(routes.ContainsKey("MaterialDemandQueryController.GetTraceAsync"));
@@ -84,6 +84,82 @@ public sealed class EndpointPermissionFilterTests
             Assert.IsTrue(allowed.Continued, action);
             Assert.IsNull(allowed.ErrorCode, action);
             CollectionAssert.AreEqual(new[] { key }, allowed.RequestedKeys, action);
+        }
+    }
+
+    /// <summary>供应商筛选分别要求入库或库存查看权限，不借供应商或其他主数据权限放行。</summary>
+    [TestMethod]
+    [DataRow("InboundSourcesController.GetSupplierOptionsAsync","Inventory.Inbound.View")]
+    [DataRow("InventoryController.GetSupplierOptionsAsync","Inventory.Balance.View")]
+    public async Task SupplierFilterOptionsRequireTheirOwnView(string action,string permission)
+    {
+        Assert.IsTrue(MvcActions.Value.ContainsKey(action));
+        var unrelated=await ExecuteAsync(action,["Suppliers.Supplier.View","Customers.Customer.View","Inventory.Warehouse.View","System.Dictionary.View"]);
+        Assert.IsFalse(unrelated.Continued);Assert.AreEqual(ServiceErrorCodes.Forbidden,unrelated.ErrorCode);
+        var anonymous=await ExecuteAsync(action,[permission],authenticated:false);
+        Assert.IsFalse(anonymous.Continued);Assert.AreEqual(ServiceErrorCodes.Unauthenticated,anonymous.ErrorCode);
+        var allowed=await ExecuteAsync(action,[permission]);Assert.IsTrue(allowed.Continued);
+        CollectionAssert.AreEqual(new[]{permission},allowed.RequestedKeys);
+    }
+
+    /// <summary>出库仓库候选要求出库查看权限，其他查看权限不能替代，出库权限也不进入仓库管理。</summary>
+    [TestMethod]
+    public async Task OutboundWarehouseOptions_RequireExactOutboundView()
+    {
+        const string action="OutboundQueryController.GetWarehouseOptionsAsync";
+        Assert.IsTrue(MvcActions.Value.ContainsKey(action));
+        foreach(var permission in new[]{"","Inventory.Warehouse.View","Inventory.Inbound.View","Inventory.Balance.View"})
+        {
+            var result=await ExecuteAsync(action,[permission]);
+            Assert.IsFalse(result.Continued);Assert.AreEqual(ServiceErrorCodes.Forbidden,result.ErrorCode);
+        }
+        var anonymous=await ExecuteAsync(action,["Inventory.Outbound.View"],authenticated:false);
+        Assert.IsFalse(anonymous.Continued);Assert.AreEqual(ServiceErrorCodes.Unauthenticated,anonymous.ErrorCode);
+        Assert.IsTrue((await ExecuteAsync(action,["Inventory.Outbound.View"])).Continued);
+        Assert.IsFalse((await ExecuteAsync("WarehouseSitesController.GetWarehousePickerPagedAsync",["Inventory.Outbound.View"])).Continued);
+    }
+
+    /// <summary>入库查看权限只开放入库仓库筛选候选，其他查看权限不能替代，也不放宽仓库管理。</summary>
+    [TestMethod]
+    public async Task InboundWarehouseOptions_RequireExactInboundView()
+    {
+        const string action="InboundQueryController.GetWarehouseOptionsAsync";
+        Assert.IsTrue(MvcActions.Value.ContainsKey(action));
+        foreach(var permission in new[]{"","Inventory.Warehouse.View","Inventory.Balance.View"})
+        {
+            var result=await ExecuteAsync(action,[permission]);
+            Assert.IsFalse(result.Continued);Assert.AreEqual(ServiceErrorCodes.Forbidden,result.ErrorCode);
+        }
+        var anonymous=await ExecuteAsync(action,["Inventory.Inbound.View"],authenticated:false);
+        Assert.IsFalse(anonymous.Continued);Assert.AreEqual(ServiceErrorCodes.Unauthenticated,anonymous.ErrorCode);
+        Assert.IsTrue((await ExecuteAsync(action,["Inventory.Inbound.View"])).Continued);
+        Assert.IsFalse((await ExecuteAsync("WarehouseSitesController.GetWarehousePickerPagedAsync",["Inventory.Inbound.View"])).Continued);
+    }
+
+    /// <summary>库存仓库筛选候选仅需余额查看权限，该权限不能进入仓库管理读取端点。</summary>
+    [TestMethod]
+    public async Task InventoryWarehouseOptions_RequireBalanceViewWithoutOpeningWarehouseManagement()
+    {
+        const string action="InventoryController.GetWarehouseOptionsAsync";
+        Assert.IsTrue(MvcActions.Value.ContainsKey(action));
+        foreach(var keys in new[]{Array.Empty<string>(),new[]{"Inventory.Warehouse.View"}})
+        {
+            var denied=await ExecuteAsync(action,keys);
+            Assert.IsFalse(denied.Continued);
+            Assert.AreEqual(ServiceErrorCodes.Forbidden,denied.ErrorCode);
+        }
+        var anonymous=await ExecuteAsync(action,["Inventory.Balance.View"],authenticated:false);
+        Assert.IsFalse(anonymous.Continued);
+        Assert.AreEqual(ServiceErrorCodes.Unauthenticated,anonymous.ErrorCode);
+        var allowed=await ExecuteAsync(action,["Inventory.Balance.View"]);
+        Assert.IsTrue(allowed.Continued);
+        CollectionAssert.AreEqual(new[]{"Inventory.Balance.View"},allowed.RequestedKeys);
+        foreach(var management in new[]{"WarehouseSitesController.SearchAsync","WarehouseSitesController.GetWarehousePickerPagedAsync"})
+        {
+            var denied=await ExecuteAsync(management,["Inventory.Balance.View"]);
+            Assert.IsFalse(denied.Continued);
+            Assert.AreEqual(ServiceErrorCodes.Forbidden,denied.ErrorCode);
+            CollectionAssert.AreEqual(new[]{"Inventory.Warehouse.View"},denied.RequestedKeys);
         }
     }
 

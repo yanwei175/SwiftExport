@@ -24,12 +24,12 @@ public static class ProcurementOrderPolicy
         if (value < 0 || (positive && value == 0) || value > limit || decimal.Round(value, scale) != value)
             throw ProcurementOperationException.Validation(name + "超出允许范围或精度。", name);
     }
-    /// <summary>按数量和价格计算四位金额；先检查输入，明确允许零价。</summary>
+    /// <summary>按四位数量和单价计算四位金额；空价仅供历史读取表达，写入前必须明确两价。</summary>
     public static decimal? Amount(decimal quantity, decimal? price)
     {
         Number(quantity, 4, "采购数量", true);
         if (!price.HasValue) return null;
-        Number(price.Value, 6, "采购单价");
+        Number(price.Value, 4, "采购单价");
         try
         {
             var amount = decimal.Round(checked(quantity * price.Value), 4, MidpointRounding.AwayFromZero);
@@ -37,6 +37,27 @@ public static class ProcurementOrderPolicy
             return amount;
         }
         catch (OverflowException) { throw ProcurementOperationException.Validation("采购金额溢出。", "Lines[].UnitPrice"); }
+    }
+    /// <summary>创建、保存与确认共用两价必填和四位物理精度校验；明确零价有效，金额仅由后端计算。</summary>
+    public static (decimal UnitAmount, decimal TaxAmount) CalculateAmounts(decimal quantity, decimal? unitPrice, decimal? taxPrice,
+        string unitPriceField = "Lines[].UnitPrice", string taxPriceField = "Lines[].TaxPrice")
+    {
+        if (!unitPrice.HasValue)
+            throw ProcurementOperationException.Validation("未税单价不能为空；无报价时请明确输入0。", unitPriceField);
+        if (!taxPrice.HasValue)
+            throw ProcurementOperationException.Validation("含税单价不能为空；无报价时请明确输入0。", taxPriceField);
+        Number(unitPrice.Value, 4, unitPriceField);
+        Number(taxPrice.Value, 4, taxPriceField);
+        return (Amount(quantity, unitPrice)!.Value, Amount(quantity, taxPrice)!.Value);
+    }
+    /// <summary>预检和正式确认共用已有金额核验，拒绝缺价或金额失真，不能在只读预检中修补数据。</summary>
+    public static void RequireConfirmationAmounts(PurchaseOrderLine line)
+    {
+        var amounts = CalculateAmounts(line.Quantity, line.UnitPrice, line.TaxPrice);
+        if (line.UnitAmount != amounts.UnitAmount)
+            throw ProcurementOperationException.Validation("采购金额与数量单价不一致，请重新保存采购草稿。", "Lines[].UnitAmount");
+        if (line.TaxAmount != amounts.TaxAmount)
+            throw ProcurementOperationException.Validation("采购金额与数量单价不一致，请重新保存采购草稿。", "Lines[].TaxAmount");
     }
     /// <summary>校验文本长度，空白归空，不截断用户输入。</summary>
     public static string? Text(string? value, int maximum, string field)
@@ -70,15 +91,14 @@ public static class ProcurementOrderPolicy
             throw new InvalidOperationException("必须提交全部原有采购行，不能增加或删除。");
         foreach (var item in command.Lines)
         {
-            if (!item.UnitPrice.HasValue)
-                throw ProcurementOperationException.Validation("未税单价不能为空；无报价时请明确输入0。", "Lines[].UnitPrice");
             var line = lines.SingleOrDefault(x => x.Uid == item.PurchaseOrderLineId)
                 ?? throw new InvalidOperationException("采购行不属于本订单。");
             if (item.ExpectedVersion <= 0 || item.ExpectedVersion != line.Version)
                 throw new ProcurementOperationException(SwiftExport.Contracts.DTOs.Errors.ServiceErrorCodes.VersionConflict, "采购行版本冲突。", "Lines[].ExpectedVersion");
             // 商务补丁显式白名单，绝不映射数量、产品、单位或送达供应商。
-            line.UnitAmount = Amount(line.Quantity, item.UnitPrice);
-            line.TaxAmount = Amount(line.Quantity, item.TaxPrice);
+            var amounts = CalculateAmounts(line.Quantity, item.UnitPrice, item.TaxPrice);
+            line.UnitAmount = amounts.UnitAmount;
+            line.TaxAmount = amounts.TaxAmount;
             line.UnitPrice = item.UnitPrice; line.TaxPrice = item.TaxPrice;
             line.SupplierSku = Text(item.SupplierSku, SupplierSkuMaximumLength, "供应商型号");
             line.DescriptionZh = Text(item.DescriptionZh, DescriptionZhMaximumLength, "采购描述");

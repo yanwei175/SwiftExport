@@ -391,7 +391,10 @@ public sealed class MapsterConfig : IRegister
         config.NewConfig<PurchaseOrderLineEditModel, SwiftExport.Contracts.DTOs.Procurement.PurchaseOrderDetailDto.UpdatePurchaseOrderDraftLineCommand>()
             .Map(dest => dest.PurchaseOrderLineId, src => src.Uid)
             .Map(dest => dest.ExpectedVersion, src => src.Version);
-        config.NewConfig<PurchaseOrderLineEditModel, SwiftExport.Contracts.DTOs.Procurement.OrderManagement.CreateIndependentPurchaseOrderLineCommand>();
+        // 手工选品以 ProductId 为准；不把候选显示的客户型号误当作 Excel 导入匹配意图。
+        config.NewConfig<PurchaseOrderLineEditModel, SwiftExport.Contracts.DTOs.Procurement.OrderManagement.CreateIndependentPurchaseOrderLineCommand>()
+            .Ignore(dest => dest.CustomerSku)
+            .Ignore(dest => dest.SelectedCustomerProductId);
 
         config.NewConfig<AfterSalesListItemDto, AfterSalesManagerRowModel>()
             .Map(dest => dest.CustomerDisplay, src => string.Concat(src.CustomerCodeSnapshot, " · ", src.CustomerNameSnapshot))

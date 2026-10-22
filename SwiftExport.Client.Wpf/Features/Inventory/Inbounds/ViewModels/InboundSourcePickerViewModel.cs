@@ -7,9 +7,10 @@ using SwiftExport.Contracts.DTOs.Suppliers;
 using SwiftExport.Contracts.SysEnums.Inventory;
 using SwiftExportClient.Features.Inventory.Inbounds.Models;
 using SwiftExportClient.Services.Api;
-using SwiftExportClient.Services.Caching;
+using SwiftExportClient.Features.Inventory.Services;
 using SwiftExportClient.Services.UI;
 using System.ComponentModel;
+using SwiftExport.Contracts.DTOs.Inventory.Inbounds.Query;
 
 namespace SwiftExportClient.Features.Inventory.Inbounds.ViewModels;
 
@@ -18,25 +19,27 @@ public partial class InboundSourcePickerViewModel : ObservableObject, IDialogCon
 {
     private readonly IInboundSourceApi? _api;
     private readonly IApiCallRunner? _runner;
-    private readonly IReferenceDataCacheService? _cache;
+    private CancellationTokenSource? _supplierOptionsCancellation;
+    private bool _initialized;
     private CancellationTokenSource? _query;
     private bool _disposed;
     private bool _hasResult;
     private long _requestId;
     private InboundSourceSearchRequest? _appliedSearch;
     private Guid? _currentInboundDocumentId;
+    private string? _inputWarning;
 
     /// <summary>仅供设计器及本地模型测试创建，不提供任何远程数据。</summary>
     public InboundSourcePickerViewModel() { }
 
-    /// <summary>运行时注入只读 API 和会话缓存。</summary>
-    public InboundSourcePickerViewModel(IInboundSourceApi api, IApiCallRunner runner, IReferenceDataCacheService cache)
-    { _api = api; _runner = runner; _cache = cache; }
+    /// <summary>运行时注入入库权限下的只读 API，不依赖其他主数据权限或全量缓存。</summary>
+    public InboundSourcePickerViewModel(IInboundSourceApi api, IApiCallRunner runner)
+    { _api = api; _runner = runner; }
     /// <summary>通知弹窗刷新确认按钮状态。</summary>
     public event EventHandler? StateChanged;
 
-    /// <summary>供应商使用缓存全量，不按有无采购记录缩小集合。</summary>
-    public IReadOnlyCollection<SupplierDto> Suppliers => _cache?.Suppliers ?? (IReadOnlyCollection<SupplierDto>)Array.Empty<SupplierDto>();
+    /// <summary>入库查看权限下完整读取的未删除供应商身份，不按有无采购记录缩小。</summary>
+    public System.Collections.ObjectModel.ObservableCollection<SupplierDto> Suppliers { get; } = [];
     /// <summary>仅采购类型显示的两种分类，默认客供件。</summary>
     public IReadOnlyList<InboundPurchaseCategoryEnum> PurchaseCategories { get; } = [InboundPurchaseCategoryEnum.CustomerSupplied, InboundPurchaseCategoryEnum.Normal];
     /// <summary>弹窗所属业务类型，由调用方固定，不能在选源中改变。</summary>
@@ -70,32 +73,43 @@ public partial class InboundSourcePickerViewModel : ObservableObject, IDialogCon
     /// <inheritdoc/>
     public bool CanClose(DialogResult result) => result != DialogResult.Primary || IsPrimaryButtonEnabled;
 
-    /// <summary>初始化固定上下文并加载缓存与第一页；非采购来源明确不可用。</summary>
+    /// <summary>初始化固定上下文与供应商候选；候选失败仍查询无供应商条件的第一页。</summary>
     public async Task InitializeAsync(InboundSourcePickerRequest request, CancellationToken cancellationToken)
     {
+        if (_initialized || _disposed) return;
+        _initialized = true;
         _currentInboundDocumentId = request.CurrentInboundDocumentId;
         DocumentType = request.DocumentType;
         OnPropertyChanged(nameof(IsPurchase));
         if (!IsPurchase)
         { StatusText = "该入库类型的选源尚未实现。"; return; }
-        if (_cache is not null)
+        string? supplierError = null;
+        if (_api is not null && _runner is not null)
         {
-            var loaded = await _cache.EnsureLoadedAsync();
-            cancellationToken.ThrowIfCancellationRequested();
-            if (_disposed) return;
-            OnPropertyChanged(nameof(Suppliers));
-            if (!loaded.Success) { StatusText = "供应商缓存加载失败，未使用后端采购供应商列表替代。可重试打开选择器。"; return; }
+            using var options = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+            _supplierOptionsCancellation = options;
+            try
+            {
+                var loaded = await InventorySupplierOptionsLoader.LoadAsync(_api.GetSupplierOptionsAsync, _runner, InboundQueryLimits.MaxPageSize, options.Token);
+                if (_disposed || options.IsCancellationRequested) return;
+                if (loaded.Success && loaded.Data is not null) foreach (var row in loaded.Data) Suppliers.Add(row);
+                else supplierError = loaded.Message;
+            }
+            catch (OperationCanceledException) when (options.IsCancellationRequested) { return; }
+            finally { if (ReferenceEquals(_supplierOptionsCancellation, options)) _supplierOptionsCancellation = null; }
         }
         await QueryAsync(1, cancellationToken);
+        if (!_disposed && !cancellationToken.IsCancellationRequested && supplierError is not null)
+            StatusText += $" 供应商候选未加载：{supplierError}；可不选供应商继续查询。";
     }
 
     /// <summary>显式查询第一页，不重新获取有效采购供应商名单。</summary>
-    [RelayCommand(AllowConcurrentExecutions = true)]
+    [RelayCommand(CanExecute = nameof(CanSearch), AllowConcurrentExecutions = true)]
     private Task SearchAsync(CancellationToken token) => QueryAsync(1, token);
 
     /// <summary>翻页重新加载快照，当前页勾选不被误当作跨页选择。</summary>
     [RelayCommand(AllowConcurrentExecutions = true)]
-    private Task PageChangeAsync(int page, CancellationToken token) => QueryAsync(Math.Max(1, page), token, applyEditedFilters: false);
+    private Task PageChangeAsync(int page, CancellationToken token) => QueryAsync(page, token, applyEditedFilters: false);
 
     /// <summary>可取消且 latest-request-wins；这是 UI 请求防串回写，不是业务并发检查。</summary>
     private async Task QueryAsync(int page, CancellationToken token, bool applyEditedFilters = true)
@@ -114,10 +128,12 @@ public partial class InboundSourcePickerViewModel : ObservableObject, IDialogCon
             CurrentInboundDocumentId = _currentInboundDocumentId,
             PurchaseCategory = applied is null ? PurchaseCategory : applied.PurchaseCategory,
             SupplierId = applied is null ? SelectedSupplier?.Uid : applied.SupplierId,
-            Keyword = applied is null ? Keyword : applied.Keyword,
+            Keyword = applied is null ? Keyword?.Trim() : applied.Keyword,
             PageIndex = page,
             PageSize = PageSize
         };
+        if (GetInputError(request.Keyword, request.PageIndex, request.PageSize) is { } error)
+        { _inputWarning = error; StatusText = error; return; }
         _query?.Cancel();
         using var query = CancellationTokenSource.CreateLinkedTokenSource(token);
         _query = query;
@@ -190,11 +206,27 @@ public partial class InboundSourcePickerViewModel : ObservableObject, IDialogCon
         OnPropertyChanged(nameof(IsPrimaryButtonEnabled)); OnPropertyChanged(nameof(CanSelect));
         StateChanged?.Invoke(this, EventArgs.Empty);
     }
+
+    private bool CanSearch() => !_disposed && IsPurchase && GetInputError(Keyword, 1, PageSize) is null;
+
+    /// <summary>前端与后端共用查询边界，拒绝无效请求时保留已接纳结果及分页事实。</summary>
+    private static string? GetInputError(string? keyword, int page, int size) => keyword?.Trim().Length > InboundQueryLimits.KeywordMaxLength
+        ? $"查询关键词最多 {InboundQueryLimits.KeywordMaxLength} 字。"
+        : page < 1 || size is < 1 or > InboundQueryLimits.MaxPageSize ? $"页码须为正数，每页最多 {InboundQueryLimits.MaxPageSize} 条。" : null;
+
+    /// <summary>纠正输入只清除本地错误，不覆盖之后出现的查询结果或反馈。</summary>
+    partial void OnKeywordChanged(string value)
+    {
+        var error = GetInputError(value, 1, PageSize);
+        if (error is not null) { _inputWarning = error; StatusText = error; }
+        else { if (_inputWarning is not null && StatusText == _inputWarning) StatusText = "查询条件已修正，请点击查询。"; _inputWarning = null; }
+        SearchCommand.NotifyCanExecuteChanged();
+    }
     /// <summary>关闭或取消后停止查询，释放行订阅并拒绝晚到结果。</summary>
     public void Dispose()
     {
         if (_disposed) return;
-        _disposed = true; _requestId++; _query?.Cancel();
+        _disposed = true; _requestId++; _query?.Cancel(); _supplierOptionsCancellation?.Cancel();
         foreach (var row in Items) row.PropertyChanged -= OnRowChanged;
     }
 }

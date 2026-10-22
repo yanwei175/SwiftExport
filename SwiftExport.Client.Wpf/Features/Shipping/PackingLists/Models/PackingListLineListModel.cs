@@ -1,4 +1,4 @@
-using SwiftExport.Contracts.DTOs.Shipping.PackingLists;
+﻿using SwiftExport.Contracts.DTOs.Shipping.PackingLists;
 using SwiftExportClient.Mvvm;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
@@ -11,6 +11,11 @@ public sealed partial class PackingListLineListModel : BaseListModel<PackingList
 {
     private bool _syncing;
     private string _shape = "";
+    private readonly ObservableCollection<PackingListPackingGroupModel> _packages = [];
+    /// <summary>上表包装条目投影，普通产品与拼箱各占一行，保存仍只读取真实 Items。</summary>
+    public ReadOnlyObservableCollection<PackingListPackingGroupModel> Packages { get; }
+    /// <summary>包装条目独立视图，不与箱内产品视图共享筛选或排序。</summary>
+    public ICollectionView PackageView { get; }
     /// <summary>只对真实产品行建立分组视图，不混入假产品或空组行。</summary>
     public ICollectionView PackingView { get; }
     /// <summary>拼箱 UI 容器，允许暂存未保存的空组。</summary>
@@ -20,6 +25,13 @@ public sealed partial class PackingListLineListModel : BaseListModel<PackingList
     /// <summary>订阅自身列表状态，覆盖编辑、增删、恢复和排序。</summary>
     public PackingListLineListModel() : base(_ => new PackingListLineModel())
     {
+        Packages = new ReadOnlyObservableCollection<PackingListPackingGroupModel>(_packages);
+        PackageView = new ListCollectionView(_packages);
+        PackingGroups.CollectionChanged += (_, _) =>
+        {
+            if (!_syncing) RefreshPackages();
+            OnPropertyChanged(nameof(HasEmptyGroups));
+        };
         PackingView = new ListCollectionView(Items);
         PackingView.GroupDescriptions.Add(new PropertyGroupDescription(nameof(PackingListLineModel.DisplayGroup)));
         ListStateChanged += (_, e) =>
@@ -89,11 +101,29 @@ public sealed partial class PackingListLineListModel : BaseListModel<PackingList
             }
             foreach (var group in PackingGroups.Where(g => !Items.Any(x => x.PackingGroupId == g.Id)))
                 group.BindMembers([]);
+            RefreshPackages();
             _shape = shape;
             PackingView.Refresh();
             OnPropertyChanged(nameof(HasEmptyGroups));
         }
         finally { _syncing = false; }
+    }
+
+    /// <summary>按真实行的包装块投影上表，复用对象并增量移动，避免刷新编辑中的行。</summary>
+    private void RefreshPackages()
+    {
+        var desired = Items.Select(x => x.DisplayGroup).Where(x => x is not null).Cast<PackingListPackingGroupModel>()
+            .Distinct().Concat(PackingGroups.Where(x => x.Members.Count == 0)).Distinct().ToArray();
+        foreach (var stale in _packages.Where(x => !desired.Contains(x)).ToArray()) _packages.Remove(stale);
+        var box = 0;
+        for (var i = 0; i < desired.Length; i++)
+        {
+            var item = desired[i];
+            if (item.IsMixed) item.PackingNumber = ++box;
+            var old = _packages.IndexOf(item);
+            if (old < 0) _packages.Insert(i, item);
+            else if (old != i) _packages.Move(old, i);
+        }
     }
 
     /// <summary>成员变化使整箱重量体积失效，箱唛保留。</summary>
@@ -106,7 +136,7 @@ public sealed partial class PackingListLineListModel : BaseListModel<PackingList
     }
 
     /// <summary>包装统计只计每条普通行和每个拼箱一次，不影响产品交付总量。</summary>
-    private IEnumerable<PackingListLineModel> Packages => Items.Where(x => !x.IsDeleted)
+    private IEnumerable<PackingListLineModel> PackageFacts => Items.Where(x => !x.IsDeleted)
         .GroupBy(x => (x.PackingListHeadId, x.PackingGroupId.HasValue, Id: x.PackingGroupId ?? x.Uid)).Select(x => x.First());
 
     /// <summary>显示已知合计及缺失提示，不把未知值伪装成完整总数。</summary>
@@ -115,7 +145,7 @@ public sealed partial class PackingListLineListModel : BaseListModel<PackingList
     /// <summary>已知部分与未知提示并存，溢出不得显示伪造合计。</summary>
     private string Known(Func<PackingListLineModel, decimal?> selector)
     {
-        var values = Packages.Select(selector).ToArray();
+        var values = PackageFacts.Select(selector).ToArray();
         try { return $"{values.Sum(x => x ?? 0):0.####}" + (values.Any(x => !x.HasValue) ? "（有未填写项）" : ""); }
         catch (OverflowException) { return "超出范围"; }
     }
@@ -147,7 +177,7 @@ public sealed partial class PackingListLineListModel : BaseListModel<PackingList
     // 未知不能当成零；空列表的总和为零。
     private decimal? SumKnown(Func<PackingListLineModel, decimal?> selector)
     {
-        var values = Packages.Select(selector).ToArray();
+        var values = PackageFacts.Select(selector).ToArray();
         if (values.Any(x => !x.HasValue)) return null;
         try { return values.Sum(x => x!.Value); }
         catch (OverflowException) { return null; }

@@ -3,16 +3,25 @@ using Microsoft.AspNetCore.Mvc;
 using SwiftExport.Application.Interfaces.Inventory;
 using SwiftExport.Application.Interfaces.Inventory.Query;
 using SwiftExport.Contracts.DTOs.Inventory;
+using SwiftExport.Contracts.DTOs.Inventory.WareHouseSite.Picker;
 using SwiftExport.Contracts.Wrappers;
 
 namespace SwiftExport.WebApi.Controllers.Inventory.Query;
 
-/// <summary>提供受认证保护的库存余额、流水和 Trace 只读 HTTP 边界。</summary>
+/// <summary>提供受认证保护的库存余额、流水、Trace 及仓库和供应商筛选候选只读 HTTP 边界。</summary>
 [ApiController]
 [Authorize]
 [Route("api/inventory")]
 public sealed class InventoryController(IInventoryQueryService service) : ControllerBase
 {
+    /// <summary>按库存查看权限分页读取供应商筛选项，不依赖主数据查看权限。</summary>
+    [HttpGet("suppliers/picker")]
+    public Task<ServiceResult<PagedResponseBase<InventorySupplierLookupDto>>> GetSupplierOptionsAsync([FromQuery] PagedRequestBase request, CancellationToken cancellationToken) => service.GetSupplierOptionsAsync(request, cancellationToken);
+
+    /// <summary>按库存查看权限分页读取仓库筛选候选。</summary>
+    [HttpGet("warehouses/picker")]
+    public Task<ServiceResult<PagedResponseBase<WarehouseSitePickerDto>>> GetWarehouseOptionsAsync([FromQuery] PagedRequestBase request, CancellationToken cancellationToken) => service.GetWarehouseOptionsAsync(request, cancellationToken);
+
     /// <summary>分页查询库存余额。</summary>
     [HttpPost("balances/search")]
     public Task<ServiceResult<PagedResponseBase<InventoryBalanceDto>>> SearchBalancesAsync([FromBody] InventoryBalanceSearchRequest request, CancellationToken cancellationToken) => service.SearchBalancesAsync(request, cancellationToken);

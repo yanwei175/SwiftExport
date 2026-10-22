@@ -476,13 +476,13 @@ public sealed class PostgreSqlPackingListRepository(RepositoryBaseContext contex
         await context.Session.Connection.ExecuteAsync(Command("UPDATE public.packing_list_line SET is_deleted=TRUE,version=version+1,updated_date=@UpdatedDate,updated_by=@UpdatedBy WHERE packing_list_head_id=@Uid AND is_deleted=FALSE", parameters, cancellationToken)); header.Version++;
     }
 
-    /// <summary>保留原计数后列表的两个查询阶段、日期上界和发票摘要，不将旧分阶段行为改为全局快照。</summary>
+    /// <summary>集合内并集、客户与状态间交集在计数分页前生效；保留原日期上界、发票摘要及两阶段读取。</summary>
     public async Task<PagedResponseBase<PackingListManagerListItemDto>> SearchAsync(PackingListManagerSearchRequest request, CancellationToken cancellationToken = default)
     {
         const string filter = """
             FROM public.packing_list_head h WHERE h.is_deleted=FALSE
-                AND (@CustomerId IS NULL OR h.customer_id=@CustomerId)
-                AND (@PostingStatus IS NULL OR h.posting_status=@PostingStatus)
+                AND (cardinality(@CustomerIds)=0 OR h.customer_id=ANY(@CustomerIds))
+                AND (cardinality(@PostingStatuses)=0 OR h.posting_status=ANY(@PostingStatuses))
                 AND (@DateFrom IS NULL OR h.invoice_date>=@DateFrom)
                 AND (@DateTo IS NULL OR h.invoice_date<@DateTo+INTERVAL '1 day')
                 AND (@Keyword IS NULL OR h.packing_list_no COLLATE public.erp_dictionary_ci LIKE @Keyword ESCAPE '~'
@@ -492,8 +492,11 @@ public sealed class PostgreSqlPackingListRepository(RepositoryBaseContext contex
                     OR EXISTS(SELECT 1 FROM public.packing_list_line kl WHERE kl.packing_list_head_id=h.uid AND kl.is_deleted=FALSE
                         AND kl.invoice_no COLLATE public.erp_dictionary_ci LIKE @Keyword ESCAPE '~'))
             """;
-        var parameters = new QueryParameters(); parameters.Add("CustomerId", request.CustomerId, NpgsqlDbType.Uuid);
-        parameters.Add("PostingStatus", request.PostingStatus is null ? null : (int)request.PostingStatus, NpgsqlDbType.Integer);
+        var parameters = new QueryParameters();
+        parameters.Add("CustomerIds", request.CustomerIds?.ToArray()
+            ?? (request.CustomerId.HasValue ? [request.CustomerId.Value] : []), NpgsqlDbType.Array | NpgsqlDbType.Uuid);
+        parameters.Add("PostingStatuses", request.PostingStatuses?.Select(value => (int)value).ToArray()
+            ?? (request.PostingStatus.HasValue ? [(int)request.PostingStatus.Value] : []), NpgsqlDbType.Array | NpgsqlDbType.Integer);
         parameters.Add("DateFrom", request.InvoiceDateFrom?.Date, NpgsqlDbType.Timestamp); parameters.Add("DateTo", request.InvoiceDateTo?.Date, NpgsqlDbType.Timestamp);
         parameters.Add("Keyword", Like(request.Keyword), NpgsqlDbType.Text); parameters.Add("Skip", (long)(request.PageIndex - 1) * request.PageSize, NpgsqlDbType.Bigint); parameters.Add("Take", request.PageSize, NpgsqlDbType.Integer);
         var sql = "SELECT count(*)::integer " + filter + ";SELECT " + HeaderListColumns + "," + InvoiceSummary() + " AS \"InvoiceNosSummary\" " + filter + $" ORDER BY h.invoice_date DESC NULLS LAST,{UuidOrder("h.uid")} DESC LIMIT CASE WHEN @Take<=0 THEN -1 ELSE @Take END OFFSET @Skip;";

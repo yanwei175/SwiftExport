@@ -103,7 +103,7 @@ public sealed class PurchaseOrderReferencePolicyTests
         internal readonly ProcurementReversalFacts Value;internal readonly List<ProcurementAssociationTarget> Targets;
         internal Facts()
         {
-            Line=new(){Uid=Guid.NewGuid(),Version=1,PurchaseOrderId=Head.Uid,ProductId=Guid.NewGuid(),Quantity=10,UnlinkedQty=4,UnitSnapshot="PCS",MaterialType="成品",SupplyType="采购"};
+            Line=new(){Uid=Guid.NewGuid(),Version=1,PurchaseOrderId=Head.Uid,ProductId=Guid.NewGuid(),Quantity=10,UnlinkedQty=4,UnitSnapshot="PCS",MaterialType="成品",SupplyType="采购",UnitPrice=0,TaxPrice=0,UnitAmount=0,TaxAmount=0};
             Source=new(){Uid=Guid.NewGuid(),Version=1,CustomerId=Head.CustomerId,SourceType="SO",SourceUid=Guid.NewGuid(),SourceLineId=Guid.NewGuid(),SourceNo="SO-1",SourceVersion=1,DemandBasisFingerprint="basis"};
             Material=new(){Uid=Guid.NewGuid(),Version=1,GrossDemandId=Source.Uid,ProductId=Line.ProductId,NetQty=10,UnitSnapshot="PCS",MaterialTypeSnapshot="成品",SupplyTypeSnapshot="采购",DecompositionRevision=1,SourceDemandBasisFingerprintSnapshot="basis"};
             Link=new(){Uid=Guid.NewGuid(),NetDemandId=Material.Uid,TargetType="PO",TargetHeadId=Head.Uid,TargetLineId=Line.Uid,AllocatedQty=6};

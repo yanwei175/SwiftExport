@@ -57,28 +57,35 @@ public sealed partial class PostgreSqlInboundQueryMigrationTests
         Assert.AreEqual(NpgsqlDbType.Bigint,f.Connection.Types["Skip"]);Assert.AreEqual(NpgsqlDbType.Integer,f.Connection.Types["Take"]);
     }
 
-    /// <summary>可空枚举与字面搜索类型明确，只有原三个字段参与LIKE，不执行历史门禁。</summary>
+    /// <summary>旧可空枚举规范化为显式整数数组，字面搜索仍只使用原三个字段且不执行历史门禁。</summary>
     [TestMethod,DataRow(null),DataRow(" \t "),DataRow("  a~%_[  ")]
     public async Task Offline_SearchParameters(string? keyword)
     {
         using var f=new ReadFixture(false);f.Connection.Results=[Count(0),Rows(new InboundManagerListItemDto()).Clone()];
         await f.Repository.SearchAsync(new(){Keyword=keyword!,DocumentType=(InboundDocumentTypeEnum)999,PostingStatus=null},default);
-        Assert.AreEqual(999,f.Connection.Values["DocumentType"]);Assert.AreEqual(DBNull.Value,f.Connection.Values["PostingStatus"]);
+        CollectionAssert.AreEqual(new[]{999},(int[])f.Connection.Values["DocumentTypes"]!);
+        Assert.IsEmpty((int[])f.Connection.Values["PostingStatuses"]!);
         Assert.AreEqual(string.IsNullOrWhiteSpace(keyword)?DBNull.Value:(object)"%a~~~%~_~[%",f.Connection.Values["Keyword"]);
-        Assert.AreEqual(NpgsqlDbType.Integer,f.Connection.Types["PostingStatus"]);Assert.AreEqual(NpgsqlDbType.Text,f.Connection.Types["Keyword"]);
+        Assert.AreEqual(NpgsqlDbType.Array|NpgsqlDbType.Integer,f.Connection.Types["PostingStatuses"]);Assert.AreEqual(NpgsqlDbType.Text,f.Connection.Types["Keyword"]);
         Assert.AreEqual(1,f.Connection.Commands);Assert.IsFalse(f.Connection.Sql.Contains("inventory_ledger_entry",StringComparison.Ordinal));
         foreach(var word in new[]{"h.lifecycle_status=","h.creation_mode=","product.","h.remark COLLATE"}) Assert.IsFalse(f.Connection.Sql.Contains(word,StringComparison.Ordinal));
         StringAssert.Contains(f.Connection.Sql,"ESCAPE '~'");StringAssert.Contains(f.Connection.Sql,"ORDER BY h.receipt_date DESC,ARRAY[get_byte(uuid_send(h.uid),10)");
     }
 
-    /// <summary>历史门禁先于缺头，明确命中专用信号时不执行详情批次，Search仍不受门禁影响。</summary>
+    /// <summary>历史检查先限定目标头来源；缺头不受无关历史阻断，相关异常仍返回专用信号且不读详情。</summary>
     [TestMethod]
-    public async Task Offline_GlobalHistoryBeforeMissingHeader()
+    public async Task Offline_ScopedHistoryPreservesMissingHeaderAndRejectsRelatedEvidence()
     {
-        using var f=new ReadFixture(true); f.Connection.InvalidHistory=true;
-        var error=await Assert.ThrowsAsync<UnverifiedReceiptHistoryException>(()=>f.Repository.GetDetailAsync(Guid.Empty,default));
-        Assert.AreEqual(DatabaseFailureKind.UnverifiedReceiptHistory,f.Session.Errors.Classify(error));Assert.AreEqual(1,f.Connection.Commands);
-        f.Connection.Results=[Count(0),Rows(new InboundManagerListItemDto()).Clone()];await f.Repository.SearchAsync(new(),default);Assert.AreEqual(2,f.Connection.Commands);
+        using var f=new ReadFixture(true);
+        f.Connection.Results=[Rows(new InboundHeaderDetailDto()).Clone(),Rows(new InboundLineDetailDto()).Clone()];
+        Assert.IsNull(await f.Repository.GetDetailAsync(Guid.Empty,default));Assert.AreEqual(2,f.Connection.Commands);
+        StringAssert.Contains(f.Connection.Sqls[0],"target.uid=@Uid");
+        StringAssert.Contains(f.Connection.Sqls[0],"target.is_deleted=FALSE");
+        StringAssert.Contains(f.Connection.Sqls[0],"receipt_head_reviews");
+        f.Connection.InvalidHistory=true;
+        var error=await Assert.ThrowsAsync<UnverifiedReceiptHistoryException>(()=>f.Repository.GetDetailAsync(Guid.NewGuid(),default));
+        Assert.AreEqual(DatabaseFailureKind.UnverifiedReceiptHistory,f.Session.Errors.Classify(error));Assert.AreEqual(3,f.Connection.Commands);
+        f.Connection.Results=[Count(0),Rows(new InboundManagerListItemDto()).Clone()];await f.Repository.SearchAsync(new(),default);Assert.AreEqual(4,f.Connection.Commands);
         Assert.AreSame(f.Transaction,f.Session.Transaction);Assert.AreEqual(0,f.Connection.EndTransactions);
     }
 
@@ -101,9 +108,9 @@ public sealed partial class PostgreSqlInboundQueryMigrationTests
         f.Connection.Results=[Rows(new InboundHeaderDetailDto()),line];var result=await f.Repository.GetDetailAsync(Guid.Empty,default);Assert.IsNotNull(result);
         var actual=result.Lines.Single();Assert.AreEqual(0,actual.SourceVersion);Assert.AreEqual(0m,actual.OriginalQty);Assert.AreEqual("",actual.SourceNo);Assert.AreEqual("",actual.ImagePath);
         StringAssert.Contains(f.Connection.Sql,"p.quantity AS \"OriginalQty\"");StringAssert.Contains(f.Connection.Sql,"LEFT JOIN LATERAL");StringAssert.Contains(f.Connection.Sql,"COUNT(DISTINCT dh.uid)::integer");
-        StringAssert.Contains(f.Connection.Sql,"dh.uid<>@Uid");StringAssert.Contains(f.Connection.Sql,"rh.posting_status IN(1,8)");
-        StringAssert.Contains(f.Connection.Sql,"CASE WHEN p.quantity>COALESCE(received.qty,0) THEN p.quantity-COALESCE(received.qty,0) ELSE 0 END");
-        foreach(var word in new[]{"p.is_deleted"," h.is_deleted","product.is_deleted","product.is_active","p.source_type","l.is_deleted AS"})Assert.IsFalse(f.Connection.Sql.Contains(word,StringComparison.Ordinal),word);
+        StringAssert.Contains(f.Connection.Sql,"dh.uid<>@Uid");StringAssert.Contains(f.Connection.Sql,"receipt_head_reviews");
+        StringAssert.Contains(f.Connection.Sql,"CASE WHEN p.quantity>COALESCE(received.received_qty,0) THEN p.quantity-COALESCE(received.received_qty,0) ELSE 0 END");
+        foreach(var word in new[]{"product.is_deleted","product.is_active","p.source_type","l.is_deleted AS"})Assert.IsFalse(f.Connection.Sql.Contains(word,StringComparison.Ordinal),word);
         Assert.AreEqual(Guid.Empty,f.Connection.Values["Uid"]);Assert.AreEqual(NpgsqlDbType.Uuid,f.Connection.Types["Uid"]);
     }
 
@@ -143,7 +150,26 @@ public sealed partial class PostgreSqlInboundQueryMigrationTests
         using var f=new ReadFixture(false);await Assert.ThrowsAsync<NullReferenceException>(()=>f.Repository.SearchAsync(null!,default));Assert.AreEqual(0,f.Connection.Commands);
         f.Connection.Results=[Count(0),Rows(new InboundManagerListItemDto()).Clone()];var keyword=new string('a',201);
         await f.Repository.SearchAsync(new(){Keyword=keyword,DocumentType=null,PageSize=int.MaxValue},default);
-        Assert.AreEqual("%"+keyword+"%",f.Connection.Values["Keyword"]);Assert.AreEqual(DBNull.Value,f.Connection.Values["DocumentType"]);Assert.AreEqual(int.MaxValue,f.Connection.Values["Take"]);
+        Assert.AreEqual("%"+keyword+"%",f.Connection.Values["Keyword"]);Assert.IsEmpty((int[])f.Connection.Values["DocumentTypes"]!);Assert.AreEqual(int.MaxValue,f.Connection.Values["Take"]);
+    }
+
+    /// <summary>有效集合绑定为 integer[]，空选覆盖旧单值；计数和当前页使用同一集合谓词。</summary>
+    [TestMethod,DataRow(0),DataRow(1),DataRow(2),DataRow(3)]
+    public async Task Offline_MultiFiltersBindTypedArraysBeforePaging(int mode)
+    {
+        using var f=new ReadFixture(true);f.Connection.Results=[Count(7),Rows(new InboundManagerListItemDto()).Clone()];
+        var request=new InboundManagerSearchRequest{DocumentType=InboundDocumentTypeEnum.ProductionReceipt,PostingStatus=InboundPostingStatusEnum.Posted,PageIndex=2,PageSize=3};
+        if(mode==1){request.DocumentTypes=[];request.PostingStatuses=[];}
+        if(mode>=2)request.DocumentTypes=[InboundDocumentTypeEnum.PurchaseReceipt,InboundDocumentTypeEnum.OpeningBalance];
+        if(mode==2)request.PostingStatuses=[InboundPostingStatusEnum.Unposted,InboundPostingStatusEnum.Reversed];
+        var result=await f.Repository.SearchAsync(request,default);
+        CollectionAssert.AreEqual(mode==0?new[]{20}:mode==1?[]:new[]{10,100},(int[])f.Connection.Values["DocumentTypes"]!);
+        CollectionAssert.AreEqual(mode==1?[]:mode==2?new[]{0,8}:new[]{1},(int[])f.Connection.Values["PostingStatuses"]!);
+        foreach(var name in new[]{"DocumentTypes","PostingStatuses"})Assert.AreEqual(NpgsqlDbType.Array|NpgsqlDbType.Integer,f.Connection.Types[name]);
+        Assert.AreEqual(2,f.Connection.Sql.Split("h.document_type=ANY(@DocumentTypes)").Length-1);
+        Assert.AreEqual(2,f.Connection.Sql.Split("h.posting_status=ANY(@PostingStatuses)").Length-1);
+        Assert.AreEqual(3L,f.Connection.Values["Skip"]);Assert.AreEqual(3,f.Connection.Values["Take"]);
+        Assert.AreEqual(7,result.TotalCount);Assert.AreEqual(2,result.PageIndex);Assert.AreSame(f.Transaction,f.Session.Transaction);
     }
     /// <summary>丰富原始字段样本，数值刻意不协调，验证仓储不重新计算对账或Available。</summary>
     private static T Sample<T>() where T:new()
@@ -162,11 +188,13 @@ public sealed partial class PostgreSqlInboundQueryMigrationTests
         public DbSession Session { get; }
         public DbTransaction? Transaction { get; }
         public PostgreSqlInboundQueryRepository Repository { get; }
+        public PostgreSqlInboundSourceRepository Sources { get; }
         /// <summary>构建既有上下文和调用者可空事务。</summary>
         public ReadFixture(bool transactional)
         {
             Session = new(new ReadFactory(Connection)); if (transactional) Session.Transaction = Transaction = Connection.BeginTransaction();
-            var user = new WorkspaceUser(); Repository = new(new RepositoryBaseContext(Session, NullLoggerFactory.Instance, new AuditStampService(user), user));
+            var user = new WorkspaceUser(); var context = new RepositoryBaseContext(Session, NullLoggerFactory.Instance, new AuditStampService(user), user);
+            Repository = new(context); Sources = new(context);
         }
         /// <summary>夹具结束才释放会话。</summary>
         public void Dispose() => Session.Dispose();

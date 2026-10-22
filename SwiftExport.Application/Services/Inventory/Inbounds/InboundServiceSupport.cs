@@ -6,6 +6,7 @@ using SwiftExport.Application.Interfaces.Auth;
 using SwiftExport.Application.Interfaces.Auth.Permissions.Evaluation;
 using SwiftExport.Contracts.DTOs.Auth;
 using SwiftExport.Contracts.DTOs.Errors;
+using SwiftExport.Contracts.DTOs.Inventory.Inbounds.Query;
 using SwiftExport.Contracts.DTOs.SystemDtos.Requests;
 using SwiftExport.Contracts.Wrappers;
 using SwiftExport.Core.Interfaces.Auth;
@@ -64,8 +65,8 @@ public sealed class InboundServiceSupport(ICurrentUser user, IPermissionEvaluati
     /// <summary>验证分页上界，避免无界查询和偏移量溢出。</summary>
     public static void ValidatePage(PagedRequestBase? request)
     {
-        if (request is null || request.PageIndex < 1 || request.PageSize is < 1 or > 200 || request.Keyword?.Length > 200)
-            throw new DraftException("分页参数无效，页大小为 1–200，关键词最多 200 字。");
+        if (request is null || request.PageIndex < 1 || request.PageSize is < 1 or > InboundQueryLimits.MaxPageSize || request.Keyword?.Length > InboundQueryLimits.KeywordMaxLength)
+            throw new DraftException($"分页参数无效，页大小为 1–{InboundQueryLimits.MaxPageSize}，关键词最多 {InboundQueryLimits.KeywordMaxLength} 字。");
     }
 
 }

@@ -61,8 +61,14 @@ public sealed class OutboundServiceSupport(ServiceBaseContext context, ICurrentU
     /// <summary>限制出库列表和选品查询的分页上界。</summary>
     public static void ValidatePage(PagedRequestBase? request)
     {
-        if (request is null || request.PageIndex < 1 || request.PageSize is < 1 or > 200 || request.Keyword?.Length > 200)
-            throw new OutboundDraftException("分页参数无效，页大小为 1–200，关键词最多 200 字。");
+        if (request is null)
+            throw new OutboundDraftException("查询条件不能为空。", ServiceErrorCodes.Validation, "Request");
+        if (request.PageIndex < 1)
+            throw new OutboundDraftException("页码须大于零。", ServiceErrorCodes.Validation, nameof(request.PageIndex));
+        if (request.PageSize is < 1 or > OutboundQueryLimits.PageSizeMax)
+            throw new OutboundDraftException($"页大小须为 1–{OutboundQueryLimits.PageSizeMax}。", ServiceErrorCodes.Validation, nameof(request.PageSize));
+        if (request.Keyword?.Length > OutboundQueryLimits.KeywordMaxLength)
+            throw new OutboundDraftException($"关键词最多 {OutboundQueryLimits.KeywordMaxLength} 字。", ServiceErrorCodes.Validation, nameof(request.Keyword));
     }
 }
 

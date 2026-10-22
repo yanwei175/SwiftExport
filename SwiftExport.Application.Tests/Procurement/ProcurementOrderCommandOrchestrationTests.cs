@@ -11,11 +11,13 @@ using Microsoft.VisualStudio.TestTools.UnitTesting;
 using SwiftExport.Application.Commands;
 using SwiftExport.Application.Commands.Validation;
 using SwiftExport.Application.Contexts;
+using SwiftExport.Application.Services.ForExcel;
 using SwiftExport.Application.Interfaces;
 using SwiftExport.Application.Interfaces.Auth;
 using SwiftExport.Application.Interfaces.Auth.Permissions.Evaluation;
 using SwiftExport.Contracts.DTOs.Auth;
 using SwiftExport.Contracts.DTOs.Errors;
+using SwiftExport.Contracts.DTOs.ForExcel.PurchaseOrders;
 using SwiftExport.Contracts.DTOs.Procurement.OrderManagement;
 using SwiftExport.Contracts.DTOs.Procurement.PurchaseOrderDetailDto;
 using SwiftExport.Contracts.DTOs.SystemDtos.Requests;
@@ -27,6 +29,7 @@ using SwiftExport.Core.Entities.Procurement;
 using SwiftExport.Core.Interfaces.Auditing;
 using SwiftExport.Core.Interfaces.Auth;
 using SwiftExport.Core.Interfaces.Commands;
+using SwiftExport.Core.Interfaces.ForExcel;
 using SwiftExport.Core.Interfaces.Procurement;
 using SwiftExport.Core.Models.Procurement;
 using SwiftExport.Core.Entities.MasterData;
@@ -39,6 +42,134 @@ namespace SwiftExport.Application.Tests.Procurement;
 [TestClass]
 public sealed class ProcurementOrderCommandOrchestrationTests
 {
+    /// <summary>手工明确产品身份时由后端读取商务快照，无客户关系或同客户型号有歧义都不触发导入匹配。</summary>
+    [TestMethod]
+    [DataRow("")]
+    [DataRow("DUPLICATE")]
+    public async Task DirectProductCreationUsesSnapshotWithoutImportSelection(string customerSku)
+    {
+        var f=new Fixture{AllowCreation=true,SnapshotCustomerSku=customerSku};f.PrepareConfirmation();
+        f.ImportCandidates=[Candidate(f.ProductId,customerSku),Candidate(Guid.NewGuid(),customerSku)];
+        var command=f.CreateCommand();
+        command.Lines[0].IsNonStandard=false;command.Lines[0].ProductId=f.ProductId;
+        var result=await f.Drafts.CreateAsync(command);
+        Assert.IsTrue(result.Success,result.Message);
+        Assert.AreEqual(f.ProductId,f.CreatedLines.Single().ProductId);
+        Assert.AreEqual(string.IsNullOrEmpty(customerSku)?null:customerSku,f.CreatedLines.Single().CustomerSku);
+        Assert.AreEqual(1,f.CreateWrites);Assert.AreEqual(1,f.NumberCalls);
+    }
+
+    /// <summary>真正导入仍要求型号、选定关联及真实产品一致，不能借手工创建分支绕过歧义或伪造身份。</summary>
+    [TestMethod]
+    [DataRow("ambiguous")]
+    [DataRow("wrong-selection")]
+    [DataRow("wrong-product")]
+    [DataRow("missing-sku")]
+    public async Task ImportCreationKeepsCustomerModelAndProductIdentityChecks(string fault)
+    {
+        var f=new Fixture{AllowCreation=true};f.PrepareConfirmation();
+        var first=Candidate(f.ProductId,"MODEL");
+        f.ImportCandidates=fault=="ambiguous"?[first,Candidate(Guid.NewGuid(),"MODEL")]:[first];
+        var command=f.CreateCommand();var line=command.Lines[0];
+        line.IsNonStandard=false;line.ProductId=f.ProductId;line.CustomerSku="MODEL";
+        if(fault=="wrong-selection")line.SelectedCustomerProductId=Guid.NewGuid();
+        if(fault=="wrong-product"){f.ImportCandidates=[Candidate(Guid.NewGuid(),"MODEL")];line.SelectedCustomerProductId=f.ImportCandidates[0].CustomerProductId;}
+        if(fault=="missing-sku"){line.CustomerSku="";line.SelectedCustomerProductId=first.CustomerProductId;}
+        var result=await f.Drafts.CreateAsync(command);
+        Assert.IsFalse(result.Success);
+        Assert.AreEqual(fault=="ambiguous"?ProcurementErrorCodes.ProductAmbiguous:fault=="wrong-selection"?ProcurementErrorCodes.SelectionInvalid
+            :fault=="missing-sku"?ProcurementErrorCodes.ProductNotMatched:ServiceErrorCodes.Validation,result.Error.Code);
+        Assert.AreEqual(0,f.CreateWrites);Assert.AreEqual(0,f.NumberCalls);Assert.IsEmpty(f.Receipts.Rows);
+    }
+
+    /// <summary>创建用于真实导入匹配的有效候选，不借SKU文本代替产品及关联身份。</summary>
+    private static PurchaseOrderImportProductCandidateDto Candidate(Guid productId,string customerSku)=>new()
+    {CustomerProductId=Guid.NewGuid(),ProductId=productId,CustomerSku=customerSku,IsUsable=true,Sku="P",Unit="PCS"};
+
+    /// <summary>导入预检通过实际适配调用同一价格规则，字段定位保持单行协议，明确零价可以保存。</summary>
+    [TestMethod]
+    [DataRow("missing-unit", "UnitPrice")]
+    [DataRow("missing-tax", "TaxPrice")]
+    [DataRow("precision-unit", "UnitPrice")]
+    [DataRow("precision-tax", "TaxPrice")]
+    [DataRow("zero", "")]
+    public async Task ImportCheckUsesRequiredPricesAndPreservesLineFieldPaths(string fault, string field)
+    {
+        var customerId = Guid.NewGuid(); var supplierId = Guid.NewGuid();
+        var repository = Proxy<IForExcelPurchaseOrderRepository>.New((method, _) => method.Name switch
+        {
+            "FindCustomersAsync" => Task.FromResult<IReadOnlyList<PurchaseOrderImportCustomerDto>>([new() { Uid = customerId, IsActive = true, CustomerCode = "C" }]),
+            "FindSupplierAsync" => Task.FromResult<PurchaseOrderImportSupplierDto?>(new() { Uid = supplierId, IsActive = true, SupplierCode = "S", SupplierName = "供应商" }),
+            "MatchProductsAsync" => Task.FromResult<IReadOnlyList<PurchaseOrderImportProductCandidateDto>>([]),
+            "FindUnitAsync" => Task.FromResult<string?>("PCS"),
+            _ => throw new AssertFailedException(method.Name)
+        });
+        var permissions = Proxy<IPermissionEvaluationService>.New((_, _) => Task.FromResult(true));
+        var orders = Proxy<IProcurementOrderDocumentRepository>.New((method, _) => method.Name == "BoNoExistsAsync"
+            ? Task.FromResult(false) : throw new AssertFailedException(method.Name));
+        var service = new ForExcelPurchaseOrderService(repository, new UserStub(), permissions, orders);
+        var request = new CheckPurchaseOrderImportRequest
+        {
+            CustomerCode = "C", SupplierId = supplierId, Header = new() { OrderDate = DateTime.Today },
+            Lines = [new() { ClientLineId = Guid.NewGuid(), IsNonStandard = true, DescriptionZh = "非标配件", Unit = "PCS", Quantity = 1, UnitPrice = 0, TaxPrice = 0 }]
+        };
+        var line = request.Lines.Single();
+        switch (fault)
+        {
+            case "missing-unit": line.UnitPrice = null; break;
+            case "missing-tax": line.TaxPrice = null; break;
+            case "precision-unit": line.UnitPrice = 0.00001m; break;
+            case "precision-tax": line.TaxPrice = 0.00001m; break;
+        }
+        var result = await service.CheckAsync(request);
+        Assert.IsTrue(result.Success, result.Message);
+        Assert.AreEqual(fault == "zero", result.Data.CanSave);
+        if (fault != "zero") Assert.AreEqual(field, result.Data.Lines.Single().Issues.Single().Field);
+    }
+
+    /// <summary>预检与正式确认拒绝相同的缺价、非法精度及失真金额，拒绝时不写确认、审计或回执。</summary>
+    [TestMethod]
+    [DataRow("missing-unit")]
+    [DataRow("missing-tax")]
+    [DataRow("missing-both")]
+    [DataRow("negative-unit")]
+    [DataRow("negative-tax")]
+    [DataRow("precision-unit")]
+    [DataRow("precision-tax")]
+    [DataRow("amount-unit")]
+    [DataRow("amount-tax")]
+    public async Task ConfirmationPreviewAndCommitRejectTheSameInvalidPrices(string fault)
+    {
+        var f = new Fixture();
+        f.PrepareConfirmation();
+        var line = f.Facts!.Lines.Single();
+        switch (fault)
+        {
+            case "missing-unit": line.UnitPrice = null; line.UnitAmount = null; break;
+            case "missing-tax": line.TaxPrice = null; line.TaxAmount = null; break;
+            case "missing-both": line.UnitPrice = null; line.TaxPrice = null; line.UnitAmount = null; line.TaxAmount = null; break;
+            case "negative-unit": line.UnitPrice = -1; line.UnitAmount = -1; break;
+            case "negative-tax": line.TaxPrice = -1; line.TaxAmount = -1; break;
+            case "precision-unit": line.UnitPrice = 0.00001m; break;
+            case "precision-tax": line.TaxPrice = 0.00001m; break;
+            case "amount-unit": line.UnitAmount = 1; break;
+            case "amount-tax": line.TaxAmount = 1; break;
+        }
+        var preview = await f.Confirmations.GetConfirmationContextAsync(f.Head!.Uid);
+        Assert.IsFalse(preview.Success, fault);
+        var result = await f.Confirmations.ConfirmAsync(f.Head.Uid, new()
+        {
+            CommandId = Guid.NewGuid(), ExpectedVersion = 1, ContextFingerprint = "unused-invalid-basis"
+        });
+        Assert.IsFalse(result.Success, fault);
+        Assert.AreEqual(preview.Error!.Code, result.Error!.Code, fault);
+        Assert.AreEqual(preview.Error.Field, result.Error.Field, fault);
+        Assert.AreEqual(0, f.ConfirmCalls);
+        Assert.AreEqual(0, f.LogCalls);
+        Assert.IsEmpty(f.Receipts.Rows);
+        Assert.IsNull(f.Session.Transaction);
+    }
+
     /// <summary>正式创建在事务内复核 BONO；发现重复时不取号、不写头行和回执。</summary>
     [TestMethod]
     public async Task DuplicateBoNoRejectsCreateBeforeWrites()
@@ -272,6 +403,10 @@ public sealed class ProcurementOrderCommandOrchestrationTests
         public int NumberCalls, BusinessReads, LogCalls, ConfirmCalls, LogResult = 1;
         public PurchaseOrderHead? Head;
         public ProcurementReversalFacts? Facts;
+        public string SnapshotCustomerSku="";
+        public IReadOnlyList<PurchaseOrderImportProductCandidateDto> ImportCandidates=[];
+        public IReadOnlyList<PurchaseOrderLine> CreatedLines=[];
+        public Guid ProductId=>productId;
         private readonly Guid customerId = Guid.NewGuid(), supplierId = Guid.NewGuid(), productId = Guid.NewGuid();
 
         public Fixture()
@@ -292,7 +427,7 @@ public sealed class ProcurementOrderCommandOrchestrationTests
                 "SaveAsync" => RecordSave(),
                 "ConfirmAsync" => RecordConfirm(),
                 "BoNoExistsAsync" => CheckBoNo(),
-                "InsertAsync" => CreateHead((PurchaseOrderHead)_[0]!),
+                "InsertAsync" => CreateHead((PurchaseOrderHead)_[0]!, (IReadOnlyList<PurchaseOrderLine>)_[1]!),
                 _ => throw new AssertFailedException("重放或拒绝不应读取采购仓储：" + method.Name)
             });
             var references = Proxy<IProcurementReferenceReadRepository>.New((method, _) => method.Name switch
@@ -300,6 +435,7 @@ public sealed class ProcurementOrderCommandOrchestrationTests
                 "GetCustomerAsync" => ReadCustomer(),
                 "GetSupplierAsync" => Task.FromResult(Facts is null ? null : new Supplier { Uid = supplierId, SupplierCode = "S", SupplierName = "供应商", DocRelateNo = "S" }),
                 "GetProductAsync" => Task.FromResult(Facts is null ? null : new Product { Uid = productId, Sku = "P", Unit = "PCS", MaterialType = MaterialTypesEnum.零件, SupplyType = SupplyTypeEnums.采购 }),
+                "GetProductCandidateAsync" => Task.FromResult<SwiftExport.Contracts.DTOs.MasterData.ProcurementLookups.ProcurementProductCandidateDto?>(new(){Uid=productId,CustomerSku=SnapshotCustomerSku,LinkSku="LINK",Unit="PCS",Sku="P"}),
                 "GetUnitAsync" => Task.FromResult<string?>("PCS"),
                 _ => throw new AssertFailedException("重放或拒绝不应读取采购资格：" + method.Name)
             });
@@ -320,9 +456,9 @@ public sealed class ProcurementOrderCommandOrchestrationTests
             Builder = new ProcurementConfirmationBuilder(references,Proxy<IProcurementDemandAssociationRepository>.New((method,_)=>throw new AssertFailedException("普通采购不应读取客供关系："+method.Name)));
             Drafts = new ProcurementOrderDraftService(repository, references, Builder, numbers,
                 user, new TypeAdapterConfig(), Executor, pipeline, support,
-                Proxy<SwiftExport.Core.Interfaces.ForExcel.IForExcelPurchaseOrderRepository>.New((method, _) =>
+                Proxy<SwiftExport.Core.Interfaces.ForExcel.IForExcelPurchaseOrderRepository>.New((method, args) =>
                     AllowCreation && method.Name == "MatchProductsAsync"
-                        ? Task.FromResult<IReadOnlyList<SwiftExport.Contracts.DTOs.ForExcel.PurchaseOrders.PurchaseOrderImportProductCandidateDto>>([])
+                        ? Task.FromResult<IReadOnlyList<PurchaseOrderImportProductCandidateDto>>(ImportCandidates.Where(item=>((string[])args[1]!).Contains(IndependentPurchaseOrderInputPolicy.Normalize(item.CustomerSku))).ToArray())
                         : throw new AssertFailedException("重放或拒绝不应查询导入关联：" + method.Name)));
             Confirmations = new ProcurementOrderConfirmationService(repository, reversal, Builder, new ProcurementOrderReadSupport(new ServiceBaseContext(Session, NullLoggerFactory.Instance), permissions, user), user, Executor, pipeline, support);
         }
@@ -340,12 +476,13 @@ public sealed class ProcurementOrderCommandOrchestrationTests
         /// <summary>非标创建只使用真实双方及启用单位，不需要虚构产品匹配。</summary>
         public CreateIndependentPurchaseOrderCommand CreateCommand() => new() { CommandId = Guid.NewGuid(), CustomerId = customerId,
             SupplierId = supplierId, OrderDate = DateTime.Today, BoNo = "BO-1",
-            Lines = [new() { IsNonStandard = true, Unit = "PCS", DescriptionZh = "非标配件", Quantity = 1, UnitPrice = 0 }] };
+            Lines = [new() { IsNonStandard = true, Unit = "PCS", DescriptionZh = "非标配件", Quantity = 1, UnitPrice = 0, TaxPrice = 0 }] };
         // 观察调用方事务，不能据此声称真实 PostgreSQL 唯一索引已验证。
         private Task<bool> CheckBoNo() { Assert.IsNotNull(Session.Transaction); BoNoChecks++; return Task.FromResult(DuplicateBoNo); }
-        private Task<RepositoryWriteResult> CreateHead(PurchaseOrderHead head)
+        private Task<RepositoryWriteResult> CreateHead(PurchaseOrderHead head, IReadOnlyList<PurchaseOrderLine> lines)
         {
             Assert.IsNotNull(Session.Transaction); CreateWrites++;
+            CreatedLines=lines;
             return Task.FromResult(CreateWriteConflict ? RepositoryWriteResult.Fail(head.Uid, null, ServiceErrorCodes.Validation,
                 "自定义采购单号（BONO）已被未删除的采购订单使用，请修改后重新保存。") : RepositoryWriteResult.Ok(head.Uid, null, 1));
         }

@@ -91,11 +91,11 @@ public sealed class PostgreSqlInboundExecutionReadRepository(RepositoryBaseConte
             """, new { WarehouseId = warehouseId, ProductId = productId }, token));
     }
 
-    /// <summary>历史反向允许停用仓库，仅检查身份存在且未删除。</summary>
+    /// <summary>反向预览与库存内核一致，仅允许存在、未删除且启用的仓库。</summary>
     public Task<bool> ReverseWarehouseExistsAsync(Guid warehouseId, CancellationToken token) =>
         context.Session.Connection.ExecuteScalarAsync<bool>(Command($"""
             SELECT COUNT(*)>0 FROM "public"."warehouse_site" w
-            WHERE w."uid"=@Uid AND w."is_deleted"=FALSE;
+            WHERE w."uid"=@Uid AND w."is_deleted"=FALSE AND w."is_active"=TRUE;
             """, new { Uid = warehouseId }, token));
 
     /// <summary>透传调用方可空事务和取消令牌；不建立、提交或结束事务。</summary>

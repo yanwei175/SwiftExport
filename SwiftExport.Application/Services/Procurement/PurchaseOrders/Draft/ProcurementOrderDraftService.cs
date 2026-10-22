@@ -116,8 +116,9 @@ public sealed class ProcurementOrderDraftService(
                 }
             }
             IndependentPurchaseOrderInputPolicy.ApplyCommercial(line,item);
-            line.UnitAmount = ProcurementOrderPolicy.Amount(item.Quantity, item.UnitPrice);
-            line.TaxAmount = ProcurementOrderPolicy.Amount(item.Quantity, item.TaxPrice);
+            var amounts = ProcurementOrderPolicy.CalculateAmounts(item.Quantity, item.UnitPrice, item.TaxPrice);
+            line.UnitAmount = amounts.UnitAmount;
+            line.TaxAmount = amounts.TaxAmount;
             line.SourceType = null; line.SourceNo = null;
             lines.Add(line);
         }

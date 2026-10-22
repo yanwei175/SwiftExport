@@ -258,7 +258,7 @@ public sealed partial class OutboundManagerPersistenceTests
         public OutboundManagerViewModel Vm { get; }
         public Fixture()
         {
-            User.SetCurrentUser(new() { Permissions = [SwiftExport.Contracts.DTOs.Auth.PermissionKeys.InventoryOutboundPost, SwiftExport.Contracts.DTOs.Auth.PermissionKeys.InventoryOutboundReverse, "Inventory.Outbound.View"] });
+            User.SetCurrentUser(OutboundTestUsers.Create().CurrentUser!);
             Vm = new(new WarehouseStub(), new SourceStub(), Dialogs, persistence: Service, deleteDialogs: DeleteDialogs, postDialogs: PostDialogs, postingUser: User, reverseDialogs: ReverseDialogs, issueReasonDialogs: IssueReasonDialogs);
         }
         public OutboundHeaderModel Add()
@@ -284,6 +284,7 @@ public sealed partial class OutboundManagerPersistenceTests
         public List<DeleteOutboundDraftCommand> Deletes { get; } = [];
         public int Writes { get; private set; }
         public int FailCreateAt { get; set; }
+        public int FailDeleteAt { get; set; }
         public bool LoseNextResponse, FailDetails, ConflictUpdate, DenyRequests;
         public string LossErrorCode = "OUTCOME_UNKNOWN";
         public TaskCompletionSource? Wait;
@@ -304,7 +305,9 @@ public sealed partial class OutboundManagerPersistenceTests
         }
         /// <inheritdoc/>
         public Task<ServiceResult<OutboundDraftCommandResult>> DeleteAsync(Guid uid, DeleteOutboundDraftCommand command, CancellationToken token)
-        { Deletes.Add(command); return Task.FromResult(Write(command.CommandId, uid, null, command.ExpectedVersion + 1, true)); }
+        { Deletes.Add(command); return Task.FromResult(Deletes.Count == FailDeleteAt
+            ? ServiceResult<OutboundDraftCommandResult>.Fail(ServiceErrorCodes.Validation, "删除被拒绝")
+            : Write(command.CommandId, uid, null, command.ExpectedVersion + 1, true)); }
         /// <inheritdoc/>
         public Task<ServiceResult<OutboundManagerDetailDto>> GetAsync(Guid uid, CancellationToken token)
             => Task.FromResult(FailDetails ? ServiceResult<OutboundManagerDetailDto>.Fail(OutboundErrorCodes.OutcomeUnknown, "详情网络错误") : ServiceResult<OutboundManagerDetailDto>.Ok(_details[uid]));
@@ -342,7 +345,9 @@ public sealed partial class OutboundManagerPersistenceTests
     /// <summary>不打开真实仓库弹窗。</summary>
     private sealed class WarehouseStub : IWarehousePickerService
     {
-        public Task<WarehouseSitePickerDto?> PickAsync(CancellationToken cancellationToken = default) => Task.FromResult<WarehouseSitePickerDto?>(null);
+        public int Calls;
+        public WarehouseSitePickerDto? Result { get; set; }
+        public Task<WarehouseSitePickerDto?> PickAsync(CancellationToken cancellationToken = default) { Calls++; return Task.FromResult(Result); }
     }
     /// <summary>不打开真实来源弹窗。</summary>
     private sealed class SourceStub : IOutboundItemDialogService
@@ -353,6 +358,8 @@ public sealed partial class OutboundManagerPersistenceTests
     /// <summary>模拟 Refit 返回或传输异常，意外调用其他接口立即失败。</summary>
     private sealed class TransportStub : IOutboundManagerApi
     {
+        /// <inheritdoc/>
+        public Task<ServiceResult<PagedResponseBase<WarehouseSitePickerDto>>> GetWarehouseOptionsAsync(PagedRequestBase request, CancellationToken cancellationToken = default) => throw new NotSupportedException();
         /// <inheritdoc/>
         public Task<ServiceResult<OutboundReversePreviewDto>> PreviewReverseAsync(Guid uid, OutboundReversePreviewRequest request, CancellationToken cancellationToken = default) => throw new NotSupportedException();
         /// <inheritdoc/>

@@ -51,7 +51,7 @@ public sealed class WarehouseQueryService(
     /// <inheritdoc/>
     public async Task<ServiceResult<PagedResponseBase<WarehouseSiteDto>>> SearchWarehouseSitesAsync(WarehouseSiteSearchRequest request, CancellationToken cancellationToken = default)
     {
-        if (request is null || request.PageIndex < 1 || request.PageSize is < 1 or > 200 || request.Keyword?.Length > 100)
+        if (request is null || request.PageIndex < 1 || request.PageSize is < 1 or > WarehouseSiteLimits.MaxPageSize || request.Keyword?.Length > WarehouseSiteLimits.SearchKeywordMaxLength)
             return ServiceResult<PagedResponseBase<WarehouseSiteDto>>.Fail("虚拟仓查询条件无效。");
         return await ReadWarehouseAsync(() => warehouseSites.SearchAsync(request, cancellationToken), cancellationToken, "查询供应商虚拟仓失败。");
     }

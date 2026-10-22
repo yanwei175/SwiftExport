@@ -20,7 +20,7 @@ namespace SwiftExport.Client.Wpf.Tests.Features;
 
 /// <summary>验证入库管理真实命令接线的分页、懒加载、失败保留和生命周期，不访问数据库。</summary>
 [TestClass]
-public sealed class InboundManagerQueryTests
+public sealed partial class InboundManagerQueryTests
 {
     /// <summary>首次显示只搜索一次并沿用默认条件，再次激活不覆盖编辑。</summary>
     [TestMethod]
@@ -30,8 +30,8 @@ public sealed class InboundManagerQueryTests
         using var vm = Create(api);
         await vm.InitializeAsync();
         Assert.AreEqual(1, api.Requests.Count);
-        Assert.AreEqual(vm.SelectedDocumentType, api.Requests[0].DocumentType);
-        Assert.AreEqual(vm.SelectedPostingStatus, api.Requests[0].PostingStatus);
+        CollectionAssert.AreEqual(vm.SelectedDocumentTypes.ToArray(), api.Requests[0].DocumentTypes);
+        CollectionAssert.AreEqual(vm.SelectedPostingStatuses.ToArray(), api.Requests[0].PostingStatuses);
         vm.Lines!.Items[0].Quantity = 12;
         await vm.InitializeAsync();
         Assert.AreEqual(1, api.Requests.Count);
@@ -73,18 +73,18 @@ public sealed class InboundManagerQueryTests
         vm.Keyword = "first";
         await vm.SearchCommand.ExecuteAsync(null);
         vm.Keyword = "edited";
-        vm.SelectedDocumentType = InboundDocumentTypeEnum.ProductionReceipt;
-        vm.SelectedPostingStatus = InboundPostingStatusEnum.Posted;
+        vm.SelectedDocumentTypes.Clear(); vm.SelectedDocumentTypes.Add(InboundDocumentTypeEnum.ProductionReceipt);
+        vm.SelectedPostingStatuses.Clear(); vm.SelectedPostingStatuses.Add(InboundPostingStatusEnum.Posted);
         Assert.AreEqual(1, api.Requests.Count);
         Assert.IsTrue(vm.SelectedItem!.CanEdit);
         await vm.PageChangeCommand.ExecuteAsync(new PageChangeRequest { NewIndex = 2, NewSize = 50 });
         Assert.AreEqual("first", api.Requests[1].Keyword);
-        Assert.AreEqual(InboundDocumentTypeEnum.PurchaseReceipt, api.Requests[1].DocumentType);
-        Assert.AreEqual(InboundPostingStatusEnum.Unposted, api.Requests[1].PostingStatus);
+        CollectionAssert.AreEqual(new[] { InboundDocumentTypeEnum.PurchaseReceipt }, api.Requests[1].DocumentTypes);
+        CollectionAssert.AreEqual(new[] { InboundPostingStatusEnum.Unposted }, api.Requests[1].PostingStatuses);
         Assert.AreEqual(2, vm.PageIndex);
         Assert.AreEqual(100, vm.TotalCount);
         await vm.SearchCommand.ExecuteAsync(null);
-        Assert.AreEqual(InboundPostingStatusEnum.Posted, api.Requests[2].PostingStatus);
+        CollectionAssert.AreEqual(new[] { InboundPostingStatusEnum.Posted }, api.Requests[2].PostingStatuses);
     }
 
     /// <summary>拒绝放弃不发请求；即使同意放弃，查询失败也保留本地草稿。</summary>
@@ -148,11 +148,15 @@ public sealed class InboundManagerQueryTests
     }
 
     private static InboundManagerViewModel Create(ApiStub api, DialogStub? dialogs = null)
-        => new(new WarehouseStub(), new SourceStub(), dialogs ?? new DialogStub(), api, new RunnerStub());
+        => new(new WarehouseStub(), new SourceStub(), dialogs ?? new DialogStub(), api, new RunnerStub(), postingUser: InboundTestUsers.Create());
 
     /// <summary>可控查询服务；所有写入口抛错，确保本批查询不会误调用保存或删除。</summary>
     private sealed class ApiStub : IInboundManagerApi
     {
+        /// <inheritdoc/>
+        public Task<ServiceResult<PagedResponseBase<WarehouseSitePickerDto>>> GetWarehouseOptionsAsync(PagedRequestBase request, CancellationToken cancellationToken = default)
+            => OptionsHandler?.Invoke(request) ?? throw new NotSupportedException();
+        public Func<PagedRequestBase, Task<ServiceResult<PagedResponseBase<WarehouseSitePickerDto>>>>? OptionsHandler { get; set; }
         /// <inheritdoc/>
         public Task<ServiceResult<InboundReversePreviewDto>> PreviewReverseAsync(Guid uid, InboundReversePreviewRequest request, CancellationToken token = default) => throw new NotSupportedException();
         /// <inheritdoc/>
@@ -165,6 +169,7 @@ public sealed class InboundManagerQueryTests
         public bool FailSearch { get; set; }
         public bool FailDetail { get; set; }
         public int DetailCalls { get; private set; }
+        public Func<Guid, Task<ServiceResult<InboundManagerDetailDto>>>? DetailHandler { get; set; }
         public List<InboundManagerSearchRequest> Requests { get; } = [];
         public TaskCompletionSource<ServiceResult<PagedResponseBase<InboundManagerListItemDto>>>? Pending { get; set; }
         /// <inheritdoc/>
@@ -183,6 +188,7 @@ public sealed class InboundManagerQueryTests
         public Task<ServiceResult<InboundManagerDetailDto>> GetAsync(Guid uid, CancellationToken cancellationToken = default)
         {
             DetailCalls++;
+            if (DetailHandler is not null) return DetailHandler(uid);
             return Task.FromResult(FailDetail ? ServiceResult<InboundManagerDetailDto>.Fail("详情错误") : ServiceResult<InboundManagerDetailDto>.Ok(new()
             {
                 Header = new() { Uid = uid, Version = 3, WarehouseSiteId = Guid.NewGuid() },
@@ -194,7 +200,8 @@ public sealed class InboundManagerQueryTests
         /// <inheritdoc/>
         public Task<ServiceResult<InboundDraftCommandResult>> UpdateAsync(Guid uid, UpdateInboundDraftCommand command, CancellationToken cancellationToken = default) => throw new NotSupportedException();
         /// <inheritdoc/>
-        public Task<ServiceResult<InboundDraftCommandResult>> DeleteAsync(Guid uid, DeleteInboundDraftCommand command, CancellationToken cancellationToken = default) => throw new NotSupportedException();
+        public Task<ServiceResult<InboundDraftCommandResult>> DeleteAsync(Guid uid, DeleteInboundDraftCommand command, CancellationToken cancellationToken = default)
+            => Task.FromResult(ServiceResult<InboundDraftCommandResult>.Ok(new() { Uid = uid, Version = command.ExpectedVersion + 1, IsDeleted = true }));
     }
 
     /// <summary>测试直接执行请求，取消故意由响应身份门禁验证。</summary>

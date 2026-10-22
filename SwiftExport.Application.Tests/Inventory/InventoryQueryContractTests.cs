@@ -24,15 +24,17 @@ namespace SwiftExport.Application.Tests.Inventory;
 [TestClass]
 public sealed class InventoryQueryContractTests
 {
-    /// <summary>目录迁移后逐项核对仓库十项与库存三项 HTTP 用例的动词、路径和控制器基路由。</summary>
+    /// <summary>逐项核对仓库十项与库存五项 HTTP 用例的动词、路径和控制器基路由。</summary>
     [TestMethod]
-    public void InventoryAndWarehouseApis_ShouldKeepAllThirteenRoutes()
+    public void InventoryAndWarehouseApis_ShouldKeepAllFifteenRoutes()
     {
         var routes = new (Type Controller, Type Api, string Method, string Verb)[]
         {
             (typeof(InventoryController), typeof(IInventoryApi), "SearchBalancesAsync", "POST"),
             (typeof(InventoryController), typeof(IInventoryApi), "SearchLedgerAsync", "POST"),
             (typeof(InventoryController), typeof(IInventoryApi), "GetTraceAsync", "GET"),
+            (typeof(InventoryController), typeof(IInventoryApi), "GetWarehouseOptionsAsync", "GET"),
+            (typeof(InventoryController), typeof(IInventoryApi), "GetSupplierOptionsAsync", "GET"),
             (typeof(WarehouseSitesController), typeof(IWarehouseSiteApi), "GetWarehousePickerPagedAsync", "GET"),
             (typeof(WarehouseSitesController), typeof(IWarehouseSiteApi), "SearchCandidatesAsync", "POST"),
             (typeof(WarehouseSitesController), typeof(IWarehouseSiteApi), "SearchAsync", "POST"),
@@ -44,7 +46,7 @@ public sealed class InventoryQueryContractTests
             (typeof(WarehouseSitesController), typeof(IWarehouseSiteApi), "ActivateAsync", "POST"),
             (typeof(WarehouseSitesController), typeof(IWarehouseSiteApi), "DeleteAsync", "DELETE")
         };
-        Assert.AreEqual(3, typeof(IInventoryApi).GetMethods().Length);
+        Assert.AreEqual(5, typeof(IInventoryApi).GetMethods().Length);
         Assert.AreEqual(10, typeof(IWarehouseSiteApi).GetMethods().Length);
 
         foreach (var route in routes)
@@ -84,16 +86,18 @@ public sealed class InventoryQueryContractTests
         Assert.AreEqual(typeof(WarehouseCandidateQueryService), services.Single(item => item.ServiceType == typeof(IWarehouseCandidateQueryService)).ImplementationType);
     }
 
-    /// <summary>Refit 只公开余额、流水与 Trace 三个查询，不重新暴露期初或余额写接口。</summary>
+    /// <summary>Refit 只公开余额、流水、Trace 及仓库和供应商筛选五个查询，不重新暴露库存写接口。</summary>
     [TestMethod]
     public void InventoryApi_ShouldExposeOnlyReadModelsAndStableRoutes()
     {
         var methods = typeof(IInventoryApi).GetMethods().ToDictionary(x => x.Name);
 
-        Assert.AreEqual(3, methods.Count);
+        Assert.AreEqual(5, methods.Count);
         Assert.AreEqual("/balances/search", methods[nameof(IInventoryApi.SearchBalancesAsync)].GetCustomAttributes(typeof(PostAttribute), false).Cast<PostAttribute>().Single().Path);
         Assert.AreEqual("/ledger/search", methods[nameof(IInventoryApi.SearchLedgerAsync)].GetCustomAttributes(typeof(PostAttribute), false).Cast<PostAttribute>().Single().Path);
         Assert.AreEqual("/balances/{uid}/trace", methods[nameof(IInventoryApi.GetTraceAsync)].GetCustomAttributes(typeof(GetAttribute), false).Cast<GetAttribute>().Single().Path);
+        Assert.AreEqual("/warehouses/picker", methods[nameof(IInventoryApi.GetWarehouseOptionsAsync)].GetCustomAttributes(typeof(GetAttribute), false).Cast<GetAttribute>().Single().Path);
+        Assert.AreEqual("/suppliers/picker", methods[nameof(IInventoryApi.GetSupplierOptionsAsync)].GetCustomAttributes(typeof(GetAttribute), false).Cast<GetAttribute>().Single().Path);
         Assert.IsNotNull(typeof(InventoryBalanceTraceDto).GetProperty(nameof(InventoryBalanceTraceDto.Reconciliation)));
         Assert.AreEqual(typeof(string), typeof(InventoryBalanceDto).GetProperty(nameof(InventoryBalanceDto.ImagePath))?.PropertyType);
     }

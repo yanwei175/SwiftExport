@@ -1,4 +1,4 @@
-using Microsoft.VisualStudio.TestTools.UnitTesting;
+﻿using Microsoft.VisualStudio.TestTools.UnitTesting;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging.Abstractions;
 using SwiftExport.Client.Wpf.Tests.Controls;
@@ -69,23 +69,66 @@ public sealed class PackingListUiTests
         Assert.IsTrue(splitButton.IsEnabled);
         splitButton.Command.Execute(splitButton.CommandParameter);
         Assert.AreEqual(2, detail.Lines.Items.Count);
-        // 真实分组模板仍仅包含产品行，折叠后不会影响可保存的来源集合。
-        detail.AddPackingGroupCommand.Execute(null);
-        detail.SelectedLine = detail.Lines.Items.Last();
-        await detail.MoveIntoPackingGroupCommand.ExecuteAsync(null);
+        // 上表是包装条目，下表保留真实成员，拼箱不再重复显示成员产品。
+        var allLines = (DataGrid)detailView.FindName("OrderLinesGrid");
+        var members = (DataGrid)detailView.FindName("PackingMembersGrid");
+        allLines.SelectedItems.Clear();
+        foreach (var package in detail.Lines.Packages.ToArray()) allLines.SelectedItems.Add(package);
+        await detail.PackProductsCommand.ExecuteAsync(null); Layout(detailView);
+        var group = detail.SelectedPackage!;
+        Assert.IsTrue(group.IsMixed);
+        Assert.AreEqual(2, Descendants(detailView).OfType<DataGrid>().Count());
+        Assert.HasCount(0, Descendants(detailView).OfType<Expander>().ToArray());
+        Assert.AreEqual(1, allLines.Items.Count); Assert.AreEqual(2, members.Items.Count);
+        Assert.AreSame(group, allLines.Items[0]);
+        Assert.IsTrue(members.Items.Cast<object>().All(x => detail.Lines.Items.Any(row => ReferenceEquals(row, x))));
+        Assert.IsFalse(members.IsReadOnly);
+        Assert.IsTrue(SwiftExportClient.Resources.Behaviors.RowDragReorder.GetIsEnabled(allLines));
+        Assert.IsTrue(SwiftExportClient.Resources.Behaviors.RowDragReorder.GetIsEnabled(members));
+        members.SelectedItem = splitRow; Layout(detailView);
+        Assert.AreSame(splitRow, detail.SelectedLine); Assert.AreSame(group, allLines.SelectedItem);
+        // 编辑整箱单元格，格式错误阻止提交及切箱，修正后一次回写所有成员。
+        var netColumn = allLines.Columns.Single(x => Equals(x.Header, "每箱净重"));
+        allLines.CurrentCell = new DataGridCellInfo(group, netColumn);
+        allLines.ScrollIntoView(group, netColumn); Layout(detailView);
+        Assert.IsTrue(allLines.BeginEdit()); Layout(detailView);
+        var groupNet = Descendants(allLines).OfType<TextBox>()
+            .Single(x => System.Windows.Automation.AutomationProperties.GetName(x) == "拼箱每箱净重");
+        groupNet.Text = "bad"; Assert.IsFalse(detail.CommitEdits!());
+        // 临时空箱只是客户端容器，切换不能丢弃当前单元格的非法文本。
+        var empty = new PackingListPackingGroupModel(Guid.NewGuid(), true);
+        detail.Lines.PackingGroups.Add(empty); Layout(detailView);
+        allLines.SelectedItem = empty; Layout(detailView);
+        Assert.AreSame(group, detail.SelectedPackage); Assert.AreEqual("bad", groupNet.Text);
+        groupNet.Text = "3"; Assert.IsTrue(detail.CommitEdits!()); Layout(detailView);
+        Assert.IsTrue(detail.Lines.Items.All(x => x.NwPerPackage == 3m));
+        allLines.SelectedItem = empty; Layout(detailView);
+        Assert.AreSame(empty, detail.SelectedPackingGroup); Assert.AreEqual(0, members.Items.Count);
+        await detail.DissolvePackageCommand.ExecuteAsync(null); Layout(detailView);
+        Assert.AreEqual(1, allLines.Items.Count);
+        allLines.SelectedItem = group; Layout(detailView);
+        members.SelectedItem = splitRow; Layout(detailView);
+        await detail.MoveOutOfPackingGroupCommand.ExecuteAsync(null); Layout(detailView);
+        Assert.AreEqual(2, allLines.Items.Count); Assert.IsNull(splitRow.PackingGroupId);
+        Assert.AreEqual(105m, detail.Lines.Items.Sum(x => x.Qty));
+        // 右键的动态目标绑定到页面命令，而不是包装模型。
+        var host = new Window { Content = detailView, Width = 1600, Height = 900, ShowActivated = false, ShowInTaskbar = false }; host.Show();
+        var menu = allLines.ContextMenu!;
+        try
+        {
+        menu.PlacementTarget = allLines; menu.IsOpen = true;
+        await System.Windows.Threading.Dispatcher.Yield(System.Windows.Threading.DispatcherPriority.ApplicationIdle);
         Layout(detailView);
-        var mixedExpander = Descendants(detailView).OfType<Expander>().Single();
-        Assert.IsTrue(mixedExpander.IsExpanded);
-        mixedExpander.IsExpanded = false;
-        Assert.AreEqual(2, detail.Lines.Items.Count);
-        Assert.IsFalse(detail.Lines.PackingGroups.Single().IsExpanded);
-        mixedExpander.IsExpanded = true;
-        Layout(detailView);
-        var groupNet = Descendants(detailView).OfType<TextBox>()
-            .Single(x => System.Windows.Automation.AutomationProperties.GetName(x) == "拼箱整箱净重");
-        groupNet.Text = "2";
-        groupNet.GetBindingExpression(TextBox.TextProperty)!.UpdateSource();
-        Assert.AreEqual(2m, detail.Lines.Items.Last().NwPerPackage);
+        var addMenu = (MenuItem)menu.Items[1]; addMenu.IsSubmenuOpen = true; menu.UpdateLayout();
+        await System.Windows.Threading.Dispatcher.Yield(System.Windows.Threading.DispatcherPriority.ApplicationIdle);
+        var targetMenu = (MenuItem)addMenu.ItemContainerGenerator.ContainerFromIndex(0);
+        Assert.IsNotNull(targetMenu); Assert.AreSame(detail.PackProductsCommand, targetMenu.Command);
+        Assert.AreSame(group, targetMenu.CommandParameter);
+        }
+        finally { ((MenuItem)menu.Items[1]).IsSubmenuOpen = false; menu.IsOpen = false; menu.PlacementTarget = null; host.Content = null; host.Close(); }
+        await System.Windows.Threading.Dispatcher.Yield(System.Windows.Threading.DispatcherPriority.ApplicationIdle);
+        await detail.UndoCommand.ExecuteAsync(null); Layout(detailView);
+        Assert.AreEqual(0, members.Items.Count); Assert.IsNull(detail.SelectedPackingGroup);
         detailView.RaiseEvent(new RoutedEventArgs(FrameworkElement.UnloadedEvent)); Assert.IsNull(detail.CommitEdits);
         var customer = Guid.NewGuid();
         api.Sources = _ => Task.FromResult(SwiftExport.Contracts.Wrappers.ServiceResult<
@@ -152,7 +195,41 @@ public sealed class PackingListUiTests
             Executions = [new() { Operation = 1, BusinessDate = DateTime.Today, Lines = [traceLine] }] } }; Layout(traceView);
         var traceGrid = Descendants(traceView).OfType<DataGrid>().Single();
         Assert.IsTrue(traceGrid.IsReadOnly); Assert.AreSame(traceLine, traceGrid.Items[0]);
+        // 排空模板延迟布局后再让 STA 夹具清理全局主题资源。
+        await System.Windows.Threading.Dispatcher.Yield(System.Windows.Threading.DispatcherPriority.ApplicationIdle);
     });
+    /// <summary>已过账箱单可在下表浏览不同拼箱，但不能编辑整箱指标或执行成员调整。</summary>
+    [TestMethod]
+    public void PostedDetailAllowsGroupBrowsingWithoutEditing() => DatePickerAssistTests.RunWithApplication(async () =>
+    {
+        ApplicationResourceLoader.Load();
+        var id = Guid.NewGuid(); var first = Guid.NewGuid(); var second = Guid.NewGuid();
+        var dto = new PackingListDetailDto
+        {
+            Header = new() { Uid = id, Version = 1, PostingStatus = SwiftExport.Contracts.SysEnums.Shipping.PackingListPostingStatusEnum.Posted },
+            Lines = [new() { Uid = Guid.NewGuid(), PackingListHeadId = id, LineNumber = 1, PackingGroupId = first, Qty = 1, PcsPerPackage = 1 },
+                     new() { Uid = Guid.NewGuid(), PackingListHeadId = id, LineNumber = 2, PackingGroupId = second, Qty = 2, PcsPerPackage = 2 }]
+        };
+        var api = new PackingListApiStub { Get = _ => Task.FromResult(SwiftExport.Contracts.Wrappers.ServiceResult<PackingListDetailDto>.Ok(dto)) };
+        var ui = new PackingListUiStub();
+        using var detail = new PackingListDetailViewModel(api, new ApiCallRunner(NullLogger<ApiCallRunner>.Instance), new ReferenceDataCacheServiceStub(),
+            new PackingListSourceStub(), new PackingListNavigationStub(), ui, ui);
+        await detail.InitializeDocumentAsync(new PackingListOpenRequest { Uid = id }, default);
+        var view = new PackingListDetailView { DataContext = detail }; Layout(view);
+        var selector = (DataGrid)view.FindName("OrderLinesGrid");
+        var members = (DataGrid)view.FindName("PackingMembersGrid");
+        Assert.IsTrue(selector.IsEnabled);
+        selector.SelectedItem = detail.Lines.PackingGroups[0]; Layout(view);
+        Assert.AreSame(detail.Lines.Items[0], members.Items[0]);
+        selector.SelectedItem = detail.Lines.PackingGroups[1]; Layout(view);
+        Assert.AreSame(detail.Lines.Items[1], members.Items[0]);
+        Assert.IsTrue(selector.IsReadOnly); Assert.IsTrue(members.IsReadOnly);
+        Assert.IsFalse(detail.CanReorderPackages); Assert.IsFalse(detail.CanReorderMembers);
+        Assert.IsFalse(detail.MoveIntoPackingGroupCommand.CanExecute(null));
+        Assert.IsFalse(detail.MoveOutOfPackingGroupCommand.CanExecute(null));
+        Assert.IsFalse(detail.Lines.HasChanges);
+    });
+
     private static void Layout(FrameworkElement view)
     { view.Measure(new Size(1600, 900)); view.Arrange(new Rect(0, 0, 1600, 900)); view.UpdateLayout(); }
     private static IEnumerable<DependencyObject> Descendants(DependencyObject root)

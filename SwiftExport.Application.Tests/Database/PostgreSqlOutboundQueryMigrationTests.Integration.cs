@@ -28,6 +28,54 @@ namespace SwiftExport.Application.Tests.Database;
 [TestClass,DoNotParallelize,TestCategory("PostgreSqlIntegration")]
 public sealed class PostgreSqlOutboundQueryMigrationIntegrationTests
 {
+    /// <summary>真实 SQL 集合内并集、字段间交集在计数分页前生效；空集合覆盖旧单值，null 保留旧查询。</summary>
+    [TestMethod,TestCategory("PostgreSqlOutboundMultiFilterIntegration")]
+    public async Task SearchMultiFiltersPreserveUnionFallbackAndPaging()
+    {
+        using var f=new Fixture();var definitions=new[]
+        {
+            (OutboundDocumentTypeEnum.StockIssue,OutboundPostingStatusEnum.Unposted),
+            (OutboundDocumentTypeEnum.StockIssue,OutboundPostingStatusEnum.Posted),
+            (OutboundDocumentTypeEnum.StockIssue,OutboundPostingStatusEnum.Reversed),
+            (OutboundDocumentTypeEnum.FinalCustomerShipment,OutboundPostingStatusEnum.Unposted),
+            (OutboundDocumentTypeEnum.FinalCustomerShipment,OutboundPostingStatusEnum.Reversed),
+            (OutboundDocumentTypeEnum.CustomerSuppliedConsumption,OutboundPostingStatusEnum.Posted)
+        };
+        var expected=new List<Guid>();
+        foreach(var (type,status) in definitions)
+        {
+            var head=f.Head();head.DocumentType=type;head.PostingStatus=status;await f.InsertAsync(head);
+            if((type is OutboundDocumentTypeEnum.StockIssue or OutboundDocumentTypeEnum.FinalCustomerShipment)
+                && (status is OutboundPostingStatusEnum.Unposted or OutboundPostingStatusEnum.Reversed))expected.Add(head.Uid);
+        }
+        var request=new OutboundManagerSearchRequest
+        {
+            Keyword=f.Prefix,PageSize=2,DocumentType=OutboundDocumentTypeEnum.CustomerSuppliedConsumption,PostingStatus=OutboundPostingStatusEnum.Posted,
+            DocumentTypes=[OutboundDocumentTypeEnum.StockIssue,OutboundDocumentTypeEnum.FinalCustomerShipment],
+            PostingStatuses=[OutboundPostingStatusEnum.Unposted,OutboundPostingStatusEnum.Reversed]
+        };
+        var actual=new List<Guid>();
+        for(var page=1;page<=3;page++)
+        {
+            request.PageIndex=page;var result=await f.Repository.SearchAsync(request,default);
+            Assert.AreEqual(4,result.TotalCount);Assert.HasCount(page<=2?2:0,result.Items);
+            actual.AddRange(result.Items.Select(row=>row.Uid));
+        }
+        CollectionAssert.AreEquivalent(expected,actual);
+        request.PageIndex=1;request.PageSize=200;request.DocumentTypes=[];request.PostingStatuses=[];
+        Assert.AreEqual(6,(await f.Repository.SearchAsync(request,default)).TotalCount);
+        request.DocumentTypes=null!;request.PostingStatuses=null!;
+        var legacy=await f.Repository.SearchAsync(request,default);
+        Assert.AreEqual(1,legacy.TotalCount);Assert.AreEqual(OutboundDocumentTypeEnum.CustomerSuppliedConsumption,legacy.Items.Single().DocumentType);
+        request.DocumentTypes=[OutboundDocumentTypeEnum.FinalCustomerShipment];request.PostingStatus=OutboundPostingStatusEnum.Unposted;
+        Assert.AreEqual(1,(await f.Repository.SearchAsync(request,default)).TotalCount);
+        request.DocumentTypes=null!;request.DocumentType=OutboundDocumentTypeEnum.StockIssue;request.PostingStatuses=[OutboundPostingStatusEnum.Reversed];
+        Assert.AreEqual(1,(await f.Repository.SearchAsync(request,default)).TotalCount);
+        request.DocumentTypes=[OutboundDocumentTypeEnum.StockIssue,OutboundDocumentTypeEnum.StockIssue];request.PostingStatuses=[OutboundPostingStatusEnum.Unposted,OutboundPostingStatusEnum.Unposted];
+        Assert.AreEqual(1,(await f.Repository.SearchAsync(request,default)).TotalCount);
+        await f.Usable();
+    }
+
     /// <summary>精确nullable类型/状态，终态与PL自动单保留，未删行COUNT/SUM不倍增且无行零。</summary>
     [TestMethod]
     [DataRow(null,null,3)] [DataRow(22,null,1)] [DataRow(null,8,1)] [DataRow(20,8,0)]

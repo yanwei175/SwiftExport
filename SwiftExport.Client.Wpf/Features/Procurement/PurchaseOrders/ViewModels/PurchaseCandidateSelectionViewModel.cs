@@ -404,9 +404,7 @@ public sealed partial class PurchaseCandidateSelectionViewModel : ViewModelBaseE
             return;
         }
         foreach (var row in rows) row.ValidationMessage = string.Empty;
-        var localError = rows.FirstOrDefault(static row => !row.IsAvailableForPurchase
-            || row.PurchaseQty <= 0
-            || row.PurchaseQty > row.RemainingQty);
+        var localError = rows.FirstOrDefault(static row => row.HasValidationError);
         if (localError is not null)
         {
             SelectedItem = localError;
@@ -455,10 +453,12 @@ public sealed partial class PurchaseCandidateSelectionViewModel : ViewModelBaseE
         && !_workflow.HasUnknownCreateResult
         && SelectedCount > 0;
 
+    /// <summary>外层创建入口同时服从本地校验和工作流当前权限，避免撤权后仍显示可执行。</summary>
     private bool CanCreateDrafts() => HasValidatedSelection
         && IsInputEnabled
         && _workflow?.HasValidPreparation == true
-        && !_workflow.IsCreateInProgress;
+        && !_workflow.IsCreateInProgress
+        && _workflow.CreateCommand.CanExecute(null);
 
     /// <summary>展示当前本地校验结论和逐来源创建原因。</summary>
     private string BuildSelectionValidationText()

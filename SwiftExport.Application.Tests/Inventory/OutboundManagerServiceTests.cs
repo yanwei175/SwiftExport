@@ -43,6 +43,25 @@ namespace SwiftExport.Application.Tests.Inventory;
 [TestClass]
 public sealed partial class OutboundManagerServiceTests
 {
+    /// <summary>已保存明细不能在同一请求清空并换仓；必须先在原仓清空保存，再独立保存新仓。</summary>
+    [TestMethod]
+    public async Task WarehouseChangeRequiresPersistedLinesToBeClearedFirst()
+    {
+        var f=new Fixture();Assert.IsTrue((await f.Service.CreateAsync(f.Create())).Success);
+        var uid=f.Header!.Uid;var nextWarehouse=Guid.NewGuid();
+        var draft=new OutboundDraftData{DocumentType=OutboundDocumentTypeEnum.StockIssue,WarehouseSiteId=nextWarehouse,
+            ShipmentDate=DateTime.Today,IssueReason="试制领用",Lines=[]};
+        var rejected=await f.Service.UpdateAsync(uid,new(){CommandId=Guid.NewGuid(),ExpectedVersion=1,Draft=draft});
+        Assert.IsFalse(rejected.Success);StringAssert.Contains(rejected.Message,"先清空明细并保存");
+        Assert.AreEqual(f.WarehouseId,f.Header.WarehouseSiteId);Assert.HasCount(1,f.SavedLines);Assert.AreEqual(1,f.Saves);
+        draft.WarehouseSiteId=f.WarehouseId;
+        Assert.IsTrue((await f.Service.UpdateAsync(uid,new(){CommandId=Guid.NewGuid(),ExpectedVersion=1,Draft=draft})).Success);
+        Assert.IsEmpty(f.SavedLines);Assert.AreEqual(f.WarehouseId,f.Header.WarehouseSiteId);Assert.AreEqual(2,f.Header.Version);
+        draft.WarehouseSiteId=nextWarehouse;
+        Assert.IsTrue((await f.Service.UpdateAsync(uid,new(){CommandId=Guid.NewGuid(),ExpectedVersion=2,Draft=draft})).Success);
+        Assert.AreEqual(nextWarehouse,f.Header.WarehouseSiteId);Assert.AreEqual(3,f.Header.Version);Assert.AreEqual(3,f.Saves);
+    }
+
     /// <summary>出库单号按收货月份生成，而不是按保存当天；取号失败不得写入草稿。</summary>
     [TestMethod]
     public async Task Create_NumberUsesReceiptMonth_AndFailureRollsBack()
@@ -308,8 +327,8 @@ public sealed partial class OutboundManagerServiceTests
                 Proxy<IOutboundQueryRepository>(repositoryHandler),
                 Proxy<IOutboundDocumentRepository>(repositoryHandler),
                 Proxy<IOutboundExecutionReadRepository>(repositoryHandler),
-                Proxy<IWarehouseManagementRepository>((method, _) => method == "GetForUpdateAsync"
-                    ? Task.FromResult<WarehouseSite?>(new WarehouseSite { Uid = WarehouseId, Code = "W", Name = "参考仓", IsActive = true }) : throw new NotSupportedException(method)),
+                Proxy<IWarehouseManagementRepository>((method, args) => method == "GetForUpdateAsync"
+                    ? Task.FromResult<WarehouseSite?>(new WarehouseSite { Uid = (Guid)args[0]!, Code = "W", Name = "参考仓", IsActive = true }) : throw new NotSupportedException(method)),
                 Proxy<IBusinessOperationLogRepository>((method, args) => method switch
                 {
                     "InsertAsync" => Log((BusinessOperationLog)args[0]!),
@@ -420,7 +439,7 @@ public sealed partial class OutboundManagerServiceTests
             BusinessCommandExecutor executor, ICorrelationContext correlation, CommandPipeline pipeline)
         {
             var support = new OutboundServiceSupport(context, user, permissions);
-            _query = new OutboundQueryService(queries, support);
+            _query = new OutboundQueryService(queries, support, Proxy<IWarehouseQueryRepository>((method,_)=>throw new NotSupportedException(method)));
             _draft = new OutboundDraftService(queries, repository, warehouses, logs, user, numbers, executor, correlation, pipeline, support);
             _posting = new OutboundPostingService(queries, repository, executionReads, logs, user, permissions, inventory, executor, correlation, pipeline, support);
             _reversal = new OutboundReversalService(queries, repository, executionReads, logs, user, permissions, inventory, executor, correlation, pipeline, support);

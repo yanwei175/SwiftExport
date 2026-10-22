@@ -2,6 +2,7 @@ using SwiftExport.Contracts.DTOs.Inventory.Inbounds.Reversal;
 using SwiftExport.Contracts.DTOs.Inventory.Inbounds.Query;
 using SwiftExport.Contracts.DTOs.Inventory.Inbounds.Posting;
 using SwiftExport.Contracts.DTOs.Inventory.Inbounds.Draft;
+using SwiftExport.Contracts.DTOs.Inventory.WareHouseSite.Picker;
 using System;
 using System.Threading;
 using System.Threading.Tasks;
@@ -13,6 +14,11 @@ namespace SwiftExport.Contracts.Apis.Inventory.Inbounds
     /// <summary>入库查询、草稿及正向过账契约，基址为 api/inventory/inbounds；支持人工整单反向。</summary>
     public interface IInboundManagerApi
     {
+        /// <summary>按入库查看权限分页读取活动收货仓库候选，不授予仓库管理权限。</summary>
+        [Get("/warehouses/picker")]
+        Task<ServiceResult<PagedResponseBase<WarehouseSitePickerDto>>> GetWarehouseOptionsAsync(
+            [Query] PagedRequestBase request, CancellationToken cancellationToken = default(CancellationToken));
+
         /// <summary>只读预览整单反过账，不预占余额。</summary>
         [Post("/{uid}/reverse-preview")]
         Task<ServiceResult<InboundReversePreviewDto>> PreviewReverseAsync(Guid uid, [Body] InboundReversePreviewRequest request, CancellationToken cancellationToken = default(CancellationToken));

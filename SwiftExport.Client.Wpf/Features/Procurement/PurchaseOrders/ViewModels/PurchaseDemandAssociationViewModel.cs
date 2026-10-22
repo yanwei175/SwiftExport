@@ -217,6 +217,7 @@ public sealed partial class PurchaseDemandAssociationViewModel : ViewModelBaseEx
     /// <summary>记录意外异常并保留未决命令，不把异常正文直接交给用户。</summary>
     protected override Task HandleExceptionAsync(Exception exception)
     {
+        _pending?.MarkUnknown();
         _logger.LogError(exception, "采购需求关联页面操作失败");
         StatusText = HasPendingCommand ? "提交结果尚未明确，请重试原命令。"
             : RefreshRequired ? "关联已成功，但刷新失败；请重读关联依据，勿重新提交。" : "操作失败，请重试当前操作。";

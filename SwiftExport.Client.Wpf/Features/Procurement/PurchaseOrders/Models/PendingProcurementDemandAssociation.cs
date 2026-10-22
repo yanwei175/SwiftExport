@@ -12,6 +12,10 @@ public sealed class PendingProcurementDemandAssociation
     { OrderId = orderId; _commandJson = JsonSerializer.Serialize(command); }
     /// <summary>原命令对应的采购单身份。</summary>
     public Guid OrderId { get; }
+    /// <summary>原请求曾出现未知结果，后续拒绝不能证明该请求从未提交。</summary>
+    public bool WasUnknown { get; private set; }
+    /// <summary>记录未知历史，不改变原命令身份和冻结内容。</summary>
+    public void MarkUnknown() => WasUnknown = true;
     /// <summary>每次重试生成独立对象，但保持原命令及贡献身份、版本、原因和数量完全一致。</summary>
     public AssociateProcurementDemandsCommand CreateRequest() => JsonSerializer.Deserialize<AssociateProcurementDemandsCommand>(_commandJson)!;
 }

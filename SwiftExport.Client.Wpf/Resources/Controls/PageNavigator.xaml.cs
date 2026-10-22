@@ -5,6 +5,7 @@ using System.Windows.Input;
 
 namespace SwiftExportClient.Resources.Controls;
 
+/// <summary>展示调用方已经接纳的分页事实，仅通过命令提出切页或更改页大小的请求。</summary>
 public partial class PageNavigator : UserControl
 {
     public PageNavigator()
@@ -162,6 +163,7 @@ public partial class PageNavigator : UserControl
         PageItems = items;
     }
 
+    /// <summary>兼容同步与异步命令；发出请求后仍显示绑定事实，成功由调用方回填，失败无需假定新页已生效。</summary>
     private void RequestPageChange(int newIndex, int newSize)
     {
         if (newIndex == PageIndex && newSize == PageSize)
@@ -177,11 +179,11 @@ public partial class PageNavigator : UserControl
             NewSize = newSize,
         };
 
-        if (PageChangeCommand?.CanExecute(request) == true)
+        try
         {
-            PageChangeCommand.Execute(request);
+            if (PageChangeCommand?.CanExecute(request) == true) PageChangeCommand.Execute(request);
         }
-        else
+        finally
         {
             ResetPageSizeSelection();
         }

@@ -64,6 +64,7 @@ public sealed partial class PurchaseOrderDetailViewModel : ViewModelBaseEx, IDoc
         RegisterBusyAwareCommand(VoidOrderCommand); RegisterBusyAwareCommand(DeleteDraftLinesCommand); RegisterBusyAwareCommand(RetryReversalCommand);
         Title = "采购订单详情";
         Lines.ListStateChanged += OnLinesStateChanged;
+        Lines.PropertyChanged += OnLinesPropertyChanged;
         Header.PropertyChanged += OnHeaderPropertyChanged;
         RegisterBusyAwareCommand(CreateCommand); RegisterBusyAwareCommand(SaveCommand);
         RegisterBusyAwareCommand(ConfirmCommand); RegisterBusyAwareCommand(CancelConfirmationCommand);
@@ -72,10 +73,13 @@ public sealed partial class PurchaseOrderDetailViewModel : ViewModelBaseEx, IDoc
         RegisterBusyAwareCommand(RetryPendingCommand);
         RegisterBusyAwareCommand(DeleteDraftCommand);
         RegisterBusyAwareCommand(OpenFeedbackCommand);
+        RegisterBusyAwareCommand(AddLineCommand); RegisterBusyAwareCommand(RemoveLineCommand);
     }
 
     public PurchaseOrderHeaderEditorModel Header { get; } = new();
     public PurchaseOrderLineListModel Lines { get; } = new();
+    /// <summary>由当前 View 提交原生编辑事务；数字转换失败时保留编辑器，禁止以旧模型值构造写入请求。</summary>
+    public Func<bool>? CommitPendingEdits { get; set; }
     public ObservableCollection<ProcurementCustomerCandidateDto> CustomerCandidates { get; } = [];
     public ObservableCollection<ProcurementSupplierCandidateDto> SupplierCandidates { get; } = [];
     public ObservableCollection<ProcurementProductCandidateDto> ProductCandidates { get; } = [];
@@ -87,7 +91,11 @@ public sealed partial class PurchaseOrderDetailViewModel : ViewModelBaseEx, IDoc
     public bool HasPendingWrite => _commandSession.Find(ReversalUser, WriteIdentity) is not null;
     public bool HasReadPermission => _currentUser.HasPermission(PermissionKeys.ProcurementOrderRead);
     public bool HasCreatePermission => _currentUser.HasPermission(PermissionKeys.ProcurementOrderCreate);
-    public bool CanEdit => CanInteractWithDocument && !IsCreateMode && _currentUser.HasPermission(PermissionKeys.ProcurementOrderEdit) && Header.CanEditDraft;
+    /// <summary>头字段按创建或编辑权限开放，同时遵守草稿状态、只读、忙碌及未决命令门禁。</summary>
+    public bool CanEditHeader => CanInteractWithDocument && Header.CanEditDraft
+        && (IsCreateMode ? HasCreatePermission : _currentUser.HasPermission(PermissionKeys.ProcurementOrderEdit));
+    /// <summary>已保存采购的草稿行编辑资格，与头字段共享当前操作权限及运行时门禁。</summary>
+    public bool CanEdit => !IsCreateMode && CanEditHeader;
     public bool CanConfirm => CanInteractWithDocument && !IsCreateMode && _currentUser.HasPermission(PermissionKeys.ProcurementOrderConfirm) && Header.CanConfirm;
     public bool CanCancel => CanInteractWithDocument && !IsCreateMode
         && _currentUser.HasPermission(PermissionKeys.ProcurementOrderConfirm)
@@ -146,20 +154,26 @@ public sealed partial class PurchaseOrderDetailViewModel : ViewModelBaseEx, IDoc
     private bool CanOpenFeedback() => !_reversalDisposed && !IsCreateMode && !IsDeleted && HasReadPermission && IsNotBusy
         && !HasUnsavedChanges && PurchaseOrderId != Guid.Empty && _currentUser.HasPermission(PermissionKeys.ProcurementProgressView);
 
-    [RelayCommand]
+    /// <summary>仅在具有创建权限的可写创建文档中追加本地新行。</summary>
+    [RelayCommand(CanExecute = nameof(CanAddLine))]
     private void AddLine()
     {
-        if (!IsCreateMode || !CanInteractWithDocument) return;
+        if (!CanAddLine()) return;
         Lines.AddNew(new PurchaseOrderLineDetailDto { Uid = Guid.NewGuid(), LineNumber = Lines.Items.Count + 1, Quantity = 1m });
         NotifyState();
     }
 
-    [RelayCommand]
+    /// <summary>仅移除当前文档选中的新增行；持久化行删除由独立反向命令负责。</summary>
+    [RelayCommand(CanExecute = nameof(CanRemoveLine))]
     private void RemoveLine(PurchaseOrderLineEditModel? line)
     {
-        if (!IsCreateMode || !CanInteractWithDocument || line is null || !line.IsNew) return;
+        if (!CanRemoveLine(line)) return;
         Lines.Remove(line); NotifyState();
     }
+
+    private bool CanAddLine() => IsCreateMode && CanEditHeader;
+    private bool CanRemoveLine(PurchaseOrderLineEditModel? line) => CanAddLine() && line is { IsNew: true }
+        && ReferenceEquals(Lines.SelectedItem, line) && Lines.Items.Contains(line);
 
     /// <summary>仅创建态且具备创建权限时允许重排；已保存采购明细维持原有编辑边界。</summary>
     public bool CanReorder => HasCreatePermission && IsCreateMode && IsNotBusy && CanInteractWithDocument
@@ -295,18 +309,22 @@ public sealed partial class PurchaseOrderDetailViewModel : ViewModelBaseEx, IDoc
     [RelayCommand(CanExecute = nameof(CanConfirmCommand))]
     private Task ConfirmAsync() => CanConfirmCommand() ? ExecuteDocumentCommandAsync(ProcurementCommandKind.Confirm) : Task.CompletedTask;
 
-    /// <summary>最外层持有页面写入门禁，校验后冻结输入，提交期间不接纳另一种写操作。</summary>
+    /// <summary>最外层持有页面写入门禁，校验当前用例输入后冻结负载，提交期间不接纳另一种写操作。</summary>
     private async Task ExecuteDocumentCommandAsync(ProcurementCommandKind kind)
     {
+        if (CommitPendingEdits?.Invoke() == false)
+        { _messages.ShowWarning("采购输入未完成", "请先修正当前单元格的数字或日期输入，原输入已保留。"); return; }
+        // 创建折扣备注采用后端 Trim 后五百字约束，不收紧既有草稿保存规则。
+        if (kind == ProcurementCommandKind.Create && Header.DiscountRemark?.Trim().Length > 500)
+        { _messages.ShowWarning("折扣备注过长", "新建采购的折扣备注不能超过 500 字，原输入已保留。"); return; }
+        if (kind == ProcurementCommandKind.Confirm && HasUnsavedChanges)
+        { _messages.ShowWarning("请先保存草稿", "当前编辑尚未保存，请保存后再确认。"); return; }
         var uid = WriteIdentity; var user = ReversalUser; var session = _sessionVersion;
         await RunWriteAsync(async () =>
         {
-            if (kind != ProcurementCommandKind.Confirm)
-            {
-                var error = await Lines.ValidateAllAsync();
-                if (error is not null || Lines.Items.Count == 0 || (kind == ProcurementCommandKind.Create && (SelectedCustomer is null || SelectedSupplier is null)))
-                { _messages.ShowWarning("采购信息不完整", error ?? "请选择客户、实际供应商并维护采购行。"); return; }
-            }
+            var error = await Lines.ValidateAllAsync();
+            if (error is not null || Lines.Items.Count == 0 || (kind == ProcurementCommandKind.Create && (SelectedCustomer is null || SelectedSupplier is null)))
+            { _messages.ShowWarning("采购信息不完整", error ?? "请选择客户、实际供应商并维护采购行。"); return; }
             if (_reversalDisposed || user != ReversalUser || session != _sessionVersion || HasPendingWrite) return;
             bool frozen;
             if (kind == ProcurementCommandKind.Create)
@@ -315,6 +333,7 @@ public sealed partial class PurchaseOrderDetailViewModel : ViewModelBaseEx, IDoc
                 {
                     CommandId = Guid.NewGuid(), CustomerId = SelectedCustomer!.Uid, SupplierId = SelectedSupplier!.Uid,
                     OrderDate = OrderDate, Remark = Header.Remark, PackagingRequirements = Header.PackagingRequirements,
+                    DiscountRemark = Header.DiscountRemark,
                     Lines = Lines.Items.Select(line =>
                     {
                         var dto = line.Adapt<CreateIndependentPurchaseOrderLineCommand>();
@@ -449,8 +468,13 @@ public sealed partial class PurchaseOrderDetailViewModel : ViewModelBaseEx, IDoc
     }
 
     private void OnHeaderPropertyChanged(object? sender, PropertyChangedEventArgs e)
-    { if (!_loading && (IsCreateMode || CanEdit)) { HeaderHasChanges = true; NotifyState(); } }
+    { if (!_loading && CanEditHeader) { HeaderHasChanges = true; NotifyState(); } }
     private void OnLinesStateChanged(object? sender, ListStateChangedEventArgs<PurchaseOrderLineEditModel> e) => NotifyState();
+    /// <summary>当前行选择不属于业务修改，但必须及时更新本地移除按钮资格。</summary>
+    private void OnLinesPropertyChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName == nameof(Lines.SelectedItem)) RemoveLineCommand.NotifyCanExecuteChanged();
+    }
     private bool CanCreateCommand() => HasCreatePermission && IsCreateMode && CanInteractWithDocument && HasUnsavedChanges;
     private bool CanSaveCommand() => CanWrite && IsNotBusy && CanEdit && HasUnsavedChanges && Lines.Items.Count > 0;
     private bool CanConfirmCommand() => CanWrite && IsNotBusy && CanConfirm && !HasUnsavedChanges;
@@ -461,6 +485,7 @@ public sealed partial class PurchaseOrderDetailViewModel : ViewModelBaseEx, IDoc
     {
         OnPropertyChanged(nameof(DocumentTitle)); OnPropertyChanged(nameof(HasUnsavedChanges));
         OnPropertyChanged(nameof(CanEdit)); OnPropertyChanged(nameof(CanConfirm)); OnPropertyChanged(nameof(CanCancel));
+        OnPropertyChanged(nameof(CanEditHeader));
         CreateCommand.NotifyCanExecuteChanged(); SaveCommand.NotifyCanExecuteChanged();
         ConfirmCommand.NotifyCanExecuteChanged(); CancelConfirmationCommand.NotifyCanExecuteChanged();
         OnPropertyChanged(nameof(CanReorder)); ReorderLineCommand.NotifyCanExecuteChanged();
@@ -469,6 +494,7 @@ public sealed partial class PurchaseOrderDetailViewModel : ViewModelBaseEx, IDoc
         VoidOrderCommand.NotifyCanExecuteChanged(); DeleteDraftLinesCommand.NotifyCanExecuteChanged(); RetryReversalCommand.NotifyCanExecuteChanged();
         DeleteDraftCommand.NotifyCanExecuteChanged();
         OpenFeedbackCommand.NotifyCanExecuteChanged();
+        AddLineCommand.NotifyCanExecuteChanged(); RemoveLineCommand.NotifyCanExecuteChanged();
     }
     public void Dispose()
     {
@@ -476,6 +502,7 @@ public sealed partial class PurchaseOrderDetailViewModel : ViewModelBaseEx, IDoc
         _commandSession.Changed -= OnCommandSessionChanged; _currentUser.CurrentUserChanged -= OnCurrentUserChanged;
         Header.PropertyChanged -= OnHeaderPropertyChanged;
         Lines.ListStateChanged -= OnLinesStateChanged;
+        Lines.PropertyChanged -= OnLinesPropertyChanged;
         var cts = Interlocked.Exchange(ref _loadCts, null);
         cts?.Cancel();
         cts?.Dispose();

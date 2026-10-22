@@ -103,7 +103,8 @@ public sealed partial class OutboundManagerPersistenceTests
     private sealed class PostDialogStub : IOutboundPostDialogService
     {
         public bool Allow = true;
-        public Task<bool> ConfirmAsync(OutboundPostPreviewDto preview, CancellationToken token) => Task.FromResult(Allow);
+        public TaskCompletionSource<bool>? Wait;
+        public Task<bool> ConfirmAsync(OutboundPostPreviewDto preview, CancellationToken token) => Wait?.Task ?? Task.FromResult(Allow);
     }
 
     private sealed partial class PersistenceStub

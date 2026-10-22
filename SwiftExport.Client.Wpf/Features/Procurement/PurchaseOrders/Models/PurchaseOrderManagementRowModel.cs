@@ -1,4 +1,5 @@
 using CommunityToolkit.Mvvm.ComponentModel;
+using SwiftExport.Contracts.DTOs.Procurement.OrderManagement;
 using SwiftExport.Contracts.SysEnums;
 
 namespace SwiftExportClient.Features.Procurement.PurchaseOrders.Models;
@@ -17,6 +18,10 @@ public sealed partial class PurchaseOrderManagementRowModel : ObservableObject
     /// <summary>当前订单最近一次批量确认状态提示。</summary>
     [ObservableProperty]
     public partial string BatchConfirmationStatus { get; private set; } = string.Empty;
+
+    /// <summary>反向操作已成功但尚未接纳权威重查；旧行不能继续发起新的业务命令。</summary>
+    [ObservableProperty]
+    public partial bool RequiresRefresh { get; private set; }
 
     public Guid PurchaseOrderId { get; set; }
     public string OrderNo { get; set; } = string.Empty;
@@ -40,6 +45,18 @@ public sealed partial class PurchaseOrderManagementRowModel : ObservableObject
     /// <summary>无法删除整张草稿的具体原因。</summary>
     public string DeleteDraftBlockReason { get; set; } = string.Empty;
     public string CommandBlockedReason { get; set; } = string.Empty;
+
+    /// <summary>立即展示成功回执并废弃全部旧资格；只有分页重查创建的新行才能重新开放操作。</summary>
+    public void AcceptReversalResult(ProcurementOrderCommandResult result)
+    {
+        Version = result.Version;
+        ConfirmationStatus = result.ConfirmationStatus;
+        LifecycleStatus = result.LifecycleStatus;
+        CanConfirm = CanCancelConfirmation = CanDeleteDraft = false;
+        DeleteDraftBlockReason = CommandBlockedReason = "采购操作已成功，请刷新核实后继续操作。";
+        RequiresRefresh = true;
+        OnPropertyChanged(string.Empty);
+    }
 
     /// <summary>标记确认写入结果未知，要求用户先刷新并核实服务端状态。</summary>
     public void MarkConfirmationResultUnknown()

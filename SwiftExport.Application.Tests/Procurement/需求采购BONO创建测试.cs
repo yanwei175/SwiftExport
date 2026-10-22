@@ -10,6 +10,7 @@ using SwiftExport.Application.Services.Procurement.PurchaseOrders.Draft.FromDema
 using SwiftExport.Contracts.DTOs.Customers;
 using SwiftExport.Contracts.DTOs.DemandPlanning.NetDemand;
 using SwiftExport.Contracts.DTOs.Errors;
+using SwiftExport.Contracts.DTOs.Auth;
 using SwiftExport.Contracts.DTOs.Procurement.PurchaseDrafts;
 using SwiftExport.Contracts.DTOs.SystemDtos.Requests;
 using SwiftExport.Contracts.DTOs.SystemDtos.Responses;
@@ -39,6 +40,33 @@ namespace SwiftExport.Application.Tests.Procurement;
 [TestClass]
 public sealed class 需求采购BONO创建测试
 {
+    /// <summary>仅读取及创建权限仍能完整新建采购；追加因缺少编辑权限在事务和任何写入之前拒绝。</summary>
+    [TestMethod]
+    [DataRow(false)]
+    [DataRow(true)]
+    public async Task CreateAndReadWithoutEditAllowsOnlyNewPurchase(bool append)
+    {
+        var fixture=new Fixture();var command=await fixture.CommandAsync(append);
+        fixture.Commands.AllowedPermissions=[PermissionKeys.ProcurementOrderRead,PermissionKeys.ProcurementOrderCreate];
+        var result=await fixture.Service.CreateAsync(command);
+        if(append)
+        {
+            Assert.IsFalse(result.Success);Assert.AreEqual(ServiceErrorCodes.Forbidden,result.Error.Code);
+            Assert.AreEqual(0,fixture.HeadWrites);Assert.AreEqual(0,fixture.LineWrites);Assert.AreEqual(0,fixture.LinkWrites);
+            Assert.AreEqual(0,fixture.VersionWrites);Assert.AreEqual(0,fixture.Numbers);Assert.AreEqual(0,fixture.Commands.ReceiptLocks);
+            Assert.AreEqual(0,fixture.Connection.Commits);Assert.AreEqual(0,fixture.Connection.Rollbacks);
+            CollectionAssert.AreEqual(new[]{PermissionKeys.ProcurementOrderCreate,PermissionKeys.ProcurementOrderEdit},fixture.Commands.PermissionChecks.ToArray());
+        }
+        else
+        {
+            Assert.IsTrue(result.Success,result.Message);Assert.AreEqual(NetDemandCommandOutcomeEnum.Succeeded,result.Data.Sources.Single().Outcome);
+            Assert.AreEqual(1,fixture.HeadWrites);Assert.AreEqual(1,fixture.LineWrites);Assert.AreEqual(1,fixture.LinkWrites);
+            Assert.AreEqual(1,fixture.Numbers);Assert.AreEqual(1,fixture.Connection.Commits);Assert.HasCount(1,fixture.Commands.Receipts);
+            CollectionAssert.AreEqual(new[]{PermissionKeys.ProcurementOrderCreate},fixture.Commands.PermissionChecks.ToArray());
+        }
+        Assert.IsNull(fixture.Session.Transaction);
+    }
+
     /// <summary>审计写入失败在已确认回滚后返回确定失败；相同原请求修复故障后可成功，不被永久失败回执占用。</summary>
     [TestMethod]
     public async Task AuditFailureIsKnownRollbackAndSameCommandCanRecover()
@@ -59,9 +87,9 @@ public sealed class 需求采购BONO创建测试
         Assert.AreEqual(PurchaseDraftErrorCodes.CorruptedState,source.ErrorCode);StringAssert.Contains(source.Message,command.Sources[0].Items[0].NetDemandId.ToString());
         Assert.AreEqual(0,fixture.HeadWrites);Assert.IsEmpty(source.PurchaseDrafts);
     }
-    /// <summary>直接提交无需预览令牌，数量四位、价格六位继续沿用现有采购精度边界。</summary>
-    [TestMethod,DataRow("0.123456",true),DataRow("0.1234567",false)]
-    public async Task DirectCreatePreservesSixDecimalPrice(string price,bool valid)
+    /// <summary>直接提交无需预览令牌，数量及价格均遵循现有四位物理精度边界。</summary>
+    [TestMethod,DataRow("0.1234",true),DataRow("0.12345",false)]
+    public async Task DirectCreatePreservesFourDecimalPrice(string price,bool valid)
     {
         var fixture=new Fixture();var command=await fixture.CommandAsync(false);
         command.Sources[0].Items[0].UnitPrice=decimal.Parse(price,System.Globalization.CultureInfo.InvariantCulture);

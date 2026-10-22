@@ -18,7 +18,7 @@ public sealed partial class InboundManagerViewModel
 
     private bool CanPost() => CanEdit() && _persistence is not null && _postDialogs is not null
         && _postingUser?.HasPermission(PermissionKeys.InventoryInboundPost) == true
-        && _postingUser.HasPermission("Inventory.Inbound.View")
+        && HasViewPermission
         && SelectedItem is { CanEdit: true, IsNew: false, HasVersionConflict: false, DocumentType: InboundDocumentTypeEnum.PurchaseReceipt };
 
     /// <summary>只操作当前已保存且无修改的单，不自动保存，不用预览替代正式重验。</summary>
@@ -27,25 +27,27 @@ public sealed partial class InboundManagerViewModel
     {
         if (!CanPost() || !CommitGridEdits() || RequirePendingRecovery()) return;
         var row = SelectedItem!;
+        var session = _userSession;
         if (row.IsDirty || row.Lines.HasChanges)
         { ValidationSummary = "当前入库单有未保存修改，请先保存，再预览过账。"; return; }
         await RunWriteAsync(async () =>
         {
             var version = row.Version;
             var result = await _persistence!.PreviewPostAsync(row.Uid, new() { ExpectedVersion = version }, _lifetime.Token);
-            if (_disposed) return;
+            if (_disposed || session != _userSession) return;
             if (!result.Success || result.Data is null)
             { ResultSummary = result.Message ?? "过账预览失败，没有提交库存。"; return; }
             var preview = result.Data;
             if (preview.Uid != row.Uid || preview.Version != version || preview.Lines is null || preview.Blockers is null || preview.StockImpacts is null)
             { ResultSummary = "过账预览版本或身份不匹配，请重新加载。"; return; }
             if (!await _postDialogs!.ConfirmAsync(preview, _lifetime.Token) || !preview.CanPost || preview.Blockers.Count > 0 || _disposed) return;
-            if (row.IsDirty || row.Lines.HasChanges || row.Version != version || !row.CanEdit)
+            if (session != _userSession || !HasViewPermission || _postingUser?.HasPermission(PermissionKeys.InventoryInboundPost) != true
+                || IsReadOnly || row.IsDirty || row.Lines.HasChanges || row.Version != version || !row.CanEdit)
             { ResultSummary = "确认期间单据已变化，请重新保存并预览。"; return; }
             var pending = new InboundPendingWrite { DocumentId = row.Uid, Post = new() { CommandId = Guid.NewGuid(), ExpectedVersion = version } };
             BeginPending(row, pending);
             if (await CompletePendingAsync(row, pending) && !_disposed)
-                ResultSummary = $"{row.DocumentNo} 已过账，单据只读；如需撤销请使用整单反过账。";
+                ResultSummary = pending.HasLaterDetail ? LaterDetailMessage(row) : $"{row.DocumentNo} 已过账，单据只读；如需撤销请使用整单反过账。";
         }, "预览并提交当前入库单");
     }
 
@@ -59,5 +61,7 @@ public sealed partial class InboundManagerViewModel
         return ServiceResult<InboundDraftCommandResult>.Ok(new() { Uid = result.Data.Uid, Version = result.Data.Version, DocumentNo = result.Data.DocumentNo });
     }
 
-    private void OnPostingUserChanged(object? sender, EventArgs e) { PostCommand.NotifyCanExecuteChanged(); ReverseCommand.NotifyCanExecuteChanged(); }
+    /// <summary>权限快照更新即失效旧预览和读取，保留原命令等待原用户恢复权限。</summary>
+    private void OnPostingUserChanged(object? sender, EventArgs e)
+    { _userSession++; _readQuery?.Cancel(); _readRequestId++; NotifyEditState(); }
 }

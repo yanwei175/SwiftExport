@@ -151,7 +151,7 @@ public sealed class PackingListPostingCoordinatorTests
     {
         var f = new Fixture(inventory: true);
         var preview = await f.Service.PreviewCoreAsync(f.Head.Uid, 1, f.Date, default);
-        Assert.AreEqual(0, preview.Blockers.Count);
+        Assert.AreEqual(0, preview.Blockers.Count,string.Join("；",preview.Blockers.Select(x=>x.Message)));
         var command = new PackingListPostRequest(f.Head.Uid, Guid.NewGuid(), 1, f.Date, preview.Token!);
         var result = await f.Service.ExecutePostCommandAsync(command, default);
         CollectionAssert.AreEqual(new[] { "prepare", "inbound", "outbound", "mark", "append", "log", "commit" },
@@ -331,7 +331,7 @@ public sealed class PackingListPostingCoordinatorTests
                 var child = new NetDemand { GrossDemandId = source.Uid, ProductId = component.Uid, GrossQty = 4,
                     ParentNetDemandId = root.Uid, RootNetDemandId = root.Uid, DeliveryTargetNetDemandId = root.Uid,
                     DeliveryMode = DemandDeliveryModeEnum.ParentExecutionSupplier, MaterialTypeSnapshot = MaterialTypesEnum.客供件, DecompositionRevision = 1 };
-                var purchase = new PurchaseOrderHead { SupplierId = warehouse.SupplierId!.Value };
+                var purchase = new PurchaseOrderHead { SupplierId = warehouse.SupplierId!.Value, ConfirmationStatus = ConfirmationStatusEnum.已确认 };
                 var purchaseLine = new PurchaseOrderLine { PurchaseOrderId = purchase.Uid, ProductId = product.Uid, Quantity = 10 };
                 data.Demands = [root, child]; data.Products = [product, component]; data.Warehouses = [warehouse];
                 data.PurchaseHeads = [purchase]; data.PurchaseLines = [purchaseLine];
@@ -394,8 +394,17 @@ public sealed class PackingListPostingCoordinatorTests
             var pipeline = new CommandPipeline(new CommandRequestValidator(validators.BuildServiceProvider()),
                 correlation, user, NullLogger<CommandPipeline>.Instance);
             var mapping = new TypeAdapterConfig(); new PackingListPostingMapping().Register(mapping);
-            var sourceRepository = inventory ? Proxy.Make<IInboundSourceRepository>((m, _) => m switch {
-                    "ReadPostingSourcesAsync" => Task.FromResult(capacity), "HasUnprovenReceiptAsync" => Task.FromResult(false), _ => throw new NotSupportedException(m) })
+            Guid[]? capacityScope=null;
+            var sourceRepository = inventory ? Proxy.Make<IInboundSourceRepository>((m, args) =>
+                {
+                    if(m=="ReadPostingSourcesAsync")capacityScope=((IReadOnlyList<Guid>)args[0]!).ToArray();
+                    if(m=="HasUnprovenReceiptAsync")
+                    {
+                        Assert.IsNotNull(capacityScope);
+                        CollectionAssert.AreEquivalent(capacityScope,((IReadOnlyList<Guid>)args[0]!).ToArray());
+                    }
+                    return m switch { "ReadPostingSourcesAsync" => Task.FromResult(capacity), "HasUnprovenReceiptAsync" => Task.FromResult(false), _ => throw new NotSupportedException(m) };
+                })
                 : Forbidden<IInboundSourceRepository>();
             var scope = inventory || original != null ? Proxy.Make<IAutomaticPostingScope>((m, _) => m == "PrepareAsync"
                 ? Record("prepare", Task.CompletedTask) : throw new NotSupportedException(m)) : Forbidden<IAutomaticPostingScope>();

@@ -2,12 +2,47 @@ using Dapper;
 using SwiftExport.Core.Common;
 using SwiftExport.Infrastructure.Data;
 using SwiftExport.Infrastructure.Repositories.Base;
+using SwiftExport.Infrastructure.Repositories.OrderTracking.Receipts;
 
 namespace SwiftExport.Infrastructure.Repositories.Inventory.Inbounds;
 
 /// <summary>复用源入库反向证明条件，供PG全局收货查询和限定采购行的Trace共用；不创建事务或数据库对象。</summary>
 public static class PostgreSqlInboundReceiptHistoryGuard
 {
+    /// <summary>复用整头收货事实，将异常限定到请求采购行；空范围没有历史证据且不访问数据库。</summary>
+    public static Task<bool> HasUnverifiedSourcesAsync(DbSession session, IReadOnlyCollection<Guid> purchaseLineIds, CancellationToken token = default)
+    {
+        ArgumentNullException.ThrowIfNull(purchaseLineIds);
+        if (purchaseLineIds.Count == 0) return Task.FromResult(false);
+        var parameters = new PostgreSqlParameters();
+        parameters.AddIds("Ids", purchaseLineIds);
+        return HasInvalidFactsAsync(session, "SELECT unnest(@Ids) AS uid", parameters, token);
+    }
+
+    /// <summary>只检查该入库头关联的采购行，整头关联定位包含软删行，未找到单据时范围为空。</summary>
+    public static async Task ValidateDocumentSourcesAsync(DbSession session, Guid uid, CancellationToken token = default)
+    {
+        var parameters = new PostgreSqlParameters();
+        parameters.Add("Uid", uid);
+        if (await HasInvalidFactsAsync(session,
+            DocumentSourceScope, parameters, token))
+            throw new UnverifiedReceiptHistoryException();
+    }
+
+    // 先限定有效目标头，再纳入全部关联行；缺头或删头不让遗留孤立行触发其他头的历史门禁。
+    internal const string DocumentSourceScope = """
+        SELECT l.source_line_id AS uid FROM public.inbound_document_line l
+        JOIN public.inbound_document target ON target.uid=l.inbound_document_id AND target.is_deleted=FALSE
+        WHERE target.uid=@Uid
+        """;
+
+    /// <summary>仅复用共同证明，不把异常收货量折算为零；范围 SQL 固定来自源码，参数始终独立绑定。</summary>
+    private static Task<bool> HasInvalidFactsAsync(DbSession session, string scope, PostgreSqlParameters parameters, CancellationToken token)
+        => session.Connection.ExecuteScalarAsync<bool>(new CommandDefinition(
+            "WITH " + PurchaseReceiptFactsSql.Ctes(scope, includeUnprovenTypes: true)
+            + " SELECT EXISTS(SELECT 1 FROM receipt_facts WHERE has_unit_mismatch<>0)",
+            parameters, session.Transaction, cancellationToken: token));
+
     /// <summary>在同一调用方会话检查全部采购正式入库历史，明确不可信时保留收货未知类别。</summary>
     public static Task ValidateGlobalAsync(DbSession session, CancellationToken cancellationToken = default)
         => ValidateAsync(session, false, [], cancellationToken);

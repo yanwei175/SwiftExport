@@ -48,6 +48,9 @@ public sealed class PackingListMappings : IRegister
             .Map(x => x.ExpectedVersion, x => x.IsNew ? 0 : x.Version);
         config.NewConfig<PackingListLineModel, PackingListDeletedLineInput>()
             .Map(x => x.ExpectedVersion, x => x.Version);
-        config.NewConfig<PackingListManagerSearchModel, PackingListManagerSearchRequest>();
+        // 管理页只传客户身份，并物化多选集合，不能共享控件可继续编辑的集合。
+        config.NewConfig<PackingListManagerSearchModel, PackingListManagerSearchRequest>()
+            .Map(x => x.CustomerIds, x => x.SelectedCustomers.Select(customer => customer.Uid).ToList())
+            .Map(x => x.PostingStatuses, x => x.PostingStatuses.ToList());
     }
 }

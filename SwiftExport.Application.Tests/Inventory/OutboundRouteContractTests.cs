@@ -6,7 +6,7 @@ using SwiftExport.WebApi.Controllers.Inventory.Outbounds;
 
 namespace SwiftExport.Application.Tests.Inventory;
 
-/// <summary>确认拆分后的四个 Controller 仍与原 Refit 接口保持十个端点的路由和类型契约。</summary>
+/// <summary>确认四个 Controller 与 Refit 接口保持十一个端点的路由和类型契约。</summary>
 [TestClass]
 public sealed class OutboundRouteContractTests
 {
@@ -22,8 +22,8 @@ public sealed class OutboundRouteContractTests
         var actions = controllers.SelectMany(type => type.GetMethods().Where(method => method.DeclaringType == type))
             .ToDictionary(method => method.Name);
         var api = typeof(IOutboundManagerApi).GetMethods();
-        Assert.HasCount(10, api);
-        Assert.HasCount(10, actions);
+        Assert.HasCount(11, api);
+        Assert.HasCount(11, actions);
         foreach (var method in api)
         {
             var action = actions[method.Name];

@@ -16,14 +16,14 @@ namespace SwiftExport.Client.Wpf.Tests.Features;
 
 /// <summary>验证独立选源组件的勾选及真实模板绑定，不调用后端。</summary>
 [TestClass]
-public sealed class InboundSourcePickerTests
+public sealed partial class InboundSourcePickerTests
 {
     /// <summary>当前入库身份仅用于其他草稿提示，查询和翻页持续携带，不增加仓库条件。</summary>
     [TestMethod]
     public async Task Initialize_PreservesCurrentInboundForWarningExclusion()
     {
         var api = new SourceApiStub();
-        using var vm = new InboundSourcePickerViewModel(api, new RunnerStub(), new ReferenceDataCacheServiceStub());
+        using var vm = new InboundSourcePickerViewModel(api, new RunnerStub());
         var id = Guid.NewGuid();
         await vm.InitializeAsync(new() { DocumentType = InboundDocumentTypeEnum.PurchaseReceipt, CurrentInboundDocumentId = id }, CancellationToken.None);
         Assert.AreEqual(id, api.Requests.Single().CurrentInboundDocumentId);
@@ -53,7 +53,7 @@ public sealed class InboundSourcePickerTests
     public async Task Search_AppliesFiltersExplicitly_AndRestoresSelectionAfterFailure()
     {
         var api = new SourceApiStub();
-        using var vm = new InboundSourcePickerViewModel(api, new RunnerStub(), new ReferenceDataCacheServiceStub());
+        using var vm = new InboundSourcePickerViewModel(api, new RunnerStub());
         await vm.SearchCommand.ExecuteAsync(null);
         var oldRow = vm.Items.Single();
         vm.Keyword = "新条件";
@@ -79,6 +79,14 @@ public sealed class InboundSourcePickerTests
     /// <summary>仅记录查询快照，允许测试控制响应时间。</summary>
     private sealed class SourceApiStub : IInboundSourceApi
     {
+        public List<PagedRequestBase> SupplierRequests { get; } = [];
+        public Func<PagedRequestBase, Task<ServiceResult<PagedResponseBase<SwiftExport.Contracts.DTOs.Inventory.InventorySupplierLookupDto>>>>? SuppliersHandler { get; set; }
+        /// <inheritdoc/>
+        public Task<ServiceResult<PagedResponseBase<SwiftExport.Contracts.DTOs.Inventory.InventorySupplierLookupDto>>> GetSupplierOptionsAsync(PagedRequestBase request, CancellationToken cancellationToken = default)
+        {
+            SupplierRequests.Add(request);
+            return SuppliersHandler?.Invoke(request) ?? Task.FromResult(ServiceResult<PagedResponseBase<SwiftExport.Contracts.DTOs.Inventory.InventorySupplierLookupDto>>.Ok(new() { Items = [], TotalCount = 0 }));
+        }
         private readonly Guid _source = Guid.NewGuid();
         public List<InboundSourceSearchRequest> Requests { get; } = [];
         public TaskCompletionSource<ServiceResult<PagedResponseBase<InboundSourceCandidateDto>>>? Pending { get; set; }

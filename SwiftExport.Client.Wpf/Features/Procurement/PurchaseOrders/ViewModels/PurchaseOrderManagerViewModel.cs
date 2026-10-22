@@ -44,8 +44,11 @@ public sealed partial class PurchaseOrderManagerViewModel : ViewModelBaseEx, IAs
     private CancellationTokenSource? _detailCancellation;
     private bool _synchronizingSelection;
     private bool _initialized;
+    private string? _searchInputError;
+    private string? _summaryBeforeSearchInputError;
     private readonly IReferenceDataCacheService? _referenceDataCache;
 
+    /// <summary>组合采购管理查询和命令依赖，并订阅当前用户、未决状态及筛选输入的变化。</summary>
     public PurchaseOrderManagerViewModel(IPurchaseOrderManagerApi managerApi, IProcurementOrderApi orderApi,
         IProcurementDialogService procurementDialogs,
         INavigationService navigation, IDialogService dialogs,
@@ -73,6 +76,9 @@ public sealed partial class PurchaseOrderManagerViewModel : ViewModelBaseEx, IAs
         RegisterBusyAwareCommand(ConfirmCommand); RegisterBusyAwareCommand(CancelConfirmationCommand);
         RegisterBusyAwareCommand(RetryPendingCommand);
         RegisterBusyAwareCommand(DeleteDraftCommand);
+        RegisterBusyAwareCommand(ApplyMoreFiltersCommand);
+        SelectedCustomers.CollectionChanged += OnSearchInputCollectionChanged;
+        SelectedSuppliers.CollectionChanged += OnSearchInputCollectionChanged;
     }
 
     public ObservableCollection<PurchaseOrderManagementRowModel> Orders { get; } = [];
@@ -160,7 +166,7 @@ public sealed partial class PurchaseOrderManagerViewModel : ViewModelBaseEx, IAs
         RefreshSelectionState();
     }
 
-    [RelayCommand(CanExecute = nameof(CanQuery))] private async Task SearchAsync() { if (!CanQuery()) return; await LoadPageAsync(CaptureQuery(), 1, PageSize); }
+    [RelayCommand(CanExecute = nameof(CanSearch))] private async Task SearchAsync() { if (!CanQuery()) return; await LoadPageAsync(CaptureQuery(), 1, PageSize); }
     [RelayCommand(CanExecute = nameof(CanQuery))] private Task RefreshAsync() => CanQuery() ? LoadPageAsync() : Task.CompletedTask;
     [RelayCommand(CanExecute = nameof(CanQuery))]
     private Task ClearFiltersAsync()
@@ -176,7 +182,7 @@ public sealed partial class PurchaseOrderManagerViewModel : ViewModelBaseEx, IAs
     [RelayCommand(CanExecute = nameof(CanQuery))] private Task PageChangeAsync(PageChangeRequest? request) => !CanQuery() || request is null ? Task.CompletedTask : LoadPageAsync(_appliedQuery, request.NewIndex, request.NewSize);
 
     /// <summary>应用更多条件走同一查询接纳边界。</summary>
-    [RelayCommand(CanExecute = nameof(CanQuery))]
+    [RelayCommand(CanExecute = nameof(CanSearch))]
     private async Task ApplyMoreFiltersAsync() { IsMoreFiltersOpen = false; await SearchAsync(); }
     /// <summary>仅清除更多日期输入，点击应用后才改变当前事实。</summary>
     [RelayCommand] private void ClearMoreFilters() => OrderDateFrom = OrderDateTo = PlannedDeliveryDateFrom = PlannedDeliveryDateTo = null;
@@ -219,7 +225,7 @@ public sealed partial class PurchaseOrderManagerViewModel : ViewModelBaseEx, IAs
             _messages.ShowSuccess("采购已确认", order.OrderNo);
         }, "正在确认采购订单...");
     }
-    /// <summary>批量确认当前页勾选订单；预检、一次确认、顺序写入和最终刷新共用一个 Busy 所有权。</summary>
+    /// <summary>批量确认当前页勾选订单；撤权统计未执行范围，身份切换或释放后不发布旧结果，整个操作共用一个 Busy。</summary>
     [RelayCommand(CanExecute = nameof(CanBatchConfirm))]
     private async Task BatchConfirmAsync()
     {
@@ -235,8 +241,17 @@ public sealed partial class PurchaseOrderManagerViewModel : ViewModelBaseEx, IAs
             var failed = new List<string>();
             var unknown = new List<string>();
             var notExecuted = new List<string>();
-            foreach (var order in snapshot)
+            var stopped = false;
+            for (var preflightIndex = 0; preflightIndex < snapshot.Length; preflightIndex++)
             {
+                if (_reversalDisposed || user != ReversalUser) return;
+                if (!HasConfirmPermission)
+                {
+                    notExecuted.AddRange(plans.Select(plan => $"{plan.Order.OrderNo}：确认权限已撤销，未执行。"));
+                    notExecuted.AddRange(snapshot.Skip(preflightIndex).Select(order => $"{order.OrderNo}：确认权限已撤销，未执行。"));
+                    plans.Clear(); stopped = true; break;
+                }
+                var order = snapshot[preflightIndex];
                 if (HasPendingConfirmation(order.PurchaseOrderId))
                 {
                     skipped.Add($"{order.OrderNo}：上次确认结果待核实，未生成新命令。");
@@ -263,6 +278,7 @@ public sealed partial class PurchaseOrderManagerViewModel : ViewModelBaseEx, IAs
                     skipped.Add($"{order.OrderNo}：读取确认依据发生未识别错误。");
                     continue;
                 }
+                if (_reversalDisposed || user != ReversalUser) return;
                 if (!context.Success || context.Data is null)
                 {
                     skipped.Add($"{order.OrderNo}：{GetFailureText(context, "读取确认依据失败。")}");
@@ -281,26 +297,38 @@ public sealed partial class PurchaseOrderManagerViewModel : ViewModelBaseEx, IAs
                 });
             }
 
+            if (_reversalDisposed || user != ReversalUser) return;
+            if (!HasConfirmPermission && plans.Count > 0)
+            {
+                notExecuted.AddRange(plans.Select(plan => $"{plan.Order.OrderNo}：确认权限已撤销，未执行。"));
+                plans.Clear(); stopped = true;
+            }
             if (plans.Count == 0)
             {
                 var skippedDetails = BuildBatchSummary(succeeded, skipped, failed, unknown, notExecuted);
                 ResultSummary = BuildBatchCountSummary(succeeded, skipped, failed, unknown, notExecuted);
-                await _dialogs.ShowContentAsync("批量确认未执行", skippedDetails);
+                await _dialogs.ShowContentAsync(stopped ? "批量确认已停止" : "批量确认未执行", skippedDetails);
                 return;
             }
 
             var prompt = BuildBatchConfirmationPrompt(snapshot.Length, plans, skipped);
             if (!await _dialogs.ConfirmAsync("批量确认采购订单", prompt, "确认可执行订单"))
             {
+                if (_reversalDisposed || user != ReversalUser) return;
                 ResultSummary = $"已取消批量确认，当前页已选 {snapshot.Length} 张采购单均未提交。";
                 return;
             }
 
-            var stopped = false;
+            if (_reversalDisposed || user != ReversalUser) return;
             for (var index = 0; index < plans.Count; index++)
             {
                 var plan = plans[index];
-                if (_reversalDisposed || user != ReversalUser || !HasConfirmPermission) break;
+                if (_reversalDisposed || user != ReversalUser) return;
+                if (!HasConfirmPermission)
+                {
+                    notExecuted.AddRange(plans.Skip(index).Select(remaining => $"{remaining.Order.OrderNo}：确认权限已撤销，未执行。"));
+                    stopped = true; break;
+                }
                 if (!_commandSession.Freeze(user, plan.Order.PurchaseOrderId, ProcurementCommandKind.Confirm, plan.Command))
                 { skipped.Add($"{plan.Order.OrderNo}：已有未决写入，未提交新命令。"); continue; }
                 SwiftExport.Contracts.Wrappers.ServiceResult<ProcurementOrderCommandResult>? result = null;
@@ -312,6 +340,7 @@ public sealed partial class PurchaseOrderManagerViewModel : ViewModelBaseEx, IAs
                 {
                     // 未识别异常发生在写请求边界，无法证明服务端未执行，必须按未知结果停止后续提交。
                 }
+                if (_reversalDisposed || user != ReversalUser) return;
 
                 if (result?.Success == true && result.Data is not null)
                 {
@@ -350,6 +379,7 @@ public sealed partial class PurchaseOrderManagerViewModel : ViewModelBaseEx, IAs
             {
                 // 批量执行结果已经形成；刷新异常只作为后续核实提示，不能覆盖逐单结果。
             }
+            if (_reversalDisposed || user != ReversalUser) return;
             RefreshSelectionState();
             ResultSummary = refreshSucceeded
                 ? summary
@@ -391,8 +421,8 @@ public sealed partial class PurchaseOrderManagerViewModel : ViewModelBaseEx, IAs
         if (_reversalDisposed || !HasReadPermission) return false;
         query ??= _appliedQuery ?? CaptureQuery();
         var request = query.ForPage(page ?? PageIndex, size ?? PageSize);
-        if (request.OrderDateFrom > request.OrderDateTo || request.PlannedDeliveryDateFrom > request.PlannedDeliveryDateTo)
-        { ResultSummary = "日期起点不能晚于终点。"; return false; }
+        if (GetSearchInputError(request) is { } inputError)
+        { UpdateSearchInputError(inputError); return false; }
         _queryCancellation?.Cancel();
         var cts = new CancellationTokenSource();
         _queryCancellation = cts;
@@ -462,17 +492,61 @@ public sealed partial class PurchaseOrderManagerViewModel : ViewModelBaseEx, IAs
     }
 
     /// <summary>普通查询捕获输入，后续页码及刷新只复制这份已应用条件。</summary>
-    private PurchaseOrderQuerySnapshot CaptureQuery() => new(new PurchaseOrderManagerSearchRequest
+    private PurchaseOrderQuerySnapshot CaptureQuery() => new(CaptureSearchRequest());
+
+    /// <summary>按相同 Trim 和去重口径生成当前输入，供按钮校验及成功查询快照共用。</summary>
+    private PurchaseOrderManagerSearchRequest CaptureSearchRequest() => new()
     {
         Keyword = Keyword.Trim(), CustomerCodes = SelectedCustomers.Select(x => x.CustomerCode).Distinct().ToList(),
         SupplierIds = SelectedSuppliers.Select(x => x.Uid).Distinct().ToList(),
         OrderDateFrom = OrderDateFrom, OrderDateTo = OrderDateTo,
         ConfirmationStatuses = SelectedConfirmationStatuses.ToList(), LifecycleStatuses = SelectedLifecycleStatuses.ToList(),
         PlannedDeliveryDateFrom = PlannedDeliveryDateFrom, PlannedDeliveryDateTo = PlannedDeliveryDateTo
-    });
+    };
 
     private bool CanOpenDetail() => HasReadPermission && IsNotBusy && SelectedOrder is not null;
     private bool CanQuery() => !_reversalDisposed && HasReadPermission && IsNotBusy;
+    private bool CanSearch() => CanQuery() && GetSearchInputError(CaptureSearchRequest()) is null;
+
+    /// <summary>按最终发送的去重条件校验，按钮与请求边界共用限制，不截断用户输入。</summary>
+    private static string? GetSearchInputError(PurchaseOrderManagerSearchRequest request)
+    {
+        if (request.Keyword?.Length > PurchaseOrderManagerSearchRequest.MaxTextLength)
+            return $"关键词不能超过 {PurchaseOrderManagerSearchRequest.MaxTextLength} 个字符。";
+        if (request.CustomerCodes.Count > PurchaseOrderManagerSearchRequest.MaxPartyFilterCount)
+            return $"客户最多选择 {PurchaseOrderManagerSearchRequest.MaxPartyFilterCount} 项。";
+        if (request.SupplierIds.Count > PurchaseOrderManagerSearchRequest.MaxPartyFilterCount)
+            return $"供应商最多选择 {PurchaseOrderManagerSearchRequest.MaxPartyFilterCount} 项。";
+        return request.OrderDateFrom > request.OrderDateTo || request.PlannedDeliveryDateFrom > request.PlannedDeliveryDateTo
+            ? "日期起点不能晚于终点。" : null;
+    }
+
+    partial void OnKeywordChanged(string value) => NotifySearchInputChanged();
+    partial void OnOrderDateFromChanged(DateTime? value) => NotifySearchInputChanged();
+    partial void OnOrderDateToChanged(DateTime? value) => NotifySearchInputChanged();
+    partial void OnPlannedDeliveryDateFromChanged(DateTime? value) => NotifySearchInputChanged();
+    partial void OnPlannedDeliveryDateToChanged(DateTime? value) => NotifySearchInputChanged();
+    private void OnSearchInputCollectionChanged(object? sender, System.Collections.Specialized.NotifyCollectionChangedEventArgs e) => NotifySearchInputChanged();
+    /// <summary>输入改变只更新查询资格和本地错误，不改变已经接纳的筛选及分页事实。</summary>
+    private void NotifySearchInputChanged()
+    {
+        SearchCommand.NotifyCanExecuteChanged(); ApplyMoreFiltersCommand.NotifyCanExecuteChanged();
+        UpdateSearchInputError(GetSearchInputError(CaptureSearchRequest()));
+    }
+    /// <summary>只撤销本地输入校验覆盖的提示；期间产生的查询或命令结果不被纠正输入清除。</summary>
+    private void UpdateSearchInputError(string? error)
+    {
+        if (error is not null)
+        {
+            if (_searchInputError is null || ResultSummary != _searchInputError) _summaryBeforeSearchInputError = ResultSummary;
+            _searchInputError = error; ResultSummary = error;
+        }
+        else
+        {
+            if (_searchInputError is not null && ResultSummary == _searchInputError) ResultSummary = _summaryBeforeSearchInputError ?? string.Empty;
+            _searchInputError = null; _summaryBeforeSearchInputError = null;
+        }
+    }
     private bool CanBatchConfirm() => HasReadPermission && HasConfirmPermission && IsNotBusy
         && VisibleOrders.Any(order => order.IsChecked && !HasPendingConfirmation(order.PurchaseOrderId));
     private bool CanCreateIndependent() => HasCreatePermission && IsNotBusy;
@@ -676,5 +750,6 @@ public sealed partial class PurchaseOrderManagerViewModel : ViewModelBaseEx, IAs
         public required ConfirmProcurementOrderCommand Command { get; init; }
     }
 
-    public void Dispose() { _reversalDisposed = true; _reversalSession.Changed -= OnReversalChanged; _commandSession.Changed -= OnCommandSessionChanged; _currentUser.CurrentUserChanged -= OnCurrentUserChanged; DetachOrderEvents(); _queryCancellation?.Cancel(); _detailCancellation?.Cancel(); }
+    /// <summary>停止读取并解除会话、筛选和行通知，异步批量操作随后不能发布旧页面结果。</summary>
+    public void Dispose() { _reversalDisposed = true; _reversalSession.Changed -= OnReversalChanged; _commandSession.Changed -= OnCommandSessionChanged; _currentUser.CurrentUserChanged -= OnCurrentUserChanged; SelectedCustomers.CollectionChanged -= OnSearchInputCollectionChanged; SelectedSuppliers.CollectionChanged -= OnSearchInputCollectionChanged; DetachOrderEvents(); _queryCancellation?.Cancel(); _detailCancellation?.Cancel(); }
 }

@@ -10,6 +10,33 @@ namespace SwiftExport.Application.Tests.Database;
 /// <summary>复用真实 Dapper 无网络夹具验证仓库查询投影、参数、分页和调用方事务。</summary>
 public sealed partial class PostgreSqlRepositoryTests
 {
+    /// <summary>供应商筛选只投影三个字段，保留停用/排软删口径，计数与页不依赖采购库存并安全绑定大偏移。</summary>
+    [TestMethod]
+    public async Task WarehouseQuery_SupplierFilterUsesNarrowFieldsAndBigintOffset()
+    {
+        using var fixture=new Fixture();var rows=fixture.Connection.Rows;
+        rows.Columns.Add("Uid",typeof(Guid));rows.Columns.Add("SupplierCode",typeof(string));rows.Columns.Add("SupplierName",typeof(string));
+        var uid=Guid.NewGuid();rows.Rows.Add(uid,"S-01","供应商");
+        var repository=new PostgreSqlWarehouseQueryRepository(DictionaryContext(fixture));
+        using var cancellation=new CancellationTokenSource();
+        var result=await repository.SearchSupplierFilterOptionsAsync(new(){PageIndex=int.MaxValue,PageSize=200,Keyword="  ~%_[  "},cancellation.Token);
+        Assert.AreEqual(uid,result.Items.Single().Uid);Assert.AreEqual("S-01",result.Items.Single().SupplierCode);
+        Assert.AreEqual((long)(int.MaxValue-1)*200,fixture.Connection.Values["Offset"]);
+        Assert.AreEqual(NpgsqlDbType.Bigint,fixture.Connection.Types["Offset"]);
+        Assert.AreEqual("%~~~%~_~[%",fixture.Connection.Values["Keyword"]);
+        Assert.AreEqual(2,fixture.Connection.Commands.Count);
+        foreach(var command in fixture.Connection.Commands)
+        {
+            StringAssert.Contains(command.Sql,"FROM public.supplier s");
+            StringAssert.Contains(command.Sql,"COALESCE(s.is_deleted,FALSE)=FALSE");
+            foreach(var forbidden in new[]{"is_active","purchase_order","inventory_balance","contact_","currency"})
+                Assert.IsFalse(command.Sql.Contains(forbidden,StringComparison.OrdinalIgnoreCase),forbidden);
+            Assert.AreSame(fixture.Session.Transaction,command.Transaction);
+        }
+        StringAssert.Contains(fixture.Connection.Text,"ORDER BY s.supplier_code COLLATE public.erp_dictionary_ci,s.uid");
+        Assert.AreEqual(0,fixture.Connection.Commits);Assert.AreEqual(0,fixture.Connection.Rollbacks);
+    }
+
     /// <summary>空身份集合不查询；非空身份作为单个 uuid 数组传递，映射停用仓而不附加活动过滤。</summary>
     [TestMethod]
     public async Task WarehouseQuery_IdsPreserveInactiveAndUseArray()

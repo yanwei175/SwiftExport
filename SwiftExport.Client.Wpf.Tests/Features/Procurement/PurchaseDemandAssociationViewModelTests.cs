@@ -204,7 +204,8 @@ public sealed class PurchaseDemandAssociationViewModelTests
         public Func<AssociateProcurementDemandsCommand, Task<ServiceResult<ProcurementOrderCommandResult>>>? SendAsync;
         public Func<PreviewProcurementDemandAssociationRequest, Task<ServiceResult<ProcurementDemandAssociationPreviewDto>>>? PreviewHandler;
         public Func<ProcurementDemandCandidateSearchRequest, Task<ServiceResult<PagedResponseBase<ProcurementDemandCandidateDto>>>>? CandidateHandler;
-        public Fixture()
+        /// <summary>默认沿用真实请求边界；异常出口用例可注入直接抛出异常的边界。</summary>
+        public Fixture(IApiCallRunner? runner = null)
         {
             var product = Guid.NewGuid();
             Context = new() { PurchaseOrderId = Guid.NewGuid(), OrderNo = "PO-ASSOC", CustomerCode = "C1", SupplierName = "供应商",
@@ -232,7 +233,7 @@ public sealed class PurchaseDemandAssociationViewModelTests
                 return Task.FromResult(ServiceResult<PagedResponseBase<PurchaseOrderManagerListItemDto>>.Ok(new() { PageSize = 20, TotalCount = 1,
                     Items = [new() { PurchaseOrderId = Context.PurchaseOrderId, OrderNo = Context.OrderNo }] }));
             };
-            Vm = new(api, manager, new ApiCallRunner(NullLogger<ApiCallRunner>.Instance), Dialogs, User, NullLogger<PurchaseDemandAssociationViewModel>.Instance);
+            Vm = new(api, manager, runner ?? new ApiCallRunner(NullLogger<ApiCallRunner>.Instance), Dialogs, User, NullLogger<PurchaseDemandAssociationViewModel>.Instance);
         }
         private Task<ServiceResult<PagedResponseBase<ProcurementDemandCandidateDto>>> Candidates(ProcurementDemandCandidateSearchRequest request)
         {

@@ -115,7 +115,7 @@ public sealed partial class PackingListDetailViewModel : ViewModelBaseEx, IDocum
         {
             Header.Load(detail.Header); Lines.LoadFromDtos(detail.Lines.Where(x => !x.IsDeleted).OrderBy(x => x.LineNumber));
             SelectedCustomer = Customers.FirstOrDefault(x => x.Uid == Header.CustomerId);
-            SelectedLine = null; SelectedPackingGroup = null; _loaded = true; _associationNeedsReload = false;
+            SelectedLine = null; SelectedPackingGroup = null; SelectedPackage = null; SelectedPackages.Clear(); _loaded = true; _associationNeedsReload = false;
             IsReadOnly = detail.Header.IsDeleted || Header.LifecycleStatus != PackingListLifecycleStatusEnum.Active
                 || Header.PostingStatus != PackingListPostingStatusEnum.Unposted;
             ValidationSummary = null;
@@ -130,7 +130,22 @@ public sealed partial class PackingListDetailViewModel : ViewModelBaseEx, IDocum
         Header.CustomerAddressSnapshot = value?.Address;
     }
     /// <summary>切换选中行时刷新当前草稿操作可用性。</summary>
-    partial void OnSelectedLineChanged(PackingListLineModel? value) => NotifyState();
+    partial void OnSelectedLineChanged(PackingListLineModel? value)
+    {
+        if (!_syncingPackageSelection)
+        {
+            if (value?.PackingGroupId is { } id)
+                SelectedPackingGroup = Lines.PackingGroups.FirstOrDefault(x => x.Id == id);
+            if (value is not null && (value.IsMixedPacking || SelectedPackingGroup is null))
+            {
+                _syncingPackageSelection = true;
+                try { SelectedPackage = value.DisplayGroup; }
+                finally { _syncingPackageSelection = false; }
+            }
+            SelectedPackingLine = value is not null && SelectedPackingGroup?.Members.Contains(value) == true ? value : null;
+        }
+        NotifyState();
+    }
     /// <summary>保存前校验完整有效行，专用写 DTO 排除状态、审计和图片。</summary>
     [RelayCommand(CanExecute = nameof(IsEditable))]
     private async Task SaveAsync()
@@ -204,24 +219,13 @@ public sealed partial class PackingListDetailViewModel : ViewModelBaseEx, IDocum
                 || (x.Source.IsNonStandard && x.Source.ProductId.HasValue)
                 || (!x.Source.IsNonStandard && (!x.Source.ProductId.HasValue || x.Source.ProductId == Guid.Empty))))
             { ReportValidationWarning("选源返回身份或数量异常。"); return; }
+            SelectedPackage = null; SelectedPackingGroup = null;
             foreach (var selection in selected)
             {
                 var dto = selection.Source.Adapt<PackingListLineDto>();
                 dto.Uid = Guid.NewGuid(); dto.PackingListHeadId = _uid; dto.LineNumber = Lines.Items.Count + 1; dto.Qty = selection.Qty;
                 // 箱数与小计由行模型实时计算。
                 SelectedLine = Lines.AddNew(dto);
-                if (SelectedPackingGroup is { } group)
-                {
-                    using (Lines.SuppressListEvents())
-                    {
-                        SelectedLine.PackingGroupId = group.Id;
-                        SelectedLine.PcsPerPackage = SelectedLine.Qty;
-                        SelectedLine.Marks = group.Marks;
-                        Lines.ClearMetrics(group.Id);
-                        PlaceInGroup(SelectedLine, group.Id);
-                        Renumber();
-                    }
-                }
             }
         }
         catch (OperationCanceledException) when (_lifetime.IsCancellationRequested) { }
@@ -333,7 +337,7 @@ public sealed partial class PackingListDetailViewModel : ViewModelBaseEx, IDocum
         {
             if (!await _dialogs.ConfirmAsync("撤销修改", "放弃本页尚未保存的修改？") || _disposed) return;
             _loading = true;
-            try { Header.RejectChanges(); Lines.RejectChanges(); SelectedPackingGroup = null; SelectedCustomer = Customers.FirstOrDefault(x => x.Uid == Header.CustomerId); if (_isNew) Header.MarkAsAdded(); }
+            try { Header.RejectChanges(); Lines.RejectChanges(); SelectedPackingGroup = null; SelectedPackage = null; SelectedPackages.Clear(); SelectedCustomer = Customers.FirstOrDefault(x => x.Uid == Header.CustomerId); if (_isNew) Header.MarkAsAdded(); }
             finally { _loading = false; }
         }
         finally { _dialogOpen = false; NotifyState(); }
@@ -351,7 +355,13 @@ public sealed partial class PackingListDetailViewModel : ViewModelBaseEx, IDocum
         finally { _dialogOpen = false; NotifyState(); }
     }
     private void OnHeaderChanged(object? sender, PropertyChangedEventArgs e) { if (!_loading) NotifyState(); }
-    private void OnLinesChanged(object? sender, ListStateChangedEventArgs<PackingListLineModel> e) { if (!_loading) NotifyState(); }
+    /// <summary>成员结构变化后同步下表选择，不把下表清空反向解释为取消上表选择。</summary>
+    private void OnLinesChanged(object? sender, ListStateChangedEventArgs<PackingListLineModel> e)
+    {
+        if (_loading) return;
+        SelectedPackingLine = SelectedLine is not null && SelectedPackingGroup?.Members.Contains(SelectedLine) == true ? SelectedLine : null;
+        NotifyState();
+    }
     private void OnPageChanged(object? sender, PropertyChangedEventArgs e) { if (e.PropertyName == nameof(IsBusy)) NotifyState(); }
     private void NotifyState()
     {
@@ -362,12 +372,16 @@ public sealed partial class PackingListDetailViewModel : ViewModelBaseEx, IDocum
         OnPropertyChanged(nameof(DocumentTitle));
         OnPropertyChanged(nameof(IsEditable));
         OnPropertyChanged(nameof(CanReorder));
+        OnPropertyChanged(nameof(CanReorderPackages));
+        OnPropertyChanged(nameof(CanReorderMembers));
         OnPropertyChanged(nameof(CanEditFacts));
+        OnPropertyChanged(nameof(CanEditSelectedPackingGroup));
         OnPropertyChanged(nameof(CanInteractWithLines));
         foreach (var command in new IRelayCommand[] { SaveCommand, SelectSourcesCommand, DeleteLineCommand, ReorderLineCommand,
             SplitTailCommand, UndoCommand, PostCommand, ReverseCommand, TraceCommand,
             AddPackingGroupCommand, DeletePackingGroupCommand, SelectOrdinaryPackingCommand,
-            MoveIntoPackingGroupCommand, MoveOutOfPackingGroupCommand, MovePackingGroupUpCommand, MovePackingGroupDownCommand }) command.NotifyCanExecuteChanged();
+            MoveIntoPackingGroupCommand, MoveOutOfPackingGroupCommand, MovePackingGroupUpCommand, MovePackingGroupDownCommand,
+            ReorderPackageCommand, ReorderMemberCommand, PackProductsCommand, DissolvePackageCommand, DeletePackageProductCommand, DeletePackingMemberCommand }) command.NotifyCanExecuteChanged();
     }
     /// <summary>阻断性错误同时保留页面摘要并提示一次；释放后的页面不再发出通知。</summary>
     private void ReportValidationWarning(string? message)

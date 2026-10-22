@@ -14,6 +14,63 @@ namespace SwiftExport.Application.Tests.Procurement;
 [TestClass]
 public sealed class ProcurementReversalPolicyTests
 {
+    /// <summary>同单另一采购行关联的异常入库头，不应阻止删除无关的有效草稿行。</summary>
+    [TestMethod]
+    public void DeleteLinesIgnoresAnomalyOnAnotherInboundHead()
+    {
+        var first=Guid.NewGuid();var second=Guid.NewGuid();var badHead=Guid.NewGuid();var otherHead=Guid.NewGuid();
+        var facts=new ProcurementReversalFacts
+        {
+            Head=new(){Uid=Guid.NewGuid(),Version=1},
+            Lines=[new(){Uid=first,Version=1,Quantity=1,UnlinkedQty=1},new(){Uid=second,Version=1,Quantity=1,UnlinkedQty=1}],
+            Inbounds=[new(){Uid=badHead},new(){Uid=otherHead,IsDeleted=true}],
+            InboundLines=[new(){InboundDocumentId=badHead,SourceLineId=first},new(){InboundDocumentId=badHead,SourceLineId=Guid.NewGuid()},
+                new(){InboundDocumentId=otherHead,SourceLineId=second,IsDeleted=true}],
+            UnattributedInboundHeadIds=[badHead]
+        };
+        var preview=ProcurementReversalPolicy.Build(facts,ProcurementReversalOperation.DeleteLines,
+            new(){ExpectedVersion=1,Lines=[new(){PurchaseOrderLineId=second,Version=1}]});
+        Assert.IsTrue(preview.CanExecute,string.Join(";",preview.Blockers));
+    }
+
+    /// <summary>选定行关联异常整头时仍阻断；同头孤立、旧类型、跨采购或已删关联不能被选行过滤掩盖。</summary>
+    [TestMethod]
+    [DataRow("orphan")]
+    [DataRow("legacy11")]
+    [DataRow("legacy12")]
+    [DataRow("cross-order")]
+    [DataRow("deleted-association")]
+    public void DeleteLinesBlocksEverySelectedLineRelatedToAnomalousHead(string kind)
+    {
+        var selected=Guid.NewGuid();var other=Guid.NewGuid();var badHead=Guid.NewGuid();
+        var facts=new ProcurementReversalFacts
+        {
+            Head=new(){Uid=Guid.NewGuid(),Version=1},
+            Lines=[new(){Uid=selected,Version=1,Quantity=1,UnlinkedQty=1},new(){Uid=other,Version=1,Quantity=1,UnlinkedQty=1}],
+            Inbounds=[new(){Uid=badHead,DocumentType=kind=="legacy11"?InboundDocumentTypeEnum.LegacyCustomerSuppliedReceipt
+                :kind=="legacy12"?InboundDocumentTypeEnum.LegacyPackingListAutoReceipt:InboundDocumentTypeEnum.PurchaseReceipt}],
+            InboundLines=[new(){InboundDocumentId=badHead,SourceLineId=selected,IsDeleted=kind=="deleted-association"},
+                new(){InboundDocumentId=badHead,SourceLineId=kind is "cross-order" or "orphan"?Guid.NewGuid():other}],
+            UnattributedInboundHeadIds=[badHead]
+        };
+        var preview=ProcurementReversalPolicy.Build(facts,ProcurementReversalOperation.DeleteLines,
+            new(){ExpectedVersion=1,Lines=[new(){PurchaseOrderLineId=selected,Version=1}]});
+        Assert.IsFalse(preview.CanExecute);
+        Assert.IsTrue(preview.Blockers.Any(message=>message.Contains("来源无法归属",StringComparison.Ordinal)));
+        if(kind=="cross-order")
+        {
+            // 同一异常头还关联另一订单的行；该订单读取同头完整证据后也必须拒绝相应删行。
+            var foreign=facts.InboundLines[1].SourceLineId;
+            facts.Head.Uid=Guid.NewGuid();
+            facts.Lines=[new(){Uid=foreign,Version=1,Quantity=1,UnlinkedQty=1},new(){Uid=Guid.NewGuid(),Version=1,Quantity=1,UnlinkedQty=1}];
+            var otherPreview=ProcurementReversalPolicy.Build(facts,ProcurementReversalOperation.DeleteLines,
+                new(){ExpectedVersion=1,Lines=[new(){PurchaseOrderLineId=foreign,Version=1}]});
+            Assert.IsFalse(otherPreview.CanExecute);
+            Assert.IsTrue(otherPreview.Blockers.Any(message=>message.Contains("来源无法归属",StringComparison.Ordinal)));
+        }
+    }
+
+
     /// <summary>旧需求行空值只在全量活动贡献可证明时允许作废，其他命令及真正数量异常仍阻断。</summary>
     [TestMethod]
     public void LegacyUnknownUnlinkedQuantityAllowsOnlyProvenWholeVoid()

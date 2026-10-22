@@ -189,8 +189,9 @@
 
 | HTTP及路由 | 动作 | 返回契约 | 源码 |
 | --- | --- | --- | --- |
-| POST `api/inventory/inbounds/search` | SearchAsync | `Task<ServiceResult<PagedResponseBase<InboundManagerListItemDto>>>` | [声明方法](../SwiftExport.WebApi/Controllers/Inventory/Inbounds/InboundQueryController.cs:17) |
-| GET `api/inventory/inbounds/{uid:guid}` | GetAsync | `Task<ServiceResult<InboundManagerDetailDto>>` | [声明方法](../SwiftExport.WebApi/Controllers/Inventory/Inbounds/InboundQueryController.cs:20) |
+| GET `api/inventory/inbounds/warehouses/picker` | GetWarehouseOptionsAsync | `Task<ServiceResult<PagedResponseBase<WarehouseSitePickerDto>>>` | [控制器](../SwiftExport.WebApi/Controllers/Inventory/Inbounds/InboundQueryController.cs) |
+| POST `api/inventory/inbounds/search` | SearchAsync | `Task<ServiceResult<PagedResponseBase<InboundManagerListItemDto>>>` | [控制器](../SwiftExport.WebApi/Controllers/Inventory/Inbounds/InboundQueryController.cs) |
+| GET `api/inventory/inbounds/{uid:guid}` | GetAsync | `Task<ServiceResult<InboundManagerDetailDto>>` | [控制器](../SwiftExport.WebApi/Controllers/Inventory/Inbounds/InboundQueryController.cs) |
 
 ## InboundReversalController
 
@@ -204,14 +205,19 @@
 | HTTP及路由 | 动作 | 返回契约 | 源码 |
 | --- | --- | --- | --- |
 | POST `api/inventory/inbound-sources/search` | SearchAsync | `Task<ServiceResult<PagedResponseBase<InboundSourceCandidateDto>>>` | [声明方法](../SwiftExport.WebApi/Controllers/Inventory/Inbounds/InboundSourcesController.cs:17) |
+| GET `api/inventory/inbound-sources/suppliers/picker` | GetSupplierOptionsAsync | `Task<ServiceResult<PagedResponseBase<InventorySupplierLookupDto>>>` | [控制器](../SwiftExport.WebApi/Controllers/Inventory/Inbounds/InboundSourcesController.cs) |
 
 ## InventoryController
 
+库存余额、流水、追溯及下列仓库筛选候选均要求 `Inventory.Balance.View`。仓库管理查询仍独立要求 `Inventory.Warehouse.View`；筛选候选不授予管理或过账资格。
+
 | HTTP及路由 | 动作 | 返回契约 | 源码 |
 | --- | --- | --- | --- |
-| POST `api/inventory/balances/search` | SearchBalancesAsync | `Task<ServiceResult<PagedResponseBase<InventoryBalanceDto>>>` | [声明方法](../SwiftExport.WebApi/Controllers/Inventory/Query/InventoryController.cs:18) |
-| POST `api/inventory/ledger/search` | SearchLedgerAsync | `Task<ServiceResult<PagedResponseBase<InventoryLedgerItemDto>>>` | [声明方法](../SwiftExport.WebApi/Controllers/Inventory/Query/InventoryController.cs:21) |
-| GET `api/inventory/balances/{uid:guid}/trace` | GetTraceAsync | `Task<ServiceResult<InventoryBalanceTraceDto>>` | [声明方法](../SwiftExport.WebApi/Controllers/Inventory/Query/InventoryController.cs:24) |
+| GET `api/inventory/warehouses/picker` | GetWarehouseOptionsAsync | `Task<ServiceResult<PagedResponseBase<WarehouseSitePickerDto>>>` | [声明方法](../SwiftExport.WebApi/Controllers/Inventory/Query/InventoryController.cs:19) |
+| GET `api/inventory/suppliers/picker` | GetSupplierOptionsAsync | `Task<ServiceResult<PagedResponseBase<InventorySupplierLookupDto>>>` | [控制器](../SwiftExport.WebApi/Controllers/Inventory/Query/InventoryController.cs) |
+| POST `api/inventory/balances/search` | SearchBalancesAsync | `Task<ServiceResult<PagedResponseBase<InventoryBalanceDto>>>` | [声明方法](../SwiftExport.WebApi/Controllers/Inventory/Query/InventoryController.cs:23) |
+| POST `api/inventory/ledger/search` | SearchLedgerAsync | `Task<ServiceResult<PagedResponseBase<InventoryLedgerItemDto>>>` | [声明方法](../SwiftExport.WebApi/Controllers/Inventory/Query/InventoryController.cs:26) |
+| GET `api/inventory/balances/{uid:guid}/trace` | GetTraceAsync | `Task<ServiceResult<InventoryBalanceTraceDto>>` | [声明方法](../SwiftExport.WebApi/Controllers/Inventory/Query/InventoryController.cs:29) |
 
 ## ManualGrossDemandController
 

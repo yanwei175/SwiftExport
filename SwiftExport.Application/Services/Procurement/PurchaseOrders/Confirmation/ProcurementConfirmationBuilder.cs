@@ -29,7 +29,7 @@ public sealed class ProcurementConfirmationBuilder(IProcurementReferenceReadRepo
             throw new InvalidOperationException("供应商不存在、停用或身份资料缺失。");
         return supplier;
     }
-    /// <summary>在调用方事务中建立采购事实预览；不读取 BOM 或预先指定库存仓库。</summary>
+    /// <summary>在调用方事务中核验价格、金额及采购身份并建立预览；正式确认复用，不读取 BOM 或指定库存仓。</summary>
     public async Task<ProcurementConfirmationContextDto> BuildAsync(ProcurementReversalFacts facts, CancellationToken ct)
     {
         RequireSourceReferences(facts);
@@ -41,6 +41,7 @@ public sealed class ProcurementConfirmationBuilder(IProcurementReferenceReadRepo
         var result = new ProcurementConfirmationContextDto { PurchaseOrderId = head.Uid, Version = head.Version };
         foreach (var line in lines.OrderBy(x => x.LineNumber))
         {
+            ProcurementOrderPolicy.RequireConfirmationAmounts(line);
             await ValidateLineIdentityAsync(line, head.OriginKind, ct);
             if (!line.ProductId.HasValue)
             {

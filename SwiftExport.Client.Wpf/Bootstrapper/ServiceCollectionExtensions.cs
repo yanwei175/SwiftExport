@@ -76,6 +76,8 @@ public static class ServiceCollectionExtensions
         services.AddTransient<IAfterSalesReasonDialogService, AfterSalesReasonDialogService>();
         services.AddTransient<IWarehouseSiteReasonDialogService, WarehouseSiteReasonDialogService>();
         services.AddTransient<IWarehousePickerService, WarehousePickerService>();
+        services.AddTransient<SwiftExportClient.Features.Inventory.Inbounds.Services.InboundWarehousePickerService>();
+        services.AddTransient<SwiftExportClient.Features.Inventory.Outbounds.Services.OutboundWarehousePickerService>();
         services.AddTransient<ISupplierPickerService, SupplierPickerService>();
         services.AddTransient<ISalesOrderCancellationDialogService, SalesOrderCancellationDialogService>();
         services.AddTransient<IProductImageUploadClient, ProductImageUploadClient>();
