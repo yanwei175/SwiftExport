@@ -197,15 +197,15 @@ HTTP 请求
 ### 6.2 命令重放（幂等）用大白话解释
 场景：用户点“过账”，服务器已经过账成功，但响应在网络上丢了。客户端只看到“超时”，不知道成功没有。
 - 如果客户端再发一次普通请求：可能再过账一次（若没有状态保护），或收到“已过账”错误，用户误以为失败。
-存进现有的 `command_receipt` 表（实体 `CommandReceipt`，沿用，不改名）。
-  - 再次收到同一个 Key：不再执行业务，直接把存下的结果返回 —— 这就叫“重放”（replay）。重放的是**上次的响应**，不是重新执行业务。
-  - 同一个 Key 但请求内容不同（用请求体哈希比较）：返回 422，说明客户端用错了 Key。
+- 做法：客户端每次操作新生成一个 `CommandId`，放在**请求体**（不用 HTTP Header），超时重试时复用同一个 `CommandId`。服务器第一次执行成功后，把 `CommandId` 和响应结果一起存进现有的 `command_receipt` 表（实体 `CommandReceipt`，沿用，不改名）。
+  - 再次收到同一个 `CommandId`：不再执行业务，直接把存下的结果返回 —— 这就叫“重放”（replay）。重放的是**上次的响应**，不是重新执行业务。
+  - 同一个 `CommandId` 但请求内容不同（用请求体哈希比较）：返回 422，说明客户端用错了 `CommandId`。
   - 因为结果记录和业务数据在同一事务提交：要么都有，要么都没有，不存在“业务成功但没记录”。
 
 哪些需要：过账、确认、取消确认、作废、审核等**状态流转命令**和库存变动。
 哪些不需要：查询；草稿保存（Version 冲突已足够，重复保存无害）；主数据维护。
 
-> 参考：IETF《The Idempotency-Key HTTP Header Field》草案；Stripe API Idempotent Requests
+> 概念参考（本项目只借用幂等键语义，不使用其中的 HTTP Header 传递方式）：IETF《The Idempotency-Key HTTP Header Field》草案；Stripe API Idempotent Requests
 > https://datatracker.ietf.org/doc/draft-ietf-httpapi-idempotency-key-header/
 > https://docs.stripe.com/api/idempotent_requests
 
@@ -229,7 +229,7 @@ public interface ICommandExecutor
   result = work()
   插入 command_receipt(command_id, command_type, actor_uid, request_target_uid, request_fingerprint, result_json)
   提交
-  提交本身抛异常 → 抛 CommitOutcomeUnknownException(503，提示使用同一 Key 重试)
+  提交本身抛异常 → 抛 CommitOutcomeUnknownException(503，提示使用同一 CommandId 重试)
 异常 → 回滚 → 原样抛出（不转换、不记日志）
 ```
 它**不做**：授权、输入校验、异常转 HTTP、写请求日志。
@@ -257,7 +257,7 @@ public interface ICommandExecutor
 | `BusinessRuleException` | 422 | 具体业务码，如 `inbound.already_posted` | 显示消息 |
 | `CommandIdReusedException` | 422 | `command_id_reused` | 程序错误，生成新 CommandId |
 | 数据库序列化失败/死锁/锁超时 | 503 | `transient` | **确定未生效**，可自动重试 |
-| `CommitOutcomeUnknownException` | 503 | `outcome_unknown` | 用**同一个 Key** 重试 |
+| `CommitOutcomeUnknownException` | 503 | `outcome_unknown` | 用**同一个 CommandId** 重试 |
 | 其他 | 500 | `unexpected` | 已回滚，确定未生效 |
 
 ProblemDetails 中带上 `traceId`，用户报错时提供给开发者对日志。
@@ -398,7 +398,7 @@ tests/
 3. Application：在 `XxxService` 加方法；正式命令用 `ExecuteIdempotentAsync`，普通写入用 `ExecuteAsync`。
 4. Infrastructure：仓储方法与 SQL；UPDATE 带 `version` 条件。
 5. Api：Controller Action + `[HasPermission]`。
-6. 测试：领域单元测试 + 一个集成测试（未授权 403、成功、版本冲突、同 Key 重放）。
+6. 测试：领域单元测试 + 一个集成测试（未授权 403、成功、版本冲突、同 CommandId 重放）。
 
 **开发者不需要写**：权限检查代码、try/catch、事务开启提交、幂等表读写、请求日志、错误转 HTTP。
 
@@ -426,14 +426,14 @@ tests/
 |---|---|
 | 未登录 / 无权限 | 401 / 403，数据库无任何写入 |
 | 正常过账 | 200；库存余额、流水、单据状态、审计、幂等记录同时存在 |
-| 同 Key 重发 | 200，返回相同结果，流水不增加 |
-| 同 Key 不同内容 | 422 |
-| 两个不同 Key 同时过账同一张单 | 一个 200，另一个 409 或 422（已过账） |
+| 同 CommandId 重发 | 200，返回相同结果，流水不增加 |
+| 同 CommandId 不同内容 | 422 |
+| 两个不同 CommandId 同时过账同一张单 | 一个 200，另一个 409 或 422（已过账） |
 | Version 过期 | 409 |
 | 写流水后故意抛错 | 500，所有表均无写入，日志仅一条堆栈 |
 | 两张单同时入同一仓同一品 | 余额 = 两者之和 |
 | 提交前取消请求 | 无写入 |
-| 模拟提交异常 | 503 `outcome_unknown`；同 Key 重试得到重放或正常执行 |
+| 模拟提交异常 | 503 `outcome_unknown`；同 CommandId 重试得到重放或正常执行 |
 
 ---
 

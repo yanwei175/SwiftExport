@@ -5,7 +5,7 @@
 
 上位文档：`../Backend-Architecture-Guide.md`（原则与理由）。本目录给出可直接照抄的形状。
 
-> **示意业务声明**：本目录中的产品、采购单、入库单、库存及 `DocumentLifecycle.md` 的状态与字段均为**虚构示意**，只用来演示代码形状（分层、事务、幂等、锁、命名）。SwiftExport 真实业务规则以 `.agents/references` 与 Core 实体为准，不得把样板中的字段、状态或数量规则当作真实需求实现。
+> **示意业务声明**：本目录 `src/**` 中的产品、采购单、入库单、库存的状态与字段均为**虚构示意**（`DocumentLifecycle.md` 只含技术契约，不含业务），只用来演示代码形状（分层、事务、幂等、锁、命名）。SwiftExport 真实业务规则以 `.agents/references` 与 Core 实体为准，不得把样板中的字段、状态或数量规则当作真实需求实现。
 
 ## 1. Agent 行为边界（硬性规则）
 
@@ -40,7 +40,7 @@
 ReferenceDesign/
   README.md                  ← 本文件
   Toolbox.md                 ← 第三方库：用什么、怎么用、不准自己写什么
-  DocumentLifecycle.md       ← 单据生命周期、状态、必备字段总表
+  DocumentLifecycle.md       ← 单据状态流转技术契约（检查位置、写入保护；不含业务状态与字段）
   src/
 	SwiftExport.Contracts/   ← 前后端共用 DTO（netstandard2.0）
 	SwiftExport.Domain/      ← 实体、状态机
