@@ -53,4 +53,4 @@
 - [ ] 新 backend skill 与旧 `.codex/skills/aspdotnet10` 的关系（架构窗口决定）
 - [ ] `.agents/skills/backend` 链接需管理员 PowerShell：`New-Item -ItemType SymbolicLink -Path .agents\skills\backend -Target .codex\skills\backend`
 - [ ] 采购模块任务书（Foundation 完成后，文档窗口）
-- [ ] 按 #22 统一 Guide、ReferenceDesign、.agents/references 中的权限特性命名（文档窗口）
+- [x] 按 #22 统一 Guide、ReferenceDesign、.agents/references 中的权限特性命名（文档窗口）
