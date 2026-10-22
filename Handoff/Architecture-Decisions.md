@@ -47,7 +47,7 @@
 ## 待办
 
 - [ ] 执行 `00-Foundation.md`（执行窗口）
-- [ ] 核对并重写/删除 `.agents/references` 中过期工程文档：`工程架构总纲.md`、`架构治理与路由判定规则.md`、`测试与验收总纲.md`（文档窗口）
+- [x] 核对并重写/删除 `.agents/references` 中过期工程文档：`工程架构总纲.md`、`架构治理与路由判定规则.md`、`测试与验收总纲.md`（文档窗口）
 - [x] 去业务化 `Handoff/Claude/ReferenceDesign/DocumentLifecycle.md`（改为技术契约或删除）及 Guide 中的旧 Header 示例（文档窗口）
 - [ ] 新 backend skill 与旧 `.codex/skills/aspdotnet10` 的关系（架构窗口决定）
 - [ ] `.agents/skills/backend` 链接需管理员 PowerShell：`New-Item -ItemType SymbolicLink -Path .agents\skills\backend -Target .codex\skills\backend`
