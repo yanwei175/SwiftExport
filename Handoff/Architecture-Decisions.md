@@ -43,6 +43,7 @@
 19. 顺序：先 `00-Foundation` 全局基础设施 → 再逐模块重构（首个：采购）。采购任务书在 Foundation 完成后再写。
 20. 过期业务文档：由文档窗口按代码实际行为重写或删除重建。
 21. 后端 skill 关系：`backend` 与旧 `aspdotnet10` 并存，维持 backend 入口现有过渡期说法（新增功能/正在治理模块用 backend；未治理旧模块只修 Bug 用 aspdotnet10、不顺手迁移；冲突时在已治理范围内以 backend 为准），不设退役时间。
+22. 权限特性统一命名为 `[HasPermission(Permissions.X)]`（`HasPermissionAttribute : AuthorizeAttribute`，权限码常量类 `Permissions` 放 Contracts），以 Guide 与 ReferenceDesign 为准；取代 #9 中 `RequirePermission`/`PermissionKeys` 的命名表述，#9 其余内容不变。
 
 ## 待办
 
@@ -52,3 +53,4 @@
 - [ ] 新 backend skill 与旧 `.codex/skills/aspdotnet10` 的关系（架构窗口决定）
 - [ ] `.agents/skills/backend` 链接需管理员 PowerShell：`New-Item -ItemType SymbolicLink -Path .agents\skills\backend -Target .codex\skills\backend`
 - [ ] 采购模块任务书（Foundation 完成后，文档窗口）
+- [ ] 按 #22 统一 Guide、ReferenceDesign、.agents/references 中的权限特性命名（文档窗口）
