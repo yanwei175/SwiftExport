@@ -14,7 +14,7 @@ description: 新增或改变SwiftExport WPF页面组成、页面命令或Grid页
 - 页面涉及 ViewModel/API/Feature Service 职责、权限、普通表单验证、导航参数、Document Tab identity 或 Dialog 返回协议时，读 `.codex/skills/wpf-dotnet10-design/page-architecture/SKILL.md`
 - 页面涉及异步加载、搜索防抖、保存/业务命令、Busy、导航/关闭、错误反馈或资源释放时，读 `.codex/skills/wpf-dotnet10-design/runtime-safety/SKILL.md`
 - 页面涉及测试证据、可访问性、本地化/文化格式、性能、日志/敏感信息、缓存或文件导入导出时，读 `.codex/skills/wpf-dotnet10-design/quality-gates/SKILL.md`
-- 页面涉及新增或复用 Contracts DTO 时，读 `.codex/skills/aspdotnet10/contracts-dto-models/SKILL.md` 及 `.codex/skills/aspdotnet10/contracts-dto-models/references/DTO复用与文件组织门禁.md`
+- 页面涉及新增或复用 Contracts DTO 时，读 `.codex/skills/backend/index/references/契约与DTO规定.md`
 - 改变模块职责、状态/数量、页面/API/DTO契约，或有相关偏差证据时读取命中地图章节；未改变的既有结论复用
 - 分层/公共依赖变化或边界不明时读工程总纲相关章节；新增或重构页面切片再按前端工作流展开设计
 - 目标 Feature 真实源码

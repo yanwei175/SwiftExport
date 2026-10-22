@@ -60,6 +60,7 @@
 4. 当前桌面前端主线是 `.NET 10 WPF + CommunityToolkit MVVM`；Web 目标使用独立的 React Web 治理入口。任务即使引用 .NET 10 客户端作参考，也按实际修改目标选择角色，不把 WPF 实现规范套到 Web。
 5. 当前 .NET 10 WPF 的 MVVM 代码必须遵循 `.codex/skills/wpf-dotnet10-design/communitytoolkit-mvvm/SKILL.md`。
 6. 业务称呼统一使用“成品需求”，不再使用“来源需求”；相关界面文案、源码注释和开发文档保持一致。
+7. 后端现有代码只说明实现事实，不作样板；后端新代码形状以 `Handoff/Claude/Backend-Architecture-Guide.md` 与 `Handoff/Claude/ReferenceDesign` 为准。未治理旧模块修 Bug 同样读 `backend` skill，只做最小修复，不顺手迁移或重构（决策 #23）。
 
 ### 中文注释铁律
 
@@ -89,7 +90,7 @@
 
 后续开发 `.codex/skills/**` 时遵守：
 
-- 后端技能组放在 `.codex/skills/aspdotnet10/**`。
+- 后端技能组放在 `.codex/skills/backend/**`（唯一后端技能来源；旧 `aspdotnet10` 已移入 `弃用资料/`，决策 #23）。
 - 前端 WPF 设计、控件、MVVM 技能组放在 `.codex/skills/wpf-dotnet10-design/**`。
 - Web 技能组的单一正文放在 `.codex/skills/react-web/**`；根目录 `.agents/skills` 仅通过目录链接提供原生发现，不维护第二份正文。Web 工作流由 Router 接线，不能只依赖尚不存在的 Web 子目录规则。
 - 新增技能应先接入对应技能组的 `index/SKILL.md`，不要把技能路由写进本文件。

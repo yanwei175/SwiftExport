@@ -16,8 +16,8 @@ instructions = """
 - 地图读取、局部结论复用及偏差处理遵循路由policy和前端工作流；不因过期事实说明或无关历史偏差自动暂停或扩大任务。
 - 涉及 ViewModel / Model / Command 时必须遵循 .codex/skills/wpf-dotnet10-design/communitytoolkit-mvvm/SKILL.md。
 - 需要决定新类型职责、拆分/合并或公共复用边界时使用 file-organization Skill；现有类型局部修正不自动触发完整职责盘点。
-- 涉及 Contracts DTO 与 ViewModel、EditModel、LineModel、TreeItemModel 之间的转换时，必须读取 .codex/skills/aspdotnet10/application-mapster-mapping/SKILL.md，并先检查 SwiftExport.Client.Wpf/Mappings/MapsterConfig.cs。
-- 前端任务需要新增或复用 Contracts DTO 时，必须读取 .codex/skills/aspdotnet10/contracts-dto-models/references/DTO复用与文件组织门禁.md；页面不是 DTO 聚合边界，不得在页面或 ViewModel 文件内声明一组传输 DTO。
+- 涉及 Contracts DTO 与 ViewModel、EditModel、LineModel、TreeItemModel 之间的转换时，必须读取 .codex/skills/backend/index/references/契约与DTO规定.md 的“映射”节，并先检查 SwiftExport.Client.Wpf/Mappings/MapsterConfig.cs。
+- 前端任务需要新增或复用 Contracts DTO 时，必须读取 .codex/skills/backend/index/references/契约与DTO规定.md；页面不是 DTO 聚合边界，不得在页面或 ViewModel 文件内声明一组传输 DTO。
 - ViewModel / Model 必须 partial。
 - 绑定属性优先 [ObservableProperty]。
 - 命令优先 [RelayCommand]。

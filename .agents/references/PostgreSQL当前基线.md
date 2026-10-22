@@ -24,13 +24,12 @@
 
 ## 按任务读取现有 Skill
 
-- SQL、专用仓储：`dapper-repository`；通用 CRUD、并发版本和映射：`infrastructure-repository-base`。
-- 连接与共享事务：`infrastructure-db-session`；服务事务边界：`application-service-context`；DI：`infrastructure-di-registration`。
-- 结构规划：`data-model-governance`；验证范围：`backend-quality-gates`。
+- 会话与事务、SQL、仓储、审计、DI 底线：[数据访问规定](../../.codex/skills/backend/index/references/数据访问规定.md)。
+- 结构变更与迁移脚本：`backend-schema-change`；结构规划：`backend-data-model`；验证范围：`backend-delivery`。
 
-以上入口均在 `.codex/skills/aspdotnet10`，由该组 `index/SKILL.md` 按任务选择；不为读取本基线展开所有 Skill。
+以上入口均在 `.codex/skills/backend`，由其 `index/SKILL.md` 按任务选择；不为读取本基线展开所有 Skill。旧 `aspdotnet10` 已退役（决策 #23）。
 
-PostgreSQL 通用技术任务同时使用已安装的 `postgres-skills` 插件；技能发现、技术适用范围、Azure/图数据库触发及工具不可用时的边界统一见 [后端技能索引](../../.codex/skills/aspdotnet10/index/SKILL.md#postgresql-插件技能)。插件补充技术依据，不替代本项目运行接线、业务规则或数据库授权。已有工作流经本基线进入时也按该索引选择，不另维护一份插件路由表。
+PostgreSQL 通用技术任务同时使用已安装的 `postgres-skills` 插件；技能发现、技术适用范围、Azure/图数据库触发及工具不可用时的边界统一见 [数据访问规定](../../.codex/skills/backend/index/references/数据访问规定.md#postgresql-插件技能)。插件补充技术依据，不替代本项目运行接线、业务规则或数据库授权。已有工作流经本基线进入时也按该规定选择，不另维护一份插件路由表。
 
 ## 工具、部署与验证
 

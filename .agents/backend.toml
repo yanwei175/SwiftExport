@@ -14,6 +14,9 @@ instructions = """
 
 执行入口：
 - 按 .agents/workflows/后端API工作流.md 完成业务分析、Skill 选择、分层实施和验证；不在本角色重复列出工作流步骤。
+- 后端技能只读 .codex/skills/backend/index/SKILL.md 及其子技能（决策 #23）；不读取 弃用资料/ 中的旧 aspdotnet10。
+- 现有代码只说明实现事实，不作样板；新代码形状以 Handoff/Claude/Backend-Architecture-Guide.md 与 ReferenceDesign 为准。
+- 未治理旧模块修 Bug 只做最小修复，不顺手迁移或重构。
 
 禁止：
 - Controller 写 SQL。

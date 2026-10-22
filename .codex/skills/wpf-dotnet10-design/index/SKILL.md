@@ -13,8 +13,8 @@ SwiftExport 当前 .NET 10 WPF 前端设计技能组入口。
 
 - MVVM、ViewModel、LineModel、命令、绑定属性：读 `../communitytoolkit-mvvm/SKILL.md`。
 - 决定新类型职责/目录、拆分合并、公共复用或专项职责审查：读 `../file-organization/SKILL.md`；现有类型内局部修正不自动触发。
-- 新增、修改或为新用例复用 Contracts 契约：读 `../../aspdotnet10/contracts-refit-dto/SKILL.md`，由该入口选择兼容性、DTO、Refit 等专项规则；仅消费既有响应不触发契约设计。
-- 新增或修改 DTO 与前端模型之间的转换、Mapster 配置、`Adapt` 映射：读 `../../aspdotnet10/application-mapster-mapping/SKILL.md`，核对现有全局及 Feature 映射配置。
+- 新增、修改或为新用例复用 Contracts 契约：读 `../../backend/index/references/契约与DTO规定.md`（netstandard2.0 约束见其链接的 Guide §16）；仅消费既有响应不触发契约设计。
+- 新增或修改 DTO 与前端模型之间的转换、Mapster 配置、`Adapt` 映射：读 `../../backend/index/references/契约与DTO规定.md` 的“映射”节，核对现有全局及 Feature 映射配置。
 - 新增或改变页面组成、DataGrid页面交互或页面命令边界：读 `../feature-page/SKILL.md`；局部VM计算不自动升级为整页设计。
 - 客户端共享 RowDragReorder、行首手柄、SortNo / LineNumber 及箱单受限分组重排：读 `../wpf-row-drag-reorder/SKILL.md`（WPF 行拖拽重排），不建设独立 Grid 模块项目。
 - Fluent 布局、4px 间距、卡片、表单、Dialog 视觉：读 `../fluent-layout/SKILL.md`。

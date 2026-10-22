@@ -21,7 +21,7 @@ description: SwiftExport .NET 10 WPF 页面架构边界技能。用于 ViewModel
 - 涉及类型、目录或文件职责时读 `../file-organization/SKILL.md`
 - `references/页面架构边界决策表.md`
 - 涉及生命周期、Busy、错误反馈或未保存关闭时读 `../runtime-safety/SKILL.md` 及 `../runtime-safety/references/运行时安全门禁.md`
-- 新增或改变 Refit 契约、DTO 或模型映射时分别读 `../../aspdotnet10/contracts-refit-api/SKILL.md`、`../../aspdotnet10/contracts-dto-models/SKILL.md`、`../../aspdotnet10/application-mapster-mapping/SKILL.md`；调用既有 API 只核实其契约及本次调用行为
+- 新增或改变 Refit 契约、DTO 或模型映射时读 `../../backend/index/references/契约与DTO规定.md`；调用既有 API 只核实其契约及本次调用行为
 - 目标 ViewModel、Feature Services、API/DI 注册、Navigation、Document Tab、Dialog/Message Service、权限和验证真实源码
 
 ## 核心门禁

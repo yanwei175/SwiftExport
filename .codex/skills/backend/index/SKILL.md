@@ -1,17 +1,17 @@
 ---
 name: backend
-description: SwiftExport 后端（目标架构）任务入口。用于按新治理规则新增或重构 WebApi/Application/Infrastructure/Contracts 代码，尤其是正在治理的模块（首个为采购）。按任务选择子技能；未治理的旧代码只做最小修改时改用 aspdotnet10。
+description: SwiftExport 后端唯一技能入口。用于所有 WebApi/Application/Infrastructure/Contracts/Core 任务：新增功能、按模块重构、未治理旧模块修 Bug、数据模型治理。按任务选择子技能与安全、契约、数据访问规定。
 ---
 
 # SwiftExport 后端任务入口（目标架构）
 
 ## 定位
 
-本组技能描述**重构后的目标架构**。现有代码中大量 Support、执行器、Pipeline、BaseService、ServiceResult 等属于过度设计，按本组规则逐模块重构替换。
+本组技能是后端**唯一**技能来源（决策 #23；旧 `aspdotnet10` 已移入 `弃用资料/`，不再读取）。现有代码中大量 Support、执行器、Pipeline、BaseService、ServiceResult 等属于过度设计，按本组规则逐模块重构替换。
 
-- 新增功能、正在治理的模块：使用本组技能。
-- 未纳入治理的旧模块只修 Bug、不重构：使用 `aspdotnet10`，不顺手迁移。
-- 两套规则冲突时，在已治理/正在治理的范围内以本组为准。
+- **现有代码不作样板**：源码只说明实现事实；新写代码的形状以 Guide 与 ReferenceDesign 为准，不照抄相邻旧代码。
+- 新增功能、正在治理的模块：按本组规则实现。
+- 未治理旧模块修 Bug：同样读本组技能，只做修复该 Bug 所需的最小改动；沿用所在文件现有结构，不顺手迁移、不引入半套新架构；本组安全与数据访问底线仍须遵守。发现需要重构时记录并另行确认。
 
 ## 技术与业务分离（硬规则）
 
@@ -53,8 +53,17 @@ description: SwiftExport 后端（目标架构）任务入口。用于按新治�
 | 按模块重构旧代码（首个：采购） | [backend-refactor](../backend-refactor/SKILL.md) |
 | 改表、加字段、加索引、DbUp 脚本 | [backend-schema-change](../backend-schema-change/SKILL.md) |
 | 构建、测试、完成判定 | [backend-delivery](../backend-delivery/SKILL.md) |
+| 数据模型治理：字段归属、快照、逻辑外键、DTO 字段来源、实体变更影响 | [backend-data-model](../backend-data-model/SKILL.md) |
 
 多项命中时同时加载。
+
+## 专项规定（按需读取）
+
+| 涉及 | 读取 |
+|---|---|
+| 认证、JWT、DevUser、授权、日志脱敏、错误响应、防重复提交 | [安全规定](references/安全规定.md) |
+| Contracts DTO 新建/复用、文件组织、Refit、枚举、错误码、映射 | [契约与DTO规定](references/契约与DTO规定.md) |
+| 会话与事务、Dapper SQL、仓储、审计打戳、标识语义、`postgres-skills` 插件 | [数据访问规定](references/数据访问规定.md) |
 
 ## 全局硬规则（摘要，详见 ReferenceDesign/README）
 

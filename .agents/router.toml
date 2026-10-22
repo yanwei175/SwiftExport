@@ -17,7 +17,7 @@ triggers = ["架构治理Agent", "Agent治理", "Agent路由", "职责冲突", "
 id = "model-governance"
 agent = "planner"
 workflow = ".agents/workflows/数据模型治理工作流.md"
-skill_group = ".codex/skills/aspdotnet10/data-model-governance/SKILL.md"
+skill_group = ".codex/skills/backend/backend-data-model/SKILL.md"
 references = [
   ".agents/references/业务架构总纲.md",
   ".agents/references/工程架构总纲.md",
@@ -101,19 +101,10 @@ references = [
 triggers = ["需求分析", "业务设计", "方案", "计划", "总纲", "流程", "状态机", "改单", "模块拆分"]
 
 [[routes]]
-id = "application-usecase-readability"
-agent = "backend"
-workflow = ".agents/workflows/应用服务用例可读性整改工作流.md"
-skill_group = ".codex/skills/aspdotnet10/application-usecase-readability/SKILL.md"
-references = [".agents/references/PostgreSQL当前基线.md"]
-# 本候选用于明确实施；解释、纯审查、方案和Skill维护仍按policy的意图判定选角色。
-triggers = ["应用服务可读性整改", "用例主线整改", "服务层可读性整改", "application-usecase-readability"]
-
-[[routes]]
 id = "backend"
 agent = "backend"
 workflow = ".agents/workflows/后端API工作流.md"
-skill_group = ".codex/skills/aspdotnet10/index/SKILL.md"
+skill_group = ".codex/skills/backend/index/SKILL.md"
 references = [".agents/references/PostgreSQL当前基线.md"]
 triggers = [
   "后端",
