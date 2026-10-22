@@ -63,6 +63,6 @@ public sealed class CommandExecutor(IUnitOfWork uow, ICommandReceiptStore store,
 - `request`：只传用户意图（单据 Id、ExpectedVersion、提交的明细），不要传整个实体，也不要包含 `CommandId` 本身。
 - 修改指纹规范化方式时提升 `FingerprintVersion`；修改结果结构时提升 `ResultVersion`。
 - **指纹兼容**（决策 #28d）：上面的 `SHA256(JsonSerializer...)` 与 `FingerprintVersion = 1` 仅为示意。落地时沿用现有实现的规范化方式、算法与版本值，并用现有实现生成的回执样本做“同输入同指纹”的金样测试。
-- **同 CommandId 并发**（决策 #28e）：服务端不加锁、不改表、不回查。后到请求撞回执唯一索引（409 `command_in_flight`）或单据 Version 冲突（409）后整体回滚；客户端用同一 CommandId 重试即得到重放。
+- **同 CommandId 并发**（决策 #28e、#31）：服务端不加锁、不改表、不回查。业务 `work` 内先校验 `ExpectedVersion` 再做状态检查，后到请求因此得到版本冲突（409）或撞回执唯一索引（409 `command_in_flight`），整体回滚，不会落到 422；客户端用原 CommandId 和原请求内容重试一次即得到重放，仍是版本冲突则停止并刷新、换新 CommandId。已提交回执的重放行为不变。
 
 使用时机：确认、取消确认、作废、关闭、过账、冲销。`ICommandExecutor` 只有这一个方法；草稿保存与主数据不经过它，直接 `uow.ExecuteAsync`（决策 #28a）。

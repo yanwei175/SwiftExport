@@ -57,6 +57,7 @@
     e. 同 CommandId 并发：服务端不做特殊处理，不加锁、不改表、不回查。后到请求因回执唯一索引冲突（映射为 409 `command_in_flight`）或单据 Version 冲突（409）失败并整体回滚；客户端收到 409 或结果未知时，用**同一 CommandId** 重试，先到者已提交则得到重放结果。
 29. 删除 advisory 锁的验收条件（修订 Foundation 第 3 节第 4 步）：删除 `PostgreSqlCommandLock`/`PostgreSqlSourceDemandLock` 前，执行窗口必须产出清单并经用户确认：每个加锁调用点 → 锁键 → 原锁保护的约束/不变量 → 替代手段（具体 `SELECT … FOR UPDATE` 的表与行、已存在的唯一约束名、或带条件的 UPDATE/INSERT SQL）→ 对应并发测试。命令锁的“同 CommandId 并发”由 #28e 替代。替代手段需要新增唯一约束或改表时按 #3 停下问用户；清单未覆盖的调用点不得删除锁。
 30. 修订 Guide 第 15 节“编译期保证”表述：`IDbSession.Transaction` 只读 + 只有 `IUnitOfWork` 提供开启/提交，使事务所有权在 API 层面唯一；但 `Connection.BeginTransaction()` 仍可被调用，因此不是编译期保证，由架构测试兜底：除 `DbSession`（`IUnitOfWork` 实现）外，全仓禁止出现 `BeginTransaction`/`Commit`/`Rollback` 调用。该架构测试列入 Foundation IUnitOfWork 步骤验收。
+31. Foundation 执行口径补充（文档窗口按 Codex 实施前审核整理，用户转交确认；细化 #28e、#30，不改其方向）：a. 已提交回执的重放行为保持不变；同 CommandId 并发允许后到请求先失败，再以原 CommandId 重试取得结果。命令内须先校验 `ExpectedVersion` 再做状态检查，使后到请求得到 409（版本冲突或 `command_in_flight`）而非 422，并有测试覆盖。b. 客户端重试停止条件：收到 409 `command_in_flight`/`concurrency_conflict`、503 `outcome_unknown` 或 500 时，用原 CommandId 和原请求内容（含原 ExpectedVersion）自动重试一次；得到重放即完成，仍为 `concurrency_conflict` 即真实版本冲突，停止重试，刷新后由用户重新确认并使用新 CommandId；禁止无限重试，禁止换 ExpectedVersion 复用原 CommandId。c. Foundation 第 3 节顺序调整为：先 IUnitOfWork（并验证事务处理）→ 再合并 CommandExecutor → 再按 #29 清单移除锁（#29 所指“第 4 步”改为第 5 步）。d. #30 架构测试范围限定为生产代码中的数据库事务 API 调用（按类型判定），排除测试夹具和同名业务方法。
 
 ## 待办
 

@@ -48,27 +48,29 @@
    - ③ 全仓不再有 `ServiceResult` 返回值时，同批删除过渡 Filter 与 `ServiceResult<T>`；架构测试断言没有 Action 返回 `ServiceResult`。
    - 新代码禁止返回 `ServiceResult`。
    - 同步删除 `CorrelationIdMiddleware` 与客户端自定义关联头（决策 #26），ProblemDetails 带 `traceId`。
-3. **CommandExecutor 合并**（决策 #28）：合并 `CommandPipeline` + `BusinessCommandExecutor`，`ICommandExecutor` 只保留 `ExecuteIdempotentAsync`；原先只为事务而经过执行器的普通写入改为直接 `IUnitOfWork.ExecuteAsync`。
+3. **IUnitOfWork**（决策 #27、#30、#31）：基于 `DbSession` 提供 `IUnitOfWork`，迁移全部 `BeginTransaction` 调用点；提交前失败与提交本身失败按 #27 区分。先验证事务提交、回滚、嵌套和提交结果未知的处理，再进入第 4 步。
+4. **CommandExecutor 合并**（决策 #28、#31）：合并 `CommandPipeline` + `BusinessCommandExecutor`，`ICommandExecutor` 只保留 `ExecuteIdempotentAsync`，内部使用第 3 步的 `IUnitOfWork`；原先只为事务而经过执行器的普通写入改为直接 `IUnitOfWork.ExecuteAsync`。
    - 顺序：开事务 → 在事务内查 `command_receipt` → 校验回执 → 执行 → 写回执 → 提交。
    - 回执校验依次比对 `FingerprintVersion`、`CommandType`、`ActorUid`、`RequestTargetUid`、`RequestFingerprint`：`FingerprintVersion` 或 `ResultVersion` 与当前不同 → 409 回执不可读，不重新执行；其余不同 → 422 `command_id_reused`。
    - 指纹沿用现有实现的规范化方式、算法与 `FingerprintVersion` 当前值；ReferenceDesign 中的 `SHA256(JSON)` 与 `=1` 仅为示意。
-   - 同 CommandId 并发：服务端不加锁、不改表、不回查；后到请求因回执唯一索引冲突（409 `command_in_flight`）或单据 Version 冲突（409）失败并整体回滚，客户端用同一 CommandId 重试。
-   - `command_receipt` 字段与重放行为不变；调用点机械替换。
-4. **IUnitOfWork**（决策 #27、#29、#30）：基于 `DbSession` 提供，迁移全部 `BeginTransaction` 调用点；提交前失败与提交本身失败按 #27 区分。
-   - 删除命令锁类前，先产出锁替代清单并经用户确认：每个加锁调用点 → 锁键 → 原锁保护的约束/不变量 → 替代手段（具体 `SELECT … FOR UPDATE` 的表与行、已存在的唯一约束名，或带条件的 UPDATE/INSERT SQL）→ 对应并发测试。命令锁的“同 CommandId 并发”由第 3 步规则替代。替代手段需要新增唯一约束或改表时停下问用户；清单未覆盖的调用点不得删除锁。
-5. **删除 `ServiceBaseContext`**：机械替换构造参数。
-6. **防重复特性评估**：列出使用点与 CommandId 覆盖情况，交用户确认后删除。
-7. **残留检查与文档**：更新 `.agents/references` 中过期的工程/架构文档（重写或删除），与本文一致。
+   - 同 CommandId 并发：服务端不加锁、不改表、不回查。后到请求允许先失败并整体回滚，再由客户端以原 CommandId 重试取得已提交结果。为使后到请求稳定得到 409，命令内**先校验 `ExpectedVersion`，再做“已确认”等状态检查**；后到请求因此得到版本冲突（409）或回执唯一索引冲突（409 `command_in_flight`），不会落到 422 状态错误。
+   - 已提交回执的重放行为保持不变；`command_receipt` 字段不变；调用点机械替换。
+   - 客户端重试规则（统一错误解析中实现，不新增执行框架）：收到 409 `command_in_flight`/`concurrency_conflict`、503 `outcome_unknown` 或 500 时，用**原 CommandId 和原请求内容（含原 ExpectedVersion）**自动重试一次。得到重放结果即完成；仍为 `concurrency_conflict` 说明是真实版本冲突，停止重试，刷新单据并让用户重新确认，新操作使用新 CommandId。禁止无限自动重试，也禁止换掉 ExpectedVersion 后复用原 CommandId。
+5. **移除命令锁**（决策 #29）：删除 `PostgreSqlCommandLock`/`PostgreSqlSourceDemandLock` 前，先产出锁替代清单并经用户确认：每个加锁调用点 → 锁键 → 原锁保护的约束/不变量 → 替代手段（具体 `SELECT … FOR UPDATE` 的表与行、已存在的唯一约束名，或带条件的 UPDATE/INSERT SQL）→ 对应并发测试。命令锁的“同 CommandId 并发”由第 4 步规则替代。替代手段需要新增唯一约束或改表时停下问用户；清单未覆盖的调用点不得删除锁。
+6. **删除 `ServiceBaseContext`**：机械替换构造参数。
+7. **防重复特性评估**：列出使用点与 CommandId 覆盖情况，交用户确认后删除。
+8. **残留检查与文档**：更新 `.agents/references` 中过期的工程/架构文档（重写或删除），与本文一致。
 
 每步验收：解决方案构建通过；现有测试通过；另有各步专项验收：
 - 权限：测试断言“每个端点都有权限声明”。
 - 错误：响应 JSON 快照测试；返回 `ServiceResult` 的端点失败均非 2xx。
-- CommandExecutor：用现有实现生成的回执样本做“同输入同指纹”的金样测试；回执各字段不匹配时分别得到 409/422。
-- IUnitOfWork：架构测试断言除 `DbSession`（`IUnitOfWork` 实现）外，全仓不出现 `BeginTransaction`/`Commit`/`Rollback` 调用；被删除的每个锁都有清单中对应的并发测试。
+- IUnitOfWork：事务提交、回滚、嵌套、提交结果未知的测试；架构测试断言除 `DbSession`（`IUnitOfWork` 实现）外，**生产代码**中不出现数据库事务 API（`DbConnection.BeginTransaction[Async]`、`DbTransaction.Commit[Async]`/`Rollback[Async]`）的调用。按类型/语义判定，不做纯文本扫描；测试夹具和同名业务方法不计入。
+- CommandExecutor：用现有实现生成的回执样本做“同输入同指纹”的金样测试；回执各字段不匹配时分别得到 409/422；同 CommandId 并发时后到请求得到 409（版本冲突或 `command_in_flight`）而非 422，且以原 CommandId 重试得到重放结果。
+- 移除命令锁：被删除的每个锁都有清单中对应的并发测试。
 
 ## 4. 已决定事项
 
-- 已决定：ProblemDetails、淘汰 `ServiceResult<T>`（三批，#25）、删除自写关联 ID 中间件（#26）、错误“是否生效”口径（#27）、CommandExecutor 规则（#28）、删除命令锁类（以 #29 清单为前提）、事务全部迁移并以架构测试兜底（#30）。
+- 已决定：ProblemDetails、淘汰 `ServiceResult<T>`（三批，#25）、删除自写关联 ID 中间件（#26）、错误“是否生效”口径（#27）、CommandExecutor 规则（#28，并发与客户端重试口径见 #31）、删除命令锁类（以 #29 清单为前提）、事务全部迁移并以架构测试兜底（#30，范围见 #31）。
 - 执行中如发现某个锁对应真实并发场景无法用行锁/唯一约束覆盖，停下报告用户。
 
 ## 5. 禁止

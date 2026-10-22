@@ -232,7 +232,8 @@ public interface ICommandExecutor
 异常 → 回滚 → 原样抛出（不转换、不记日志）
 ```
 - **指纹兼容**：沿用现有实现的规范化方式、算法与 `FingerprintVersion` 当前值；ReferenceDesign 中的 `SHA256(JSON)` 与 `=1` 仅为示意。验收须有用现有实现生成的回执样本做“同输入同指纹”的金样测试。
-- **同 CommandId 并发**：服务端不做特殊处理，不加锁、不改表、不回查。后到请求因回执唯一索引冲突（409 `command_in_flight`）或单据 Version 冲突（409）失败并整体回滚；客户端收到 409 或结果未知时，用**同一 CommandId** 重试，先到者已提交则得到重放结果。
+- **同 CommandId 并发**（决策 #28e、#31）：服务端不做特殊处理，不加锁、不改表、不回查。后到请求允许先失败并整体回滚：命令内先校验 `ExpectedVersion` 再做状态检查，因此后到者得到版本冲突（409）或回执唯一索引冲突（409 `command_in_flight`），而不是 422。已提交回执的重放行为不变。
+- **客户端重试与停止条件**：收到 409 `command_in_flight`/`concurrency_conflict`、503 `outcome_unknown` 或 500 时，用**原 CommandId 和原请求内容（含原 ExpectedVersion）**自动重试一次；得到重放即完成。仍为 `concurrency_conflict` 则是真实版本冲突：停止重试，刷新并让用户重新确认，新操作使用新 CommandId。禁止无限重试，禁止换掉 ExpectedVersion 后复用原 CommandId。
 
 它**不做**：授权、输入校验、异常转 HTTP、写请求日志、普通写入的事务。
 
@@ -434,7 +435,8 @@ tests/
 | 正常过账 | 200；库存余额、流水、单据状态、审计、幂等记录同时存在 |
 | 同 CommandId 重发 | 200，返回相同结果，流水不增加 |
 | 同 CommandId 不同内容 | 422 |
-| 同 CommandId 并发 | 一个 200；另一个 409（`command_in_flight` 或版本冲突）且无写入，用同 CommandId 重试得到重放 |
+| 同 CommandId 并发 | 一个 200；另一个 409（`command_in_flight` 或版本冲突，不是 422）且无写入，用原 CommandId 重试得到重放 |
+| 版本真实过期后用原 CommandId 重试 | 仍 409 `concurrency_conflict`；客户端停止重试，刷新后用新 CommandId |
 | 回执 FingerprintVersion/ResultVersion 不同 | 409，不重新执行 |
 | 两个不同 CommandId 同时过账同一张单 | 一个 200，另一个 409 或 422（已过账） |
 | Version 过期 | 409 |
@@ -503,7 +505,7 @@ ExecuteAsync:
 - 第 6.3 节的 `ICommandExecutor.ExecuteIdempotentAsync` 内部调用 `IUnitOfWork`，只多做幂等记录的读写。
 - 删除 `DbSession` 上的租约、Epoch 等字段（配合第 6 节删除 advisory 锁）。
 
-这比“不建 UnitOfWork”只多一个接口、一个方法，使事务所有权在 API 层面唯一。但它**不是编译期保证**：`Connection.BeginTransaction()` 仍可被调用。因此由架构测试兜底（决策 #30）：除 `DbSession`（`IUnitOfWork` 实现）外，全仓禁止出现 `BeginTransaction`/`Commit`/`Rollback` 调用。
+这比“不建 UnitOfWork”只多一个接口、一个方法，使事务所有权在 API 层面唯一。但它**不是编译期保证**：`Connection.BeginTransaction()` 仍可被调用。因此由架构测试兜底（决策 #30、#31）：除 `DbSession`（`IUnitOfWork` 实现）外，生产代码中禁止调用数据库事务 API（`DbConnection.BeginTransaction[Async]`、`DbTransaction.Commit[Async]`/`Rollback[Async]`）；按类型判定而非文本扫描，测试夹具和同名业务方法不计入。
 
 > 参考：Martin Fowler《Unit of Work》 https://martinfowler.com/eaaCatalog/unitOfWork.html
 > Microsoft《Implement the infrastructure persistence layer with Entity Framework Core》（说明 DbContext 即 UoW）

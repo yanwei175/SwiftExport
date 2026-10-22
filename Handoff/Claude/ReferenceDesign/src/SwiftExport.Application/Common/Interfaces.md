@@ -5,7 +5,7 @@ namespace SwiftExport.Application.Common;
 
 // 事务边界。业务代码开启/提交事务的唯一入口。实现：Infrastructure/Persistence/DbSession
 // 普通写入直接调用；正式命令经 ICommandExecutor（其内部调用本接口）。
-// 不是编译期保证：Connection.BeginTransaction() 仍可调用，由架构测试禁止 DbSession 以外出现 BeginTransaction/Commit/Rollback（决策 #30）。
+// 不是编译期保证：Connection.BeginTransaction() 仍可调用，由架构测试禁止 DbSession 以外的生产代码调用数据库事务 API（决策 #30、#31）。
 public interface IUnitOfWork
 {
 	Task<T> ExecuteAsync<T>(Func<CancellationToken, Task<T>> work, CancellationToken ct);
